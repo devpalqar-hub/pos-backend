@@ -32,7 +32,7 @@ import { User, UserRole } from '../../generated/prisma';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/categories')
 export class CategoriesController {
-  constructor(private readonly categoriesService: CategoriesService) {}
+  constructor(private readonly categoriesService: CategoriesService) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
 

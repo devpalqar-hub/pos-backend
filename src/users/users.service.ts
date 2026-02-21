@@ -67,7 +67,7 @@ export class UsersService {
         }
 
         // Staff roles must have a restaurantId
-        if ([...STAFF_ROLES, UserRole.RESTAURANT_ADMIN].includes(dto.role) && !dto.restaurantId) {
+        if (([...STAFF_ROLES, UserRole.RESTAURANT_ADMIN] as UserRole[]).includes(dto.role) && !dto.restaurantId) {
             throw new BadRequestException(
                 `restaurantId is required for role ${dto.role}`,
             );

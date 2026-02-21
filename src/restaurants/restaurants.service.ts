@@ -402,7 +402,7 @@ export class RestaurantsService {
         if (actor.role === UserRole.SUPER_ADMIN) return;
         if (actor.role === UserRole.OWNER && restaurant.ownerId === actor.id) return;
         if (
-            [UserRole.RESTAURANT_ADMIN, UserRole.WAITER, UserRole.CHEF].includes(actor.role) &&
+            ([UserRole.RESTAURANT_ADMIN, UserRole.WAITER, UserRole.CHEF] as UserRole[]).includes(actor.role) &&
             actor.restaurantId === restaurant.id
         ) return;
         throw new ForbiddenException('You do not have access to this restaurant');

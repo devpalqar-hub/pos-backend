@@ -35,7 +35,7 @@ import { User, UserRole } from '../../generated/prisma';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/menu')
 export class MenuController {
-  constructor(private readonly menuService: MenuService) {}
+  constructor(private readonly menuService: MenuService) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
 

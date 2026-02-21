@@ -34,7 +34,7 @@ import { User, UserRole } from '../../generated/prisma';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/menu/:menuItemId/price-rules')
 export class PriceRulesController {
-  constructor(private readonly priceRulesService: PriceRulesService) {}
+  constructor(private readonly priceRulesService: PriceRulesService) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
 

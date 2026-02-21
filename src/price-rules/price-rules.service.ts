@@ -14,7 +14,7 @@ import { User, UserRole } from '../../generated/prisma';
 
 const RULE_INCLUDE = {
   days: { select: { id: true, day: true } },
-  menuItem: { select: { id: true, name: true, basePrice: true } },
+  menuItem: { select: { id: true, name: true, price: true } },
   restaurant: { select: { id: true, name: true } },
 } as const;
 
@@ -22,7 +22,7 @@ const RULE_INCLUDE = {
 export class PriceRulesService {
   private readonly logger = new Logger(PriceRulesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // ─── Access helpers ───────────────────────────────────────────────────────
 
@@ -39,11 +39,8 @@ export class PriceRulesService {
     }
 
     if (actor.role === UserRole.RESTAURANT_ADMIN) {
-      const staffEntries = await this.prisma.restaurantStaff.findMany({
-        where: { userId: actor.id },
-        select: { restaurantId: true },
-      });
-      return staffEntries.map((s) => s.restaurantId);
+      if (actor.restaurantId) return [actor.restaurantId];
+      return [];
     }
 
     return null as any; // WAITER / CHEF have no access — throw at call site
@@ -151,8 +148,8 @@ export class PriceRulesService {
         days:
           dto.ruleType === PriceRuleType.RECURRING_WEEKLY && dto.days?.length
             ? {
-                create: dto.days.map((day) => ({ day: day as any })),
-              }
+              create: dto.days.map((day) => ({ day: day as any })),
+            }
             : undefined,
       },
       include: RULE_INCLUDE,
@@ -252,14 +249,14 @@ export class PriceRulesService {
     const daysUpdate =
       dto.days !== undefined
         ? {
-            days: {
-              deleteMany: {},
-              create:
-                (dto.ruleType ?? existing.ruleType) === PriceRuleType.RECURRING_WEEKLY
-                  ? dto.days!.map((day) => ({ day: day as any }))
-                  : [],
-            },
-          }
+          days: {
+            deleteMany: {},
+            create:
+              (dto.ruleType ?? existing.ruleType) === PriceRuleType.RECURRING_WEEKLY
+                ? dto.days!.map((day) => ({ day: day as any }))
+                : [],
+          },
+        }
         : {};
 
     const updated = await this.prisma.priceRule.update({
@@ -328,7 +325,7 @@ export class PriceRulesService {
 
     const item = await this.prisma.menuItem.findUnique({
       where: { id: menuItemId },
-      select: { basePrice: true },
+      select: { price: true },
     });
     if (!item) throw new NotFoundException(`Menu item ${menuItemId} not found`);
 
@@ -378,8 +375,8 @@ export class PriceRulesService {
     if (matchingRules.length === 0) {
       return {
         menuItemId,
-        basePrice: item.basePrice,
-        effectivePrice: item.basePrice,
+        basePrice: item.price,
+        effectivePrice: item.price,
         appliedRule: null,
       };
     }
@@ -396,7 +393,7 @@ export class PriceRulesService {
 
     return {
       menuItemId,
-      basePrice: item.basePrice,
+      basePrice: item.price,
       effectivePrice: winningRule.specialPrice,
       appliedRule: {
         id: winningRule.id,

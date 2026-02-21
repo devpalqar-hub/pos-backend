@@ -25,7 +25,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('upload')
 export class UploadController {
-  constructor(private readonly s3: S3Service) {}
+  constructor(private readonly s3: S3Service) { }
 
   @Post('image')
   @UseInterceptors(

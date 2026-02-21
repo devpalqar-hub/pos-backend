@@ -1,0 +1,188 @@
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePriceRuleDto } from './dto/create-price-rule.dto';
+import { UpdatePriceRuleDto } from './dto/update-price-rule.dto';
+import { User } from '../../generated/prisma';
+export declare class PriceRulesService {
+    private readonly prisma;
+    private readonly logger;
+    constructor(prisma: PrismaService);
+    private getManageableRestaurantIds;
+    private assertAccess;
+    private assertRestaurantExists;
+    private assertMenuItemExists;
+    private validateDto;
+    create(actor: User, restaurantId: string, menuItemId: string, dto: CreatePriceRuleDto): Promise<{
+        restaurant: {
+            id: string;
+            name: string;
+        };
+        menuItem: {
+            id: string;
+            name: string;
+            price: import("generated/prisma/runtime/library").Decimal;
+        };
+        days: {
+            id: string;
+            day: import("../../generated/prisma").$Enums.DayOfWeek;
+        }[];
+    } & {
+        id: string;
+        name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
+        ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
+        specialPrice: import("generated/prisma/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        menuItemId: string;
+    }>;
+    findAllByMenuItem(actor: User, restaurantId: string, menuItemId: string): Promise<({
+        restaurant: {
+            id: string;
+            name: string;
+        };
+        menuItem: {
+            id: string;
+            name: string;
+            price: import("generated/prisma/runtime/library").Decimal;
+        };
+        days: {
+            id: string;
+            day: import("../../generated/prisma").$Enums.DayOfWeek;
+        }[];
+    } & {
+        id: string;
+        name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
+        ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
+        specialPrice: import("generated/prisma/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        menuItemId: string;
+    })[]>;
+    findAllByRestaurant(actor: User, restaurantId: string): Promise<({
+        restaurant: {
+            id: string;
+            name: string;
+        };
+        menuItem: {
+            id: string;
+            name: string;
+            price: import("generated/prisma/runtime/library").Decimal;
+        };
+        days: {
+            id: string;
+            day: import("../../generated/prisma").$Enums.DayOfWeek;
+        }[];
+    } & {
+        id: string;
+        name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
+        ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
+        specialPrice: import("generated/prisma/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        menuItemId: string;
+    })[]>;
+    findOne(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
+        restaurant: {
+            id: string;
+            name: string;
+        };
+        menuItem: {
+            id: string;
+            name: string;
+            price: import("generated/prisma/runtime/library").Decimal;
+        };
+        days: {
+            id: string;
+            day: import("../../generated/prisma").$Enums.DayOfWeek;
+        }[];
+    } & {
+        id: string;
+        name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
+        ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
+        specialPrice: import("generated/prisma/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        menuItemId: string;
+    }>;
+    update(actor: User, restaurantId: string, menuItemId: string, id: string, dto: UpdatePriceRuleDto): Promise<{
+        restaurant: {
+            id: string;
+            name: string;
+        };
+        menuItem: {
+            id: string;
+            name: string;
+            price: import("generated/prisma/runtime/library").Decimal;
+        };
+        days: {
+            id: string;
+            day: import("../../generated/prisma").$Enums.DayOfWeek;
+        }[];
+    } & {
+        id: string;
+        name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
+        ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
+        specialPrice: import("generated/prisma/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        menuItemId: string;
+    }>;
+    remove(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
+        id: string;
+    }>;
+    getEffectivePrice(actor: User, restaurantId: string, menuItemId: string, atTime?: Date): Promise<{
+        menuItemId: string;
+        basePrice: import("generated/prisma/runtime/library").Decimal;
+        effectivePrice: import("generated/prisma/runtime/library").Decimal;
+        appliedRule: null;
+    } | {
+        menuItemId: string;
+        basePrice: import("generated/prisma/runtime/library").Decimal;
+        effectivePrice: import("generated/prisma/runtime/library").Decimal;
+        appliedRule: {
+            id: string;
+            name: string;
+            ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
+            priority: number;
+        };
+    }>;
+}

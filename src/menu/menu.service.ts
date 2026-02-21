@@ -27,7 +27,7 @@ export class MenuService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
-  ) {}
+  ) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
@@ -189,12 +189,14 @@ export class MenuService {
   ) {
     // Only RESTAURANT_ADMIN and CHEF can manage stock (plus OWNER and SUPER_ADMIN)
     if (
-      ![
-        UserRole.SUPER_ADMIN,
-        UserRole.OWNER,
-        UserRole.RESTAURANT_ADMIN,
-        UserRole.CHEF,
-      ].includes(actor.role)
+      !(
+        [
+          UserRole.SUPER_ADMIN,
+          UserRole.OWNER,
+          UserRole.RESTAURANT_ADMIN,
+          UserRole.CHEF,
+        ] as UserRole[]
+      ).includes(actor.role)
     ) {
       throw new ForbiddenException(
         'Only RESTAURANT_ADMIN and CHEF (and above) can manage stock',
@@ -274,7 +276,7 @@ export class MenuService {
 
     this.logger.log(
       `[Stock] ${actor.email} → ${dto.action} on "${item.name}" (${item.itemType}) ` +
-        `in restaurant ${restaurantId}`,
+      `in restaurant ${restaurantId}`,
     );
 
     return updated;
@@ -359,7 +361,7 @@ export class MenuService {
     if (item.itemType !== ItemType.STOCKABLE) {
       throw new BadRequestException(
         `Action "${action}" is only valid for STOCKABLE items. ` +
-          `Item "${item.name}" is NON_STOCKABLE.`,
+        `Item "${item.name}" is NON_STOCKABLE.`,
       );
     }
   }
