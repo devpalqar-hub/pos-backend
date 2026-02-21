@@ -17,7 +17,6 @@ const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const restaurants_module_1 = require("./restaurants/restaurants.module");
 const common_module_1 = require("./common/common.module");
-const upload_module_1 = require("./upload/upload.module");
 const categories_module_1 = require("./categories/categories.module");
 const menu_module_1 = require("./menu/menu.module");
 const price_rules_module_1 = require("./price-rules/price-rules.module");
@@ -25,6 +24,7 @@ const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 const transform_interceptor_1 = require("./common/interceptors/transform.interceptor");
+const s3_module_1 = require("./s3/s3.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -37,7 +37,7 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             restaurants_module_1.RestaurantsModule,
-            upload_module_1.UploadModule,
+            s3_module_1.S3Module,
             categories_module_1.CategoriesModule,
             menu_module_1.MenuModule,
             price_rules_module_1.PriceRulesModule,

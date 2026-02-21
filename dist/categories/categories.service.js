@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoriesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const s3_service_1 = require("../common/services/s3.service");
+const s3_service_1 = require("../s3/s3.service");
 const prisma_1 = require("../../generated/prisma");
 let CategoriesService = class CategoriesService {
     constructor(prisma, s3) {
@@ -92,7 +92,7 @@ let CategoriesService = class CategoriesService {
             }
         }
         if (dto.imageUrl && category.imageUrl && dto.imageUrl !== category.imageUrl) {
-            await this.s3.deleteByUrl(category.imageUrl);
+            await this.s3.deleteFile(category.imageUrl);
         }
         return this.prisma.menuCategory.update({
             where: { id },
@@ -121,7 +121,7 @@ let CategoriesService = class CategoriesService {
                 `Move or delete the items first.`);
         }
         if (category.imageUrl)
-            await this.s3.deleteByUrl(category.imageUrl);
+            await this.s3.deleteFile(category.imageUrl);
         await this.prisma.menuCategory.delete({ where: { id } });
         return { message: `Category "${category.name}" deleted successfully` };
     }

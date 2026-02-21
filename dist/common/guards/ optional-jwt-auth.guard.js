@@ -6,15 +6,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UploadModule = void 0;
+exports.OptionalJwtAuthGuard = void 0;
 const common_1 = require("@nestjs/common");
-const upload_controller_1 = require("./upload.controller");
-let UploadModule = class UploadModule {
+const passport_1 = require("@nestjs/passport");
+let OptionalJwtAuthGuard = class OptionalJwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
+    handleRequest(err, user, info, context) {
+        if (err || info || !user) {
+            return undefined;
+        }
+        return user;
+    }
 };
-exports.UploadModule = UploadModule;
-exports.UploadModule = UploadModule = __decorate([
-    (0, common_1.Module)({
-        controllers: [upload_controller_1.UploadController],
-    })
-], UploadModule);
-//# sourceMappingURL=upload.module.js.map
+exports.OptionalJwtAuthGuard = OptionalJwtAuthGuard;
+exports.OptionalJwtAuthGuard = OptionalJwtAuthGuard = __decorate([
+    (0, common_1.Injectable)()
+], OptionalJwtAuthGuard);
+//# sourceMappingURL=%20optional-jwt-auth.guard.js.map

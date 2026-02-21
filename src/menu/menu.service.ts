@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Service } from '../common/services/s3.service';
+import { S3Service } from 'src/s3/s3.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { StockActionDto, StockAction } from './dto/stock-action.dto';
@@ -158,7 +158,7 @@ export class MenuService {
 
     // Delete old S3 image if a new one is supplied
     if (dto.imageUrl && item.imageUrl && dto.imageUrl !== item.imageUrl) {
-      await this.s3.deleteByUrl(item.imageUrl);
+      await this.s3.deleteFile(item.imageUrl);
     }
 
     return this.prisma.menuItem.update({
@@ -296,7 +296,7 @@ export class MenuService {
       );
     }
 
-    if (item.imageUrl) await this.s3.deleteByUrl(item.imageUrl);
+    if (item.imageUrl) await this.s3.deleteFile(item.imageUrl);
 
     await this.prisma.menuItem.delete({ where: { id } });
     return { message: `Menu item "${item.name}" deleted successfully` };

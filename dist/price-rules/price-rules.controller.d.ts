@@ -7,12 +7,12 @@ export declare class PriceRulesController {
     constructor(priceRulesService: PriceRulesService);
     create(actor: User, restaurantId: string, menuItemId: string, dto: CreatePriceRuleDto): Promise<{
         restaurant: {
-            id: string;
             name: string;
+            id: string;
         };
         menuItem: {
-            id: string;
             name: string;
+            id: string;
             price: import("generated/prisma/runtime/library").Decimal;
         };
         days: {
@@ -20,30 +20,30 @@ export declare class PriceRulesController {
             day: import("../../generated/prisma").$Enums.DayOfWeek;
         }[];
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        priority: number;
         ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
         specialPrice: import("generated/prisma/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        priority: number;
         menuItemId: string;
     }>;
     findAll(actor: User, restaurantId: string, menuItemId: string): Promise<({
         restaurant: {
-            id: string;
             name: string;
+            id: string;
         };
         menuItem: {
-            id: string;
             name: string;
+            id: string;
             price: import("generated/prisma/runtime/library").Decimal;
         };
         days: {
@@ -51,20 +51,20 @@ export declare class PriceRulesController {
             day: import("../../generated/prisma").$Enums.DayOfWeek;
         }[];
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        priority: number;
         ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
         specialPrice: import("generated/prisma/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        priority: number;
         menuItemId: string;
     })[]>;
     getEffectivePrice(actor: User, restaurantId: string, menuItemId: string, atTime?: string): Promise<{
@@ -85,12 +85,12 @@ export declare class PriceRulesController {
     }>;
     findOne(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
         restaurant: {
-            id: string;
             name: string;
+            id: string;
         };
         menuItem: {
-            id: string;
             name: string;
+            id: string;
             price: import("generated/prisma/runtime/library").Decimal;
         };
         days: {
@@ -98,30 +98,30 @@ export declare class PriceRulesController {
             day: import("../../generated/prisma").$Enums.DayOfWeek;
         }[];
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        priority: number;
         ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
         specialPrice: import("generated/prisma/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        priority: number;
         menuItemId: string;
     }>;
     update(actor: User, restaurantId: string, menuItemId: string, id: string, dto: UpdatePriceRuleDto): Promise<{
         restaurant: {
-            id: string;
             name: string;
+            id: string;
         };
         menuItem: {
-            id: string;
             name: string;
+            id: string;
             price: import("generated/prisma/runtime/library").Decimal;
         };
         days: {
@@ -129,20 +129,20 @@ export declare class PriceRulesController {
             day: import("../../generated/prisma").$Enums.DayOfWeek;
         }[];
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        priority: number;
         ruleType: import("../../generated/prisma").$Enums.PriceRuleType;
         specialPrice: import("generated/prisma/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
+        priority: number;
         menuItemId: string;
     }>;
     remove(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
