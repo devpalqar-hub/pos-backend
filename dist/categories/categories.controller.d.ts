@@ -13,8 +13,8 @@ export declare class CategoriesController {
             };
         } & {
             description: string | null;
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -32,8 +32,8 @@ export declare class CategoriesController {
             };
         } & {
             description: string | null;
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -46,24 +46,24 @@ export declare class CategoriesController {
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
         data: {
-            _count: {
-                items: number;
-            };
             items: {
-                name: string;
                 id: string;
+                name: string;
+                imageUrl: string | null;
                 price: import("generated/prisma/runtime/library").Decimal;
                 discountedPrice: import("generated/prisma/runtime/library").Decimal | null;
-                imageUrl: string | null;
                 itemType: import("../../generated/prisma").$Enums.ItemType;
                 stockCount: number | null;
                 isAvailable: boolean;
                 isOutOfStock: boolean;
             }[];
+            _count: {
+                items: number;
+            };
         } & {
             description: string | null;
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -81,8 +81,8 @@ export declare class CategoriesController {
             };
         } & {
             description: string | null;
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
