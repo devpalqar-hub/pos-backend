@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto, UpdateProfileDto } from './dto/update-user.dto';
-import { User, UserRole } from '../../generated/prisma';
+import { User, UserRole } from '@prisma/client';
 
 // ─── Role hierarchy helpers ────────────────────────────────────────────────
 

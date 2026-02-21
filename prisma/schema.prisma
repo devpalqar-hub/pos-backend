@@ -1,9 +1,8 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// learn more about it in the dnpmnpocs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -32,13 +31,13 @@ enum DayOfWeek {
 }
 
 enum ItemType {
-  STOCKABLE      // Stock-tracked — goes OOS when count hits 0
-  NON_STOCKABLE  // No count — manually marked OOS per day, auto-resets next day
+  STOCKABLE // Stock-tracked — goes OOS when count hits 0
+  NON_STOCKABLE // No count — manually marked OOS per day, auto-resets next day
 }
 
 enum PriceRuleType {
   RECURRING_WEEKLY // Repeats every week on the specified day(s) + time window
-  LIMITED_TIME     // Active only within a specific calendar date range
+  LIMITED_TIME // Active only within a specific calendar date range
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -55,8 +54,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // Self-referential: who created this user
-  createdBy    User?   @relation("CreatedByUser", fields: [createdById], references: [id])
-  createdUsers User[]  @relation("CreatedByUser")
+  createdBy    User?  @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdUsers User[] @relation("CreatedByUser")
 
   // Restaurant this user is ASSIGNED to (staff members)
   restaurant Restaurant? @relation("RestaurantStaff", fields: [restaurantId], references: [id])
@@ -86,23 +85,23 @@ model Restaurant {
   website String? @db.VarChar(500)
 
   // Location
-  address    String? @db.VarChar(500)
-  city       String? @db.VarChar(100)
-  state      String? @db.VarChar(100)
-  country    String? @db.VarChar(100)
-  postalCode String? @db.VarChar(20)
+  address    String?  @db.VarChar(500)
+  city       String?  @db.VarChar(100)
+  state      String?  @db.VarChar(100)
+  country    String?  @db.VarChar(100)
+  postalCode String?  @db.VarChar(20)
   latitude   Decimal? @db.Decimal(10, 8)
   longitude  Decimal? @db.Decimal(11, 8)
 
   // Branding
-  logoUrl    String? @db.VarChar(1000)
-  coverUrl   String? @db.VarChar(1000)
+  logoUrl  String? @db.VarChar(1000)
+  coverUrl String? @db.VarChar(1000)
 
   // Business details
-  cuisineType  String? @db.VarChar(255)
-  maxCapacity  Int?
-  taxRate      Decimal? @db.Decimal(5, 2)
-  currency     String   @default("USD") @db.VarChar(10)
+  cuisineType String?  @db.VarChar(255)
+  maxCapacity Int?
+  taxRate     Decimal? @db.Decimal(5, 2)
+  currency    String   @default("USD") @db.VarChar(10)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -174,18 +173,18 @@ model MenuItem {
   itemType        ItemType @default(NON_STOCKABLE)
 
   // STOCKABLE only — tracks remaining stock units
-  stockCount      Int?     @default(0)
+  stockCount Int? @default(0)
 
   // Availability flags
-  isAvailable     Boolean  @default(true)  // master toggle (soft-delete)
-  isOutOfStock    Boolean  @default(false) // transient — flipped by stock actions
-  outOfStockAt    DateTime? // timestamp when last marked OOS
+  isAvailable  Boolean   @default(true) // master toggle (soft-delete)
+  isOutOfStock Boolean   @default(false) // transient — flipped by stock actions
+  outOfStockAt DateTime? // timestamp when last marked OOS
 
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default(0)
-  createdById     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category   MenuCategory @relation(fields: [categoryId], references: [id])
@@ -203,7 +202,7 @@ model MenuItem {
 //   LIMITED_TIME     — activates only between startDate and endDate, optionally within startTime–endTime
 
 model PriceRule {
-  id           String        @id @default(uuid())
+  id           String @id @default(uuid())
   restaurantId String
   menuItemId   String
 
@@ -213,25 +212,25 @@ model PriceRule {
 
   // ── Time window (24-hr HH:MM) ─────────────────────────────────────────────
   // null startTime / endTime  = applies all day.
-  startTime    String?       @db.VarChar(10) // e.g. "09:00"
-  endTime      String?       @db.VarChar(10) // e.g. "11:00"
+  startTime String? @db.VarChar(10) // e.g. "09:00"
+  endTime   String? @db.VarChar(10) // e.g. "11:00"
 
   // ── LIMITED_TIME only ─────────────────────────────────────────────────────
-  startDate    DateTime?     // Rule becomes active on/after this date
-  endDate      DateTime?     // Rule expires after this date
+  startDate DateTime? // Rule becomes active on/after this date
+  endDate   DateTime? // Rule expires after this date
 
   // ── RECURRING_WEEKLY only ─────────────────────────────────────────────────
   // Days are stored in PriceRuleDay (one row per day)
 
-  priority     Int           @default(0)  // Higher number wins when rules overlap
-  isActive     Boolean       @default(true)
-  createdById  String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  priority    Int      @default(0) // Higher number wins when rules overlap
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  menuItem     MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  days         PriceRuleDay[]
+  restaurant Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  days       PriceRuleDay[]
 
   @@index([restaurantId])
   @@index([menuItemId])

@@ -11,7 +11,7 @@ import { S3Service } from 'src/s3/s3.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { StockActionDto, StockAction } from './dto/stock-action.dto';
-import { User, UserRole, ItemType } from '../../generated/prisma';
+import { User, UserRole, ItemType } from '@prisma/client'
 
 // ─── Full include clause ──────────────────────────────────────────────────────
 

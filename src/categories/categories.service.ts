@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from 'src/s3/s3.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { User, UserRole } from '../../generated/prisma';
+import { User, UserRole } from '@prisma/client';
 
 @Injectable()
 export class CategoriesService {

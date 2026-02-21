@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePriceRuleDto, PriceRuleType } from './dto/create-price-rule.dto';
 import { UpdatePriceRuleDto } from './dto/update-price-rule.dto';
-import { User, UserRole } from '../../generated/prisma';
+import { User, UserRole } from '@prisma/client'
 
 // ─── Full include clause ──────────────────────────────────────────────────────
 

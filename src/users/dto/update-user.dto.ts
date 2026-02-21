@@ -8,7 +8,7 @@ import {
     IsUUID,
     MaxLength,
 } from 'class-validator';
-import { UserRole } from '../../../generated/prisma';
+import { UserRole } from '@prisma/client'
 
 export class UpdateUserDto {
     @ApiPropertyOptional({
