@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -11,4 +8,255 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  RESTAURANT_ADMIN
+  WAITER
+  CHEF
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ItemType {
+  STOCKABLE      // Stock-tracked — goes OOS when count hits 0
+  NON_STOCKABLE  // No count — manually marked OOS per day, auto-resets next day
+}
+
+enum PriceRuleType {
+  RECURRING_WEEKLY // Repeats every week on the specified day(s) + time window
+  LIMITED_TIME     // Active only within a specific calendar date range
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(255)
+  email        String   @unique @db.VarChar(255)
+  role         UserRole @default(WAITER)
+  isActive     Boolean  @default(true)
+  createdById  String?
+  restaurantId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Self-referential: who created this user
+  createdBy    User?   @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdUsers User[]  @relation("CreatedByUser")
+
+  // Restaurant this user is ASSIGNED to (staff members)
+  restaurant Restaurant? @relation("RestaurantStaff", fields: [restaurantId], references: [id])
+
+  // Restaurants this user OWNS (only for OWNER role)
+  ownedRestaurants Restaurant[] @relation("RestaurantOwner")
+
+  // Restaurants this user CREATED (only SUPER_ADMIN)
+  createdRestaurants Restaurant[] @relation("RestaurantCreatedBy")
+
+  @@map("users")
+}
+
+model Restaurant {
+  id          String  @id @default(uuid())
+  name        String  @db.VarChar(255)
+  slug        String  @unique @db.VarChar(255)
+  description String? @db.Text
+
+  // Ownership & creation
+  ownerId     String
+  createdById String?
+
+  // Contact
+  phone   String? @db.VarChar(30)
+  email   String? @db.VarChar(255)
+  website String? @db.VarChar(500)
+
+  // Location
+  address    String? @db.VarChar(500)
+  city       String? @db.VarChar(100)
+  state      String? @db.VarChar(100)
+  country    String? @db.VarChar(100)
+  postalCode String? @db.VarChar(20)
+  latitude   Decimal? @db.Decimal(10, 8)
+  longitude  Decimal? @db.Decimal(11, 8)
+
+  // Branding
+  logoUrl    String? @db.VarChar(1000)
+  coverUrl   String? @db.VarChar(1000)
+
+  // Business details
+  cuisineType  String? @db.VarChar(255)
+  maxCapacity  Int?
+  taxRate      Decimal? @db.Decimal(5, 2)
+  currency     String   @default("USD") @db.VarChar(10)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner     User   @relation("RestaurantOwner", fields: [ownerId], references: [id])
+  createdBy User?  @relation("RestaurantCreatedBy", fields: [createdById], references: [id])
+  staff     User[] @relation("RestaurantStaff")
+
+  workingHours WorkingHours[]
+  categories   MenuCategory[]
+  menuItems    MenuItem[]
+  priceRules   PriceRule[]
+
+  @@index([ownerId])
+  @@map("restaurants")
+}
+
+model WorkingHours {
+  id           String    @id @default(uuid())
+  restaurantId String
+  day          DayOfWeek
+  openTime     String?   @db.VarChar(10) // "09:00" (24-hr format)
+  closeTime    String?   @db.VarChar(10) // "22:00"
+  isClosed     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, day])
+  @@map("working_hours")
+}
+
+// ─── Menu Category ───────────────────────────────────────────────────────────
+
+model MenuCategory {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String   @db.VarChar(255)
+  description  String?  @db.Text
+  imageUrl     String?  @db.VarChar(1000)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items      MenuItem[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@map("menu_categories")
+}
+
+// ─── Menu Item ────────────────────────────────────────────────────────────────
+
+model MenuItem {
+  id              String   @id @default(uuid())
+  restaurantId    String
+  categoryId      String
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  price           Decimal  @db.Decimal(10, 2)
+  discountedPrice Decimal? @db.Decimal(10, 2)
+  imageUrl        String?  @db.VarChar(1000)
+  itemType        ItemType @default(NON_STOCKABLE)
+
+  // STOCKABLE only — tracks remaining stock units
+  stockCount      Int?     @default(0)
+
+  // Availability flags
+  isAvailable     Boolean  @default(true)  // master toggle (soft-delete)
+  isOutOfStock    Boolean  @default(false) // transient — flipped by stock actions
+  outOfStockAt    DateTime? // timestamp when last marked OOS
+
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category   MenuCategory @relation(fields: [categoryId], references: [id])
+  priceRules PriceRule[]
+
+  @@index([restaurantId])
+  @@index([categoryId])
+  @@map("menu_items")
+}
+
+// ─── Price Rules ─────────────────────────────────────────────────────────────
+// Overrides the menu item's base price during a specific time window.
+// Two rule types:
+//   RECURRING_WEEKLY — activates every week on the listed days within startTime–endTime
+//   LIMITED_TIME     — activates only between startDate and endDate, optionally within startTime–endTime
+
+model PriceRule {
+  id           String        @id @default(uuid())
+  restaurantId String
+  menuItemId   String
+
+  name         String        @db.VarChar(255) // e.g. "Happy Hour", "Monday Morning Promo"
+  ruleType     PriceRuleType
+  specialPrice Decimal       @db.Decimal(10, 2) // The override price when rule is active
+
+  // ── Time window (24-hr HH:MM) ─────────────────────────────────────────────
+  // null startTime / endTime  = applies all day.
+  startTime    String?       @db.VarChar(10) // e.g. "09:00"
+  endTime      String?       @db.VarChar(10) // e.g. "11:00"
+
+  // ── LIMITED_TIME only ─────────────────────────────────────────────────────
+  startDate    DateTime?     // Rule becomes active on/after this date
+  endDate      DateTime?     // Rule expires after this date
+
+  // ── RECURRING_WEEKLY only ─────────────────────────────────────────────────
+  // Days are stored in PriceRuleDay (one row per day)
+
+  priority     Int           @default(0)  // Higher number wins when rules overlap
+  isActive     Boolean       @default(true)
+  createdById  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  days         PriceRuleDay[]
+
+  @@index([restaurantId])
+  @@index([menuItemId])
+  @@map("price_rules")
+}
+
+model PriceRuleDay {
+  id     String    @id @default(uuid())
+  ruleId String
+  day    DayOfWeek
+
+  rule PriceRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, day])
+  @@map("price_rule_days")
+}
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  email     String   @db.VarChar(255)
+  otp       String   @db.VarChar(10)
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("otp_tokens")
 }
