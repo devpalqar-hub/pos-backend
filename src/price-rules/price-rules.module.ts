@@ -7,4 +7,4 @@ import { PriceRulesController } from './price-rules.controller';
   providers: [PriceRulesService],
   exports: [PriceRulesService],
 })
-export class PriceRulesModule {}
+export class PriceRulesModule { }

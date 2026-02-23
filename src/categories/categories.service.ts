@@ -193,10 +193,10 @@ export class CategoriesService {
     // WAITER / CHEF can only view, not manage
     if (
       mode === 'manage' &&
-      (actor.role === UserRole.WAITER || actor.role === UserRole.CHEF)
+      (actor.role === UserRole.WAITER || actor.role === UserRole.CHEF || actor.role === UserRole.BILLER)
     ) {
       throw new ForbiddenException(
-        'WAITER and CHEF can only view categories, not create or edit them',
+        'WAITER, CHEF and BILLER can only view categories, not create or edit them',
       );
     }
   }

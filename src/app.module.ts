@@ -11,6 +11,8 @@ import { CommonModule } from './common/common.module';
 import { CategoriesModule } from './categories/categories.module';
 import { MenuModule } from './menu/menu.module';
 import { PriceRulesModule } from './price-rules/price-rules.module';
+import { TablesModule } from './tables/tables.module';
+import { OrdersModule } from './orders/orders.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -36,6 +38,8 @@ import { S3Module } from './s3/s3.module';
     CategoriesModule,
     MenuModule,
     PriceRulesModule,
+    TablesModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [
