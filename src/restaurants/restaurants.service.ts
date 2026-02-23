@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { AssignStaffDto, RemoveStaffDto } from './dto/assign-staff.dto';
-import { User, UserRole } from '../../generated/prisma';
+import { User, UserRole } from '@prisma/client'
 
 // ─── Full include clause reused across queries ─────────────────────────────────
 

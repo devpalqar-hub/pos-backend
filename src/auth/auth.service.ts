@@ -60,6 +60,12 @@ export class AuthService {
         // Attempt to send OTP via SMTP — failures are swallowed intentionally
         await this.sendOtpEmail(email, user.name, otp);
 
+        if (this.configService.get<string>('STATE') === 'DEVELOPMENT') {
+            return {
+                message: `OTP ${otp} sent to ${email}. It expires in ${this.configService.get('OTP_EXPIRES_MINUTES', 10)} minutes.`,
+            };
+        }
+
         return {
             message: `OTP sent to ${email}. It expires in ${this.configService.get('OTP_EXPIRES_MINUTES', 10)} minutes.`,
         };
