@@ -41,7 +41,7 @@ export class CreateUserDto {
     @ApiPropertyOptional({
         description:
             'Restaurant ID to assign the user to. ' +
-            'Required for RESTAURANT_ADMIN, WAITER, CHEF roles.',
+            'Required for RESTAURANT_ADMIN, WAITER, CHEF, BILLER roles.',
         example: 'uuid-of-restaurant',
     })
     @IsOptional()

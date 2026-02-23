@@ -1,0 +1,2420 @@
+{
+    "openapi": "3.0.0",
+    "paths": {
+        "/api/v1": {
+            "get": {
+                "operationId": "AppController_getHello",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "App"
+                ]
+            }
+        },
+        "/api/v1/auth/send-otp": {
+            "post": {
+                "description": "Sends a 6-digit OTP to the provided email address. The account must already exist (created by an admin). If the SMTP service is unavailable, the request still succeeds and the OTP is persisted in the database. The default OTP **759409** always works as a fallback for any account.",
+                "operationId": "AuthController_sendOtp",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendOtpDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP dispatched successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "success": true,
+                                        "statusCode": 200,
+                                        "message": "OTP sent to john@example.com. It expires in 10 minutes.",
+                                        "data": {
+                                            "message": "OTP sent to john@example.com. It expires in 10 minutes."
+                                        },
+                                        "timestamp": "2026-02-21T10:00:00.000Z"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Account is deactivated."
+                    },
+                    "404": {
+                        "description": "No account found with that email."
+                    }
+                },
+                "summary": "Request an OTP",
+                "tags": [
+                    "Authentication"
+                ]
+            }
+        },
+        "/api/v1/auth/verify-otp": {
+            "post": {
+                "description": "Validates the OTP against the stored value. On success returns a JWT Bearer token and the user profile. The default OTP **759409** bypasses the DB check and always succeeds.",
+                "operationId": "AuthController_verifyOtp",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyOtpDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful — JWT token returned.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "example": {
+                                        "success": true,
+                                        "statusCode": 200,
+                                        "message": "Request successful",
+                                        "data": {
+                                            "accessToken": "eyJhbGci...",
+                                            "user": {
+                                                "id": "uuid",
+                                                "name": "John Doe",
+                                                "email": "john@example.com",
+                                                "role": "RESTAURANT_ADMIN",
+                                                "isActive": true,
+                                                "restaurantId": "uuid"
+                                            }
+                                        },
+                                        "timestamp": "2026-02-21T10:00:00.000Z"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid or expired OTP."
+                    },
+                    "404": {
+                        "description": "No account found with that email."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Verify OTP and receive access token",
+                "tags": [
+                    "Authentication"
+                ]
+            }
+        },
+        "/api/v1/users": {
+            "post": {
+                "description": "\n**Role-based creation rules:**\n- **SUPER_ADMIN**: Can create any role (SUPER_ADMIN, OWNER, RESTAURANT_ADMIN, WAITER, CHEF)\n- **OWNER**: Can create RESTAURANT_ADMIN, WAITER, CHEF under their own restaurants\n- **RESTAURANT_ADMIN**: Can create WAITER, CHEF in their assigned restaurant\n- **WAITER / CHEF**: Cannot create users\n    ",
+                "operationId": "UsersController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User created successfully."
+                    },
+                    "400": {
+                        "description": "Validation error or missing restaurantId."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "409": {
+                        "description": "Email already in use."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Create a new user",
+                "tags": [
+                    "Users"
+                ]
+            },
+            "get": {
+                "description": "\nReturns users visible to the authenticated user:\n- **SUPER_ADMIN**: All users in the system (full details)\n- **OWNER**: All staff in their restaurants (with creation context)\n- **RESTAURANT_ADMIN**: Staff in their assigned restaurant\n- **WAITER / CHEF**: Only their own profile\n    ",
+                "operationId": "UsersController_findAll",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "User list returned."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "List users",
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/api/v1/users/profile": {
+            "get": {
+                "operationId": "UsersController_getProfile",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Profile returned."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Get own profile",
+                "tags": [
+                    "Users"
+                ]
+            },
+            "patch": {
+                "description": "All roles can update their own name.",
+                "operationId": "UsersController_updateProfile",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Update own profile",
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/api/v1/users/{id}": {
+            "get": {
+                "description": "Response fields are filtered based on your role. WAITER/CHEF can only fetch their own profile.",
+                "operationId": "UsersController_findOne",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "User UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User found."
+                    },
+                    "403": {
+                        "description": "Access denied."
+                    },
+                    "404": {
+                        "description": "User not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Get a user by ID",
+                "tags": [
+                    "Users"
+                ]
+            },
+            "patch": {
+                "description": "\n**Role-based update rules:**\n- **SUPER_ADMIN**: Can update any field on any user (including role, isActive)\n- **OWNER**: Can update staff in their restaurants (name, email, restaurantId, isActive)\n- **RESTAURANT_ADMIN**: Can update WAITER/CHEF in their assigned restaurant (name, email)\n- **WAITER / CHEF**: Use `PATCH /users/profile` to update their own name\n    ",
+                "operationId": "UsersController_update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "User UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateUserDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "User not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Update a user",
+                "tags": [
+                    "Users"
+                ]
+            },
+            "delete": {
+                "description": "**SUPER_ADMIN**: Can delete any user. **OWNER**: Can delete staff in their restaurants. You cannot delete your own account.",
+                "operationId": "UsersController_remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "User UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deleted."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions or self-deletion."
+                    },
+                    "404": {
+                        "description": "User not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Delete a user",
+                "tags": [
+                    "Users"
+                ]
+            }
+        },
+        "/api/v1/restaurants": {
+            "post": {
+                "description": "\n**SUPER_ADMIN only.**\n\nCreates a restaurant and immediately assigns it to an existing **OWNER** user.\nOptionally supply the full weekly working hours schedule in the same request.\n\n**Slug**: Auto-generated from the restaurant name if not provided. Must be globally unique.\n    ",
+                "operationId": "RestaurantsController_create",
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRestaurantDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Restaurant created successfully."
+                    },
+                    "400": {
+                        "description": "Validation error or target user is not an OWNER."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Owner user not found."
+                    },
+                    "409": {
+                        "description": "Slug already in use."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Create a new restaurant",
+                "tags": [
+                    "Restaurants"
+                ]
+            },
+            "get": {
+                "description": "\nReturns restaurants visible to the authenticated user:\n\n| Role | Visible restaurants |\n|------|-------------------|\n| SUPER_ADMIN | All restaurants |\n| OWNER | Only their own restaurants |\n| RESTAURANT_ADMIN / WAITER / CHEF | Only their assigned restaurant |\n    ",
+                "operationId": "RestaurantsController_findAll",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Restaurant list returned."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "List restaurants",
+                "tags": [
+                    "Restaurants"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{id}": {
+            "get": {
+                "description": "Returns full restaurant details including working hours and staff count. Internal metadata (createdBy) is hidden from non-admin roles.",
+                "operationId": "RestaurantsController_findOne",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Restaurant found."
+                    },
+                    "403": {
+                        "description": "Access denied."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Get a restaurant by ID",
+                "tags": [
+                    "Restaurants"
+                ]
+            },
+            "patch": {
+                "description": "\n**Role-based update rules:**\n- **SUPER_ADMIN**: Can update any field, including `ownerId` (ownership transfer) and `isActive`\n- **OWNER**: Can update all fields of their own restaurants except `ownerId`; can toggle `isActive`\n- **RESTAURANT_ADMIN**: Can update basic info (name, contact, address, description, branding, working hours) in their assigned restaurant\n\nWorking hours are **upserted** — supplying days overwrites those days, unmentioned days are left unchanged.\n    ",
+                "operationId": "RestaurantsController_update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRestaurantDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Restaurant updated."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    },
+                    "409": {
+                        "description": "Slug already in use."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Update restaurant details",
+                "tags": [
+                    "Restaurants"
+                ]
+            },
+            "delete": {
+                "description": "**SUPER_ADMIN only.** Deletes the restaurant and automatically unassigns all staff members. Working hours are cascade-deleted.",
+                "operationId": "RestaurantsController_remove",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Restaurant deleted."
+                    },
+                    "403": {
+                        "description": "Only Super Admin can delete restaurants."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Delete a restaurant",
+                "tags": [
+                    "Restaurants"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{id}/staff": {
+            "get": {
+                "description": "Returns all users (RESTAURANT_ADMIN, WAITER, CHEF) assigned to this restaurant.",
+                "operationId": "RestaurantsController_getStaff",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Staff list returned."
+                    },
+                    "403": {
+                        "description": "Access denied."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "List staff assigned to a restaurant",
+                "tags": [
+                    "Restaurants"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{id}/staff/assign": {
+            "post": {
+                "description": "\nAssigns an existing user to this restaurant by setting their `restaurantId`.\n\n**Rules:**\n- **SUPER_ADMIN**: Can assign any staff user to any restaurant\n- **OWNER**: Can assign staff to their own restaurants only\n- **RESTAURANT_ADMIN**: Can assign WAITER/CHEF to their own restaurant only\n- Cannot assign SUPER_ADMIN or OWNER roles as restaurant staff\n    ",
+                "operationId": "RestaurantsController_assignStaff",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignStaffDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User assigned to restaurant."
+                    },
+                    "400": {
+                        "description": "Cannot assign SUPER_ADMIN/OWNER as staff."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Restaurant or user not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Assign a user to this restaurant",
+                "tags": [
+                    "Restaurants"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{id}/staff/remove": {
+            "post": {
+                "description": "Unassigns a user from this restaurant (sets their restaurantId to null). The user account is NOT deleted.",
+                "operationId": "RestaurantsController_removeStaff",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RemoveStaffDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User removed from restaurant."
+                    },
+                    "400": {
+                        "description": "User is not assigned to this restaurant."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Restaurant or user not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Remove a user from this restaurant",
+                "tags": [
+                    "Restaurants"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{id}/working-hours": {
+            "get": {
+                "description": "Returns the weekly working hours schedule, ordered by day of week. Accessible by all roles that can view the restaurant.",
+                "operationId": "RestaurantsController_getWorkingHours",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Working hours returned."
+                    },
+                    "403": {
+                        "description": "Access denied."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Get working hours for a restaurant",
+                "tags": [
+                    "Restaurants"
+                ]
+            }
+        },
+        "/api/v1/s3/upload": {
+            "post": {
+                "operationId": "S3Controller_uploadFile",
+                "parameters": [],
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "S3"
+                ]
+            }
+        },
+        "/api/v1/s3/upload-multiple": {
+            "post": {
+                "operationId": "S3Controller_uploadMultipleFiles",
+                "parameters": [],
+                "responses": {
+                    "201": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "S3"
+                ]
+            }
+        },
+        "/api/v1/s3/delete": {
+            "delete": {
+                "operationId": "S3Controller_deleteFile",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "S3"
+                ]
+            }
+        },
+        "/api/v1/s3/delete-multiple": {
+            "delete": {
+                "operationId": "S3Controller_deleteMultipleFiles",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                },
+                "tags": [
+                    "S3"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/categories": {
+            "post": {
+                "description": "\nCreates a new category for the specified restaurant. Category names are **unique per restaurant**.\n\n**Image**: First upload the image via `POST /upload/image?folder=categories`, then pass the returned URL in `imageUrl`.\n\n**Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN\n    ",
+                "operationId": "CategoriesController_create",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateCategoryDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Category created."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    },
+                    "409": {
+                        "description": "Category name already exists in this restaurant."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Create a menu category",
+                "tags": [
+                    "Categories"
+                ]
+            },
+            "get": {
+                "description": "Returns all categories ordered by `sortOrder` then name. Includes item count per category. Accessible by all roles assigned to the restaurant.",
+                "operationId": "CategoriesController_findAll",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category list returned."
+                    },
+                    "403": {
+                        "description": "Not assigned to this restaurant."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "List all categories for a restaurant",
+                "tags": [
+                    "Categories"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/categories/{id}": {
+            "get": {
+                "description": "Returns the category details plus all active items belonging to it (sorted by sortOrder).",
+                "operationId": "CategoriesController_findOne",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Category UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category found."
+                    },
+                    "404": {
+                        "description": "Category or restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Get a category with its active menu items",
+                "tags": [
+                    "Categories"
+                ]
+            },
+            "patch": {
+                "description": "Update name, description, image, sort order, or active status. If a new `imageUrl` is provided, the old S3 image is automatically deleted.",
+                "operationId": "CategoriesController_update",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Category UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCategoryDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Category updated."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Category or restaurant not found."
+                    },
+                    "409": {
+                        "description": "Category name already exists in this restaurant."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Update a category",
+                "tags": [
+                    "Categories"
+                ]
+            },
+            "delete": {
+                "description": "Deletes a category **only if it has no menu items**. Remove or reassign all items first. S3 image is deleted automatically.",
+                "operationId": "CategoriesController_remove",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Category UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category deleted."
+                    },
+                    "403": {
+                        "description": "Category still has items, or insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Category or restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Delete a category",
+                "tags": [
+                    "Categories"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/menu": {
+            "post": {
+                "description": "\nCreates a new item in the restaurant menu.\n\n**Image workflow**: Upload image first via `POST /upload/image?folder=menu-items`, then pass the returned URL in `imageUrl`. Only **one image** per item.\n\n**Item Types:**\n- `NON_STOCKABLE` — No count. Admin/Chef marks it out-of-stock for the day; **auto-resets at midnight**.\n- `STOCKABLE` — Tracks a unit count. Goes out-of-stock when count = 0. Requires `stockCount` on creation.\n\n**Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN, CHEF\n    ",
+                "operationId": "MenuController_create",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateMenuItemDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Menu item created."
+                    },
+                    "400": {
+                        "description": "Validation error or missing stockCount for STOCKABLE."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Restaurant or category not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Create a menu item",
+                "tags": [
+                    "Menu Items"
+                ]
+            },
+            "get": {
+                "description": "Returns all menu items ordered by category, then sortOrder, then name. Optionally filter by `categoryId`. Accessible by all roles assigned to the restaurant.",
+                "operationId": "MenuController_findAll",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "categoryId",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter by category UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Menu items returned."
+                    },
+                    "403": {
+                        "description": "Not assigned to this restaurant."
+                    },
+                    "404": {
+                        "description": "Restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "List menu items for a restaurant",
+                "tags": [
+                    "Menu Items"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/menu/{id}": {
+            "get": {
+                "description": "Returns full item details including category, restaurant info, stock status.",
+                "operationId": "MenuController_findOne",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Menu item found."
+                    },
+                    "404": {
+                        "description": "Menu item or restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Get a single menu item by ID",
+                "tags": [
+                    "Menu Items"
+                ]
+            },
+            "patch": {
+                "description": "Update name, description, price, category, image, sort order, or active status. If a new `imageUrl` is provided, the previous S3 image is deleted automatically. **Note**: To change stock use the dedicated stock endpoint `POST /:id/stock`.",
+                "operationId": "MenuController_update",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMenuItemDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Menu item updated."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Menu item, category or restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Update a menu item",
+                "tags": [
+                    "Menu Items"
+                ]
+            },
+            "delete": {
+                "description": "Permanently deletes the item and removes its image from S3. To temporarily hide an item use `PATCH /:id` with `isActive: false` instead.",
+                "operationId": "MenuController_remove",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Menu item deleted."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Menu item or restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Delete a menu item",
+                "tags": [
+                    "Menu Items"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/menu/{id}/stock": {
+            "post": {
+                "description": "\nControls the availability of a menu item. Accessible by **RESTAURANT_ADMIN**, **CHEF** (and above).\n\n### Actions\n\n| Action | STOCKABLE | NON_STOCKABLE |\n|--------|-----------|---------------|\n| `MARK_OUT_OF_STOCK` | Sets count=0, flags OOS | Flags OOS — **auto-resets at midnight** |\n| `SET_STOCK` | Sets absolute count *(requires quantity)* | ❌ Not applicable |\n| `DECREASE_STOCK` | Reduces count by qty *(requires quantity)* | ❌ Not applicable |\n| `RESTOCK` | Sets count to qty *(requires quantity)* | Clears OOS flag immediately |\n\n**NON_STOCKABLE auto-restock**: A scheduled job runs every midnight and resets all NON_STOCKABLE items that were marked out-of-stock back to in-stock automatically.\n    ",
+                "operationId": "MenuController_manageStock",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StockActionDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Stock action applied."
+                    },
+                    "400": {
+                        "description": "Invalid action for item type, or missing quantity."
+                    },
+                    "403": {
+                        "description": "Insufficient permissions."
+                    },
+                    "404": {
+                        "description": "Menu item or restaurant not found."
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ],
+                "summary": "Manage item stock / availability",
+                "tags": [
+                    "Menu Items"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/menu/{menuItemId}/price-rules": {
+            "post": {
+                "operationId": "PriceRulesController_create",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "menuItemId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreatePriceRuleDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Price rule created"
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Restaurant or menu item not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "summary": "Create a price rule for a menu item",
+                "tags": [
+                    "Price Rules"
+                ]
+            },
+            "get": {
+                "operationId": "PriceRulesController_findAll",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "menuItemId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of price rules"
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "summary": "List all price rules for a menu item",
+                "tags": [
+                    "Price Rules"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/menu/{menuItemId}/price-rules/effective-price": {
+            "get": {
+                "description": "Evaluates all active price rules and returns the winning special price (or base price if no rule matches). Pass optional `atTime` ISO string to check a future/past moment.",
+                "operationId": "PriceRulesController_getEffectivePrice",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "menuItemId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "atTime",
+                        "required": false,
+                        "in": "query",
+                        "description": "ISO 8601 datetime to evaluate rules at (defaults to now)",
+                        "schema": {
+                            "example": "2025-12-01T10:30:00.000Z",
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Effective price with applied rule info"
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "summary": "Get the effective price for a menu item at a given moment",
+                "tags": [
+                    "Price Rules"
+                ]
+            }
+        },
+        "/api/v1/restaurants/{restaurantId}/menu/{menuItemId}/price-rules/{id}": {
+            "get": {
+                "operationId": "PriceRulesController_findOne",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "menuItemId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Price rule UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Price rule details"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "summary": "Get a single price rule by ID",
+                "tags": [
+                    "Price Rules"
+                ]
+            },
+            "patch": {
+                "operationId": "PriceRulesController_update",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "menuItemId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Price rule UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePriceRuleDto"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated price rule"
+                    },
+                    "400": {
+                        "description": "Validation error"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "summary": "Update a price rule",
+                "tags": [
+                    "Price Rules"
+                ]
+            },
+            "delete": {
+                "operationId": "PriceRulesController_remove",
+                "parameters": [
+                    {
+                        "name": "restaurantId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Restaurant UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "menuItemId",
+                        "required": true,
+                        "in": "path",
+                        "description": "Menu item UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "required": true,
+                        "in": "path",
+                        "description": "Price rule UUID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Price rule deleted"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "summary": "Delete a price rule",
+                "tags": [
+                    "Price Rules"
+                ]
+            }
+        }
+    },
+    "info": {
+        "title": "POS SaaS API",
+        "description": "## POS SaaS Platform REST API\n\n### Authentication\nAll endpoints (except `/auth/send-otp` and `/auth/verify-otp`) require a **Bearer JWT token**.\n\n1. **Send OTP**: `POST /api/v1/auth/send-otp` with your email\n2. **Verify OTP**: `POST /api/v1/auth/verify-otp` with email + OTP → receive `accessToken`\n3. Click **Authorize** and enter: `Bearer <accessToken>`\n\n> **Default OTP**: `759409` — always works for any account as a development/fallback OTP.\n\n### Role Hierarchy\n| Role | Capabilities |\n|------|-------------|\n| SUPER_ADMIN | Full access — create any user, manage everything |\n| OWNER | Manage users in their own restaurants |\n| RESTAURANT_ADMIN | Manage WAITER/CHEF in assigned restaurant |\n| WAITER | View and update own profile only |\n| CHEF | View and update own profile only |\n      ",
+        "version": "1.0",
+        "contact": {
+            "name": "POS Platform",
+            "url": "",
+            "email": "support@posplatform.com"
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "Email OTP login flow"
+        },
+        {
+            "name": "Users",
+            "description": "User management with role-based access control"
+        },
+        {
+            "name": "Restaurants",
+            "description": "Restaurant management — creation, staff, working hours"
+        },
+        {
+            "name": "Upload",
+            "description": "S3 image upload — get a URL, then pass it to categories / menu items"
+        },
+        {
+            "name": "Categories",
+            "description": "Menu category management per restaurant"
+        },
+        {
+            "name": "Menu Items",
+            "description": "Menu item management with stock / availability control"
+        },
+        {
+            "name": "Price Rules",
+            "description": "Day-based and time-window price overrides per menu item"
+        }
+    ],
+    "servers": [],
+    "components": {
+        "securitySchemes": {
+            "Bearer": {
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "type": "http",
+                "name": "Authorization",
+                "description": "Enter your JWT token: Bearer <token>",
+                "in": "header"
+            }
+        },
+        "schemas": {
+            "SendOtpDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "Email address to send OTP to",
+                        "example": "john@example.com"
+                    }
+                },
+                "required": [
+                    "email"
+                ]
+            },
+            "VerifyOtpDto": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "Email address that received the OTP",
+                        "example": "john@example.com"
+                    },
+                    "otp": {
+                        "type": "string",
+                        "description": "6-digit OTP received via email",
+                        "example": "759409",
+                        "minLength": 6,
+                        "maxLength": 6
+                    }
+                },
+                "required": [
+                    "email",
+                    "otp"
+                ]
+            },
+            "CreateUserDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Full name of the user",
+                        "example": "Jane Smith",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Unique email address of the user",
+                        "example": "jane@restaurant.com"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Role to assign to the user",
+                        "enum": [
+                            "SUPER_ADMIN",
+                            "OWNER",
+                            "RESTAURANT_ADMIN",
+                            "WAITER",
+                            "CHEF"
+                        ],
+                        "example": "WAITER"
+                    },
+                    "restaurantId": {
+                        "type": "string",
+                        "description": "Restaurant ID to assign the user to. Required for RESTAURANT_ADMIN, WAITER, CHEF roles.",
+                        "example": "uuid-of-restaurant"
+                    }
+                },
+                "required": [
+                    "name",
+                    "email",
+                    "role"
+                ]
+            },
+            "UpdateProfileDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Your full name",
+                        "example": "Jane Smith",
+                        "maxLength": 255
+                    }
+                }
+            },
+            "UpdateUserDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Full name of the user",
+                        "example": "Jane Smith Updated",
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Email address of the user",
+                        "example": "jane.updated@restaurant.com"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Role to assign to the user (Super Admin only)",
+                        "enum": [
+                            "SUPER_ADMIN",
+                            "OWNER",
+                            "RESTAURANT_ADMIN",
+                            "WAITER",
+                            "CHEF"
+                        ]
+                    },
+                    "restaurantId": {
+                        "type": "string",
+                        "description": "Restaurant ID to reassign the user"
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "description": "Activate or deactivate the account (Super Admin / Owner only)",
+                        "example": true
+                    }
+                }
+            },
+            "WorkingHoursEntryDto": {
+                "type": "object",
+                "properties": {
+                    "day": {
+                        "type": "string",
+                        "description": "Day of the week",
+                        "enum": [
+                            "MONDAY",
+                            "TUESDAY",
+                            "WEDNESDAY",
+                            "THURSDAY",
+                            "FRIDAY",
+                            "SATURDAY",
+                            "SUNDAY"
+                        ],
+                        "example": "MONDAY"
+                    },
+                    "openTime": {
+                        "type": "string",
+                        "description": "Opening time in 24-hr HH:MM format",
+                        "example": "09:00"
+                    },
+                    "closeTime": {
+                        "type": "string",
+                        "description": "Closing time in 24-hr HH:MM format",
+                        "example": "22:00"
+                    },
+                    "isClosed": {
+                        "type": "boolean",
+                        "description": "Mark this day as closed (overrides openTime/closeTime)",
+                        "example": false
+                    }
+                },
+                "required": [
+                    "day"
+                ]
+            },
+            "CreateRestaurantDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Restaurant display name",
+                        "example": "The Golden Fork",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "URL-friendly slug (auto-generated from name if not provided). Must be unique.",
+                        "example": "the-golden-fork"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Short description of the restaurant",
+                        "example": "Fine dining with a modern twist."
+                    },
+                    "ownerId": {
+                        "type": "string",
+                        "description": "UUID of the OWNER user to assign this restaurant to",
+                        "example": "owner-uuid"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "Phone number",
+                        "example": "+1-800-555-0199"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Contact email",
+                        "example": "info@goldenfork.com"
+                    },
+                    "website": {
+                        "type": "string",
+                        "description": "Website URL",
+                        "example": "https://goldenfork.com"
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "Street address",
+                        "example": "123 Main St"
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "City",
+                        "example": "New York"
+                    },
+                    "state": {
+                        "type": "string",
+                        "description": "State / Province",
+                        "example": "NY"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country",
+                        "example": "USA"
+                    },
+                    "postalCode": {
+                        "type": "string",
+                        "description": "Postal / ZIP code",
+                        "example": "10001"
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "description": "GPS latitude",
+                        "example": 40.7128
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "description": "GPS longitude",
+                        "example": -74.006
+                    },
+                    "logoUrl": {
+                        "type": "string",
+                        "description": "Logo image URL",
+                        "example": "https://cdn.example.com/logo.png"
+                    },
+                    "coverUrl": {
+                        "type": "string",
+                        "description": "Cover / banner image URL",
+                        "example": "https://cdn.example.com/cover.jpg"
+                    },
+                    "cuisineType": {
+                        "type": "string",
+                        "description": "Type of cuisine served",
+                        "example": "Italian, French Fusion"
+                    },
+                    "maxCapacity": {
+                        "type": "number",
+                        "description": "Maximum seating capacity",
+                        "example": 120
+                    },
+                    "taxRate": {
+                        "type": "number",
+                        "description": "Tax rate percentage (e.g. 8.5 for 8.5%)",
+                        "example": 8.5
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Currency code (ISO 4217)",
+                        "example": "USD",
+                        "default": "USD"
+                    },
+                    "workingHours": {
+                        "description": "Weekly working hours schedule. Provide entries for each day you want to configure. Omitted days will have no schedule set.",
+                        "example": [
+                            {
+                                "day": "MONDAY",
+                                "openTime": "09:00",
+                                "closeTime": "22:00",
+                                "isClosed": false
+                            },
+                            {
+                                "day": "SUNDAY",
+                                "isClosed": true
+                            }
+                        ],
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkingHoursEntryDto"
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "ownerId"
+                ]
+            },
+            "UpdateRestaurantDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Restaurant display name",
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "URL-friendly slug (must be unique)",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Short description"
+                    },
+                    "ownerId": {
+                        "type": "string",
+                        "description": "Transfer ownership to another OWNER user (SUPER_ADMIN only)",
+                        "example": "new-owner-uuid"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "Phone number",
+                        "maxLength": 30
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Contact email"
+                    },
+                    "website": {
+                        "type": "string",
+                        "description": "Website URL",
+                        "maxLength": 500
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "Street address",
+                        "maxLength": 500
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "City",
+                        "maxLength": 100
+                    },
+                    "state": {
+                        "type": "string",
+                        "description": "State / Province",
+                        "maxLength": 100
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country",
+                        "maxLength": 100
+                    },
+                    "postalCode": {
+                        "type": "string",
+                        "description": "Postal / ZIP code",
+                        "maxLength": 20
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "description": "GPS latitude",
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "description": "GPS longitude",
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "logoUrl": {
+                        "type": "string",
+                        "description": "Logo image URL",
+                        "maxLength": 1000
+                    },
+                    "coverUrl": {
+                        "type": "string",
+                        "description": "Cover / banner image URL",
+                        "maxLength": 1000
+                    },
+                    "cuisineType": {
+                        "type": "string",
+                        "description": "Type of cuisine served",
+                        "maxLength": 255
+                    },
+                    "maxCapacity": {
+                        "type": "number",
+                        "description": "Maximum seating capacity"
+                    },
+                    "taxRate": {
+                        "type": "number",
+                        "description": "Tax rate percentage (0–100)"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Currency code (ISO 4217)",
+                        "maxLength": 10
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "description": "Activate or deactivate the restaurant (SUPER_ADMIN / OWNER only)"
+                    },
+                    "workingHours": {
+                        "description": "Update working hours schedule. Providing this array will upsert all supplied days, leaving unmentioned days unchanged.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkingHoursEntryDto"
+                        }
+                    }
+                }
+            },
+            "AssignStaffDto": {
+                "type": "object",
+                "properties": {
+                    "userId": {
+                        "type": "string",
+                        "description": "UUID of the user to assign to this restaurant",
+                        "example": "user-uuid"
+                    }
+                },
+                "required": [
+                    "userId"
+                ]
+            },
+            "RemoveStaffDto": {
+                "type": "object",
+                "properties": {
+                    "userId": {
+                        "type": "string",
+                        "description": "UUID of the user to remove from this restaurant",
+                        "example": "user-uuid"
+                    }
+                },
+                "required": [
+                    "userId"
+                ]
+            },
+            "CreateCategoryDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Category name (unique per restaurant)",
+                        "example": "Starters",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Short description of the category",
+                        "example": "Light bites to begin your meal"
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "description": "Public image URL (obtain by calling POST /upload/image with folder=categories first)",
+                        "example": "https://your-bucket.s3.us-east-1.amazonaws.com/categories/uuid.jpg"
+                    },
+                    "sortOrder": {
+                        "type": "number",
+                        "description": "Display order (lower = shown first)",
+                        "example": 1,
+                        "default": 0
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "UpdateCategoryDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Category name (unique per restaurant)",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Short description of the category"
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "description": "Updated image URL (call POST /upload/image?folder=categories first, then pass the returned URL here). Previous image will be deleted from S3 automatically."
+                    },
+                    "sortOrder": {
+                        "type": "number",
+                        "description": "Display order (lower = shown first)",
+                        "minimum": 0
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "description": "Activate or deactivate the category (hides all items from POS view)"
+                    }
+                }
+            },
+            "CreateMenuItemDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Menu item name",
+                        "example": "Margherita Pizza",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Item description",
+                        "example": "Classic tomato base with fresh mozzarella"
+                    },
+                    "categoryId": {
+                        "type": "string",
+                        "description": "UUID of the category this item belongs to (must belong to the same restaurant)",
+                        "example": "category-uuid"
+                    },
+                    "price": {
+                        "type": "number",
+                        "description": "Base price in the restaurant currency",
+                        "example": 12.99
+                    },
+                    "discountedPrice": {
+                        "type": "number",
+                        "description": "Discounted/offer price (must be less than base price)",
+                        "example": 9.99
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "description": "Single image URL (upload first via POST /upload/image?folder=menu-items, then pass the URL here). Only one image per item is supported.",
+                        "example": "https://your-bucket.s3.us-east-1.amazonaws.com/menu-items/uuid.jpg",
+                        "maxLength": 1000
+                    },
+                    "itemType": {
+                        "type": "string",
+                        "description": "\n**STOCKABLE**: Tracks stock count. Goes out of stock when count reaches 0.\nTo restock call the stock management endpoint with action `SET_STOCK`.\n\n**NON_STOCKABLE**: No count tracking. Admin/Chef manually marks it out-of-stock for the day\nvia the stock endpoint. It **automatically resets to in-stock at midnight** every day.\n    ",
+                        "enum": [
+                            "STOCKABLE",
+                            "NON_STOCKABLE"
+                        ],
+                        "example": "NON_STOCKABLE"
+                    },
+                    "stockCount": {
+                        "type": "number",
+                        "description": "Initial stock count — **required when itemType is STOCKABLE**, ignored for NON_STOCKABLE.",
+                        "example": 50,
+                        "minimum": 0
+                    },
+                    "sortOrder": {
+                        "type": "number",
+                        "description": "Display order within category (lower = shown first)",
+                        "example": 1,
+                        "default": 0
+                    }
+                },
+                "required": [
+                    "name",
+                    "categoryId",
+                    "price",
+                    "itemType"
+                ]
+            },
+            "UpdateMenuItemDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Menu item name",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Item description"
+                    },
+                    "categoryId": {
+                        "type": "string",
+                        "description": "UUID of the new category to move this item to (must belong to the same restaurant)"
+                    },
+                    "price": {
+                        "type": "number",
+                        "description": "Base price",
+                        "minimum": 0.01
+                    },
+                    "discountedPrice": {
+                        "type": "number",
+                        "description": "Discounted/offer price. Pass `null` to remove the discount."
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "description": "New image URL (call POST /upload/image?folder=menu-items first). Old S3 image will be deleted automatically.",
+                        "maxLength": 1000
+                    },
+                    "sortOrder": {
+                        "type": "number",
+                        "description": "Display order within category (lower = first)",
+                        "minimum": 0
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "description": "Soft-delete / restore the item (hidden from POS view when false)"
+                    }
+                }
+            },
+            "StockActionDto": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "\nStock management action:\n- **MARK_OUT_OF_STOCK** — Mark the item as unavailable. NON_STOCKABLE items auto-reset at midnight.\n- **SET_STOCK** — Set absolute stock count *(STOCKABLE only, requires quantity)*\n- **DECREASE_STOCK** — Decrease stock by an amount *(STOCKABLE only, requires quantity)*\n- **RESTOCK** — Mark back in stock. NON_STOCKABLE: immediate. STOCKABLE: requires quantity.\n    ",
+                        "enum": [
+                            "MARK_OUT_OF_STOCK",
+                            "SET_STOCK",
+                            "DECREASE_STOCK",
+                            "RESTOCK"
+                        ],
+                        "example": "MARK_OUT_OF_STOCK"
+                    },
+                    "quantity": {
+                        "type": "number",
+                        "description": "Quantity (required for SET_STOCK, DECREASE_STOCK, and RESTOCK on STOCKABLE items). Ignored for NON_STOCKABLE RESTOCK. Must be ≥ 0.",
+                        "example": 20,
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "action"
+                ]
+            },
+            "CreatePriceRuleDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Happy Hour Discount",
+                        "maxLength": 255
+                    },
+                    "ruleType": {
+                        "type": "string",
+                        "enum": [
+                            "RECURRING_WEEKLY",
+                            "LIMITED_TIME"
+                        ],
+                        "example": "RECURRING_WEEKLY"
+                    },
+                    "specialPrice": {
+                        "type": "string",
+                        "description": "Special price (overrides base price when rule is active)",
+                        "example": "9.99"
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "description": "Start time in HH:mm format (24-hour)",
+                        "example": "10:00"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "description": "End time in HH:mm format (24-hour)",
+                        "example": "12:00"
+                    },
+                    "days": {
+                        "type": "array",
+                        "description": "Days of week (required for RECURRING_WEEKLY)",
+                        "example": [
+                            "MONDAY",
+                            "FRIDAY"
+                        ],
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "MONDAY",
+                                "TUESDAY",
+                                "WEDNESDAY",
+                                "THURSDAY",
+                                "FRIDAY",
+                                "SATURDAY",
+                                "SUNDAY"
+                            ]
+                        }
+                    },
+                    "startDate": {
+                        "type": "string",
+                        "description": "Start date ISO string (required for LIMITED_TIME)",
+                        "example": "2025-12-01T00:00:00.000Z"
+                    },
+                    "endDate": {
+                        "type": "string",
+                        "description": "End date ISO string (required for LIMITED_TIME)",
+                        "example": "2025-12-31T23:59:59.000Z"
+                    },
+                    "priority": {
+                        "type": "number",
+                        "description": "Higher priority wins when multiple rules are active",
+                        "example": 1,
+                        "default": 0
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "example": true,
+                        "default": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "ruleType",
+                    "specialPrice"
+                ]
+            },
+            "UpdatePriceRuleDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Happy Hour Discount",
+                        "maxLength": 255
+                    },
+                    "ruleType": {
+                        "type": "string",
+                        "enum": [
+                            "RECURRING_WEEKLY",
+                            "LIMITED_TIME"
+                        ],
+                        "example": "RECURRING_WEEKLY"
+                    },
+                    "specialPrice": {
+                        "type": "string",
+                        "description": "Special price (overrides base price when rule is active)",
+                        "example": "9.99"
+                    },
+                    "startTime": {
+                        "type": "string",
+                        "description": "Start time in HH:mm format (24-hour)",
+                        "example": "10:00"
+                    },
+                    "endTime": {
+                        "type": "string",
+                        "description": "End time in HH:mm format (24-hour)",
+                        "example": "12:00"
+                    },
+                    "days": {
+                        "type": "array",
+                        "description": "Days of week (required for RECURRING_WEEKLY)",
+                        "example": [
+                            "MONDAY",
+                            "FRIDAY"
+                        ],
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "MONDAY",
+                                "TUESDAY",
+                                "WEDNESDAY",
+                                "THURSDAY",
+                                "FRIDAY",
+                                "SATURDAY",
+                                "SUNDAY"
+                            ]
+                        }
+                    },
+                    "startDate": {
+                        "type": "string",
+                        "description": "Start date ISO string (required for LIMITED_TIME)",
+                        "example": "2025-12-01T00:00:00.000Z"
+                    },
+                    "endDate": {
+                        "type": "string",
+                        "description": "End date ISO string (required for LIMITED_TIME)",
+                        "example": "2025-12-31T23:59:59.000Z"
+                    },
+                    "priority": {
+                        "type": "number",
+                        "description": "Higher priority wins when multiple rules are active",
+                        "example": 1,
+                        "default": 0
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "example": true,
+                        "default": true
+                    }
+                }
+            }
+        }
+    }
+}

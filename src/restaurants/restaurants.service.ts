@@ -138,6 +138,7 @@ export class RestaurantsService {
             case UserRole.RESTAURANT_ADMIN:
             case UserRole.WAITER:
             case UserRole.CHEF:
+            case UserRole.BILLER:
                 if (!actor.restaurantId) return [];
                 return this.prisma.restaurant.findMany({
                     where: { id: actor.restaurantId },
@@ -402,7 +403,7 @@ export class RestaurantsService {
         if (actor.role === UserRole.SUPER_ADMIN) return;
         if (actor.role === UserRole.OWNER && restaurant.ownerId === actor.id) return;
         if (
-            ([UserRole.RESTAURANT_ADMIN, UserRole.WAITER, UserRole.CHEF] as UserRole[]).includes(actor.role) &&
+            ([UserRole.RESTAURANT_ADMIN, UserRole.WAITER, UserRole.CHEF, UserRole.BILLER] as UserRole[]).includes(actor.role) &&
             actor.restaurantId === restaurant.id
         ) return;
         throw new ForbiddenException('You do not have access to this restaurant');
@@ -478,7 +479,7 @@ export class RestaurantsService {
     }
 
     // ─── Response filter ──────────────────────────────────────────────────────
-    // RESTAURANT_ADMIN / WAITER / CHEF don't see staff count or creation metadata
+    // RESTAURANT_ADMIN / WAITER / CHEF / BILLER don't see staff count or creation metadata
 
     private filterResponse(role: UserRole, restaurant: any): object {
         if (role === UserRole.SUPER_ADMIN || role === UserRole.OWNER) {

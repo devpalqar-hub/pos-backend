@@ -13,7 +13,7 @@ import { User, UserRole } from '../../generated/prisma';
 // ─── Role hierarchy helpers ────────────────────────────────────────────────
 
 const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN];
-const STAFF_ROLES = [UserRole.WAITER, UserRole.CHEF];
+const STAFF_ROLES = [UserRole.WAITER, UserRole.CHEF, UserRole.BILLER];
 
 // Roles that can be CREATED by respective actors
 const CREATABLE_BY: Record<UserRole, UserRole[]> = {
@@ -23,15 +23,18 @@ const CREATABLE_BY: Record<UserRole, UserRole[]> = {
         UserRole.RESTAURANT_ADMIN,
         UserRole.WAITER,
         UserRole.CHEF,
+        UserRole.BILLER,
     ],
     [UserRole.OWNER]: [
         UserRole.RESTAURANT_ADMIN,
         UserRole.WAITER,
         UserRole.CHEF,
+        UserRole.BILLER,
     ],
-    [UserRole.RESTAURANT_ADMIN]: [UserRole.WAITER, UserRole.CHEF],
+    [UserRole.RESTAURANT_ADMIN]: [UserRole.WAITER, UserRole.CHEF, UserRole.BILLER],
     [UserRole.WAITER]: [],
     [UserRole.CHEF]: [],
+    [UserRole.BILLER]: [],
 };
 
 @Injectable()

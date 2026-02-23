@@ -12,6 +12,8 @@ import { UploadModule } from './upload/upload.module';
 import { CategoriesModule } from './categories/categories.module';
 import { MenuModule } from './menu/menu.module';
 import { PriceRulesModule } from './price-rules/price-rules.module';
+import { TablesModule } from './tables/tables.module';
+import { OrdersModule } from './orders/orders.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -36,6 +38,8 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     CategoriesModule,
     MenuModule,
     PriceRulesModule,
+    TablesModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [

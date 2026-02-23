@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -15,6 +16,9 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  // ─── WebSocket Adapter ────────────────────────────────────────────────────
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
@@ -46,9 +50,10 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
 |------|-------------|
 | SUPER_ADMIN | Full access — create any user, manage everything |
 | OWNER | Manage users in their own restaurants |
-| RESTAURANT_ADMIN | Manage WAITER/CHEF in assigned restaurant |
-| WAITER | View and update own profile only |
-| CHEF | View and update own profile only |
+| RESTAURANT_ADMIN | Manage WAITER/CHEF/BILLER in assigned restaurant |
+| WAITER | View menus, tables; update own profile |
+| CHEF | View menus; update own profile |
+| BILLER | View menus, tables, categories; handle billing; update own profile |
       `,
     )
     .setVersion('1.0')
@@ -71,6 +76,11 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
     .addTag('Categories', 'Menu category management per restaurant')
     .addTag('Menu Items', 'Menu item management with stock / availability control')
     .addTag('Price Rules', 'Day-based and time-window price overrides per menu item')
+    .addTag('Table Groups', 'Floor / section groupings for restaurant tables')
+    .addTag('Tables', 'Individual tables with seat count and optional group assignment')
+    .addTag('Orders', 'Session-based ordering — open sessions, add batches, item status flow')
+    .addTag('Kitchen', 'Chef view — active batches with item-level status management')
+    .addTag('Billing', 'Biller view — generate bills, record full / partial payments')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -351,9 +351,9 @@ export class MenuService {
 
     if (
       mode === 'manage' &&
-      actor.role === UserRole.WAITER
+      (actor.role === UserRole.WAITER || actor.role === UserRole.BILLER)
     ) {
-      throw new ForbiddenException('WAITER cannot create or edit menu items');
+      throw new ForbiddenException('WAITER and BILLER cannot create or edit menu items');
     }
   }
 

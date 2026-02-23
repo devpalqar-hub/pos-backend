@@ -19,6 +19,7 @@ enum UserRole {
   RESTAURANT_ADMIN
   WAITER
   CHEF
+  BILLER
 }
 
 enum DayOfWeek {
@@ -39,6 +40,57 @@ enum ItemType {
 enum PriceRuleType {
   RECURRING_WEEKLY // Repeats every week on the specified day(s) + time window
   LIMITED_TIME     // Active only within a specific calendar date range
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+}
+
+enum OrderChannel {
+  DINE_IN       // In-restaurant table service
+  ONLINE_OWN    // Own online ordering platform
+  UBER_EATS     // Uber Eats integration
+}
+
+enum SessionStatus {
+  OPEN        // Active — accepting new items
+  BILLED      // Bill generated, awaiting payment
+  PAID        // Fully settled and closed
+  CANCELLED   // Cancelled before billing
+  VOID        // Admin-voided after billing
+}
+
+enum BatchStatus {
+  PENDING      // Submitted to kitchen, not started
+  IN_PROGRESS  // Chef actively working on items
+  READY        // All items prepared, awaiting service
+  SERVED       // All items delivered to customer
+}
+
+enum OrderItemStatus {
+  PENDING    // Queued in kitchen
+  PREPARING  // Chef is working on it (optional)
+  PREPARED   // Ready for pickup / serving (optional)
+  SERVED     // Delivered to customer
+  CANCELLED  // Item cancelled after ordering
+}
+
+enum BillStatus {
+  DRAFT   // Auto-calculated, not locked
+  FINAL   // Locked, ready for payment
+  PAID    // Fully settled
+  VOIDED  // Voided by staff
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  ONLINE
+  OTHER
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -66,6 +118,12 @@ model User {
 
   // Restaurants this user CREATED (only SUPER_ADMIN)
   createdRestaurants Restaurant[] @relation("RestaurantCreatedBy")
+
+  // ── Order backward relations ──────────────────────────────────────────────
+  openedSessions    OrderSession[] @relation("SessionOpenedBy")
+  createdBatches    OrderBatch[]   @relation("BatchCreatedBy")
+  generatedBills    Bill[]         @relation("BillGeneratedBy")
+  processedPayments Payment[]      @relation("PaymentProcessedBy")
 
   @@map("users")
 }
@@ -113,10 +171,14 @@ model Restaurant {
   createdBy User?  @relation("RestaurantCreatedBy", fields: [createdById], references: [id])
   staff     User[] @relation("RestaurantStaff")
 
-  workingHours WorkingHours[]
-  categories   MenuCategory[]
-  menuItems    MenuItem[]
-  priceRules   PriceRule[]
+  workingHours  WorkingHours[]
+  categories    MenuCategory[]
+  menuItems     MenuItem[]
+  priceRules    PriceRule[]
+  tableGroups   TableGroup[]
+  tables        Table[]
+  sessions      OrderSession[]
+  bills         Bill[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -190,6 +252,8 @@ model MenuItem {
   restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category   MenuCategory @relation(fields: [categoryId], references: [id])
   priceRules PriceRule[]
+  orderItems OrderItem[]
+  billItems  BillItem[]
 
   @@index([restaurantId])
   @@index([categoryId])
@@ -247,6 +311,222 @@ model PriceRuleDay {
 
   @@unique([ruleId, day])
   @@map("price_rule_days")
+}
+
+// ─── Table Group ─────────────────────────────────────────────────────────────
+// Optional grouping of tables to represent sections / floors in the restaurant.
+
+model TableGroup {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String   @db.VarChar(255)  // e.g. "Ground Floor", "Rooftop", "Section A"
+  description  String?  @db.Text
+  color        String?  @db.VarChar(20)   // UI hint, e.g. "#FF5733"
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables     Table[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@map("table_groups")
+}
+
+// ─── Table ────────────────────────────────────────────────────────────────────
+
+model Table {
+  id           String      @id @default(uuid())
+  restaurantId String
+  groupId      String?     // Optional — table may not belong to any group
+
+  name         String      @db.VarChar(255)          // e.g. "T1", "Table 1"
+  seatCount    Int                                    // Number of seats
+  status       TableStatus @default(AVAILABLE)        // Real-time occupancy status
+  isActive     Boolean     @default(true)
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  group      TableGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  sessions   OrderSession[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([groupId])
+  @@map("tables")
+}
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
+// Flow: OrderSession → OrderBatch → OrderItem → Bill → Payment
+// Each session is a "tab" on a table. Multiple OPEN sessions per table are
+// allowed to support split-bill / separate-party scenarios.
+
+model OrderSession {
+  id            String        @id @default(uuid())
+  restaurantId  String
+  tableId       String?       // null for online / delivery orders
+
+  sessionNumber String        @db.VarChar(6)      // 6-char alphanumeric, unique per restaurant
+  channel       OrderChannel  @default(DINE_IN)
+  status        SessionStatus @default(OPEN)
+
+  // ── Walk-in customer info (NOT a system User) ───────────────────────────
+  customerName  String?  @db.VarChar(255)
+  customerPhone String?  @db.VarChar(30)
+  customerEmail String?  @db.VarChar(255)
+  guestCount    Int      @default(1)
+
+  // ── Online / delivery fields (ONLINE_OWN & UBER_EATS channels) ──────────
+  externalOrderId     String? @db.VarChar(255) // Uber Eats order ID, etc.
+  externalChannel     String? @db.VarChar(100) // Raw channel label from integration
+  deliveryAddress     String? @db.Text
+  deliveryFee         Decimal? @db.Decimal(10, 2)
+  specialInstructions String? @db.Text
+
+  // ── Pricing snapshot (populated when bill is generated) ─────────────────
+  subtotal       Decimal? @db.Decimal(10, 2)
+  taxAmount      Decimal? @db.Decimal(10, 2)
+  discountAmount Decimal? @db.Decimal(10, 2)
+  totalAmount    Decimal? @db.Decimal(10, 2)
+
+  openedById String
+  closedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      Table?       @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  openedBy   User         @relation("SessionOpenedBy", fields: [openedById], references: [id])
+  batches    OrderBatch[]
+  bill       Bill?
+
+  @@unique([restaurantId, sessionNumber])
+  @@index([restaurantId])
+  @@index([tableId])
+  @@index([status])
+  @@map("order_sessions")
+}
+
+model OrderBatch {
+  id          String      @id @default(uuid())
+  sessionId   String
+  batchNumber String      @db.VarChar(6)   // 6-char alphanumeric, unique per session
+  status      BatchStatus @default(PENDING)
+  notes       String?     @db.Text         // Kitchen-level notes for the whole batch
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  session   OrderSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdBy User?        @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  items     OrderItem[]
+
+  @@unique([sessionId, batchNumber])
+  @@index([sessionId])
+  @@index([status])
+  @@map("order_batches")
+}
+
+model OrderItem {
+  id          String          @id @default(uuid())
+  batchId     String
+  menuItemId  String
+
+  quantity    Int             @default(1)
+  unitPrice   Decimal         @db.Decimal(10, 2) // Price snapshot at time of order
+  totalPrice  Decimal         @db.Decimal(10, 2) // unitPrice × quantity
+  notes       String?         @db.VarChar(500)   // Per-item instructions
+
+  status      OrderItemStatus @default(PENDING)
+  preparedAt  DateTime?
+  servedAt    DateTime?
+  cancelledAt DateTime?
+  cancelReason String?        @db.VarChar(500)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  batch    OrderBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  menuItem MenuItem   @relation(fields: [menuItemId], references: [id])
+
+  @@index([batchId])
+  @@index([menuItemId])
+  @@index([status])
+  @@map("order_items")
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+model Bill {
+  id           String     @id @default(uuid())
+  sessionId    String     @unique
+  restaurantId String
+  billNumber   String     @db.VarChar(6)   // 6-char alphanumeric, unique per restaurant
+  status       BillStatus @default(DRAFT)
+
+  subtotal       Decimal @db.Decimal(10, 2)
+  taxRate        Decimal @db.Decimal(5, 2)
+  taxAmount      Decimal @db.Decimal(10, 2)
+  discountAmount Decimal @db.Decimal(10, 2) @default(0)
+  totalAmount    Decimal @db.Decimal(10, 2)
+
+  notes         String?  @db.Text
+  generatedById String?
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  session     OrderSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  generatedBy User?        @relation("BillGeneratedBy", fields: [generatedById], references: [id])
+  items       BillItem[]
+  payments    Payment[]
+
+  @@unique([restaurantId, billNumber])
+  @@index([restaurantId])
+  @@index([status])
+  @@map("bills")
+}
+
+model BillItem {
+  id         String  @id @default(uuid())
+  billId     String
+  menuItemId String
+
+  name       String  @db.VarChar(255)    // Snapshot of menu item name at billing time
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  bill     Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([billId])
+  @@map("bill_items")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  billId        String
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  reference     String?       @db.VarChar(255)  // Transaction ID, UPI ref, card last4, etc.
+  notes         String?       @db.VarChar(500)
+
+  processedById String?
+  createdAt     DateTime @default(now())
+
+  bill        Bill  @relation(fields: [billId], references: [id], onDelete: Cascade)
+  processedBy User? @relation("PaymentProcessedBy", fields: [processedById], references: [id])
+
+  @@index([billId])
+  @@map("payments")
 }
 
 model OtpToken {
