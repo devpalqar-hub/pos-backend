@@ -24,13 +24,14 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
             context.getHandler(),
             context.getClass(),
         ]);
-        if (isPublic)
+        if (isPublic) {
             return true;
+        }
         return super.canActivate(context);
     }
-    handleRequest(err, user) {
+    handleRequest(err, user, info) {
         if (err || !user) {
-            throw err || new common_1.UnauthorizedException('Invalid or expired token');
+            throw err || new common_1.UnauthorizedException('Authentication required');
         }
         return user;
     }

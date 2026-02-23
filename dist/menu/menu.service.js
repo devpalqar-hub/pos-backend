@@ -14,7 +14,7 @@ exports.MenuService = void 0;
 const common_1 = require("@nestjs/common");
 const schedule_1 = require("@nestjs/schedule");
 const prisma_service_1 = require("../prisma/prisma.service");
-const s3_service_1 = require("../common/services/s3.service");
+const s3_service_1 = require("../s3/s3.service");
 const stock_action_dto_1 = require("./dto/stock-action.dto");
 const prisma_1 = require("../../generated/prisma");
 const ITEM_INCLUDE = {
@@ -107,7 +107,7 @@ let MenuService = MenuService_1 = class MenuService {
             }
         }
         if (dto.imageUrl && item.imageUrl && dto.imageUrl !== item.imageUrl) {
-            await this.s3.deleteByUrl(item.imageUrl);
+            await this.s3.deleteFile(item.imageUrl);
         }
         return this.prisma.menuItem.update({
             where: { id },
@@ -205,7 +205,7 @@ let MenuService = MenuService_1 = class MenuService {
             throw new common_1.NotFoundException(`Menu item ${id} not found in restaurant ${restaurantId}`);
         }
         if (item.imageUrl)
-            await this.s3.deleteByUrl(item.imageUrl);
+            await this.s3.deleteFile(item.imageUrl);
         await this.prisma.menuItem.delete({ where: { id } });
         return { message: `Menu item "${item.name}" deleted successfully` };
     }

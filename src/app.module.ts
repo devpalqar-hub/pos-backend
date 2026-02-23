@@ -8,7 +8,6 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { CommonModule } from './common/common.module';
-import { UploadModule } from './upload/upload.module';
 import { CategoriesModule } from './categories/categories.module';
 import { MenuModule } from './menu/menu.module';
 import { PriceRulesModule } from './price-rules/price-rules.module';
@@ -18,6 +17,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { S3Module } from './s3/s3.module';
 
 @Module({
   imports: [
@@ -34,7 +34,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
     AuthModule,
     UsersModule,
     RestaurantsModule,
-    UploadModule,
+    S3Module,
     CategoriesModule,
     MenuModule,
     PriceRulesModule,

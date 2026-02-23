@@ -4,8 +4,8 @@ import { TablesController } from './tables.controller';
 import { TableGroupsController } from './table-groups.controller';
 
 @Module({
-  controllers: [TableGroupsController, TablesController],
-  providers: [TablesService],
-  exports: [TablesService],
+    controllers: [TableGroupsController, TablesController],
+    providers: [TablesService],
+    exports: [TablesService],
 })
-export class TablesModule {}
+export class TablesModule { }

@@ -9,4 +9,4 @@ import { MenuService } from './menu.service';
   providers: [MenuService],
   exports: [MenuService],
 })
-export class MenuModule {}
+export class MenuModule { }

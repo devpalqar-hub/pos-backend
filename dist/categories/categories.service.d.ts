@@ -1,5 +1,5 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Service } from '../common/services/s3.service';
+import { S3Service } from 'src/s3/s3.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { User } from '../../generated/prisma';
@@ -12,32 +12,32 @@ export declare class CategoriesService {
             items: number;
         };
     } & {
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
+        imageUrl: string | null;
         isActive: boolean;
+        sortOrder: number;
         createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
-        sortOrder: number;
+        restaurantId: string;
     }>;
     findAll(actor: User, restaurantId: string): Promise<({
         _count: {
             items: number;
         };
     } & {
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
+        imageUrl: string | null;
         isActive: boolean;
+        sortOrder: number;
         createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
-        sortOrder: number;
+        restaurantId: string;
     })[]>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         items: {
@@ -55,32 +55,32 @@ export declare class CategoriesService {
             items: number;
         };
     } & {
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
+        imageUrl: string | null;
         isActive: boolean;
+        sortOrder: number;
         createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
-        sortOrder: number;
+        restaurantId: string;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateCategoryDto): Promise<{
         _count: {
             items: number;
         };
     } & {
-        description: string | null;
         id: string;
         name: string;
+        description: string | null;
+        imageUrl: string | null;
         isActive: boolean;
+        sortOrder: number;
         createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
-        sortOrder: number;
+        restaurantId: string;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

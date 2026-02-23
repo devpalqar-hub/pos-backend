@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Service } from '../common/services/s3.service';
+import { S3Service } from 'src/s3/s3.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { User, UserRole } from '../../generated/prisma';
@@ -15,7 +15,7 @@ export class CategoriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
-  ) {}
+  ) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
@@ -120,7 +120,7 @@ export class CategoriesService {
 
     // If a new imageUrl is provided and the old one exists, delete old S3 object
     if (dto.imageUrl && category.imageUrl && dto.imageUrl !== category.imageUrl) {
-      await this.s3.deleteByUrl(category.imageUrl);
+      await this.s3.deleteFile(category.imageUrl);
     }
 
     return this.prisma.menuCategory.update({
@@ -153,12 +153,12 @@ export class CategoriesService {
     if (category._count.items > 0) {
       throw new ForbiddenException(
         `Cannot delete category "${category.name}" — it has ${category._count.items} menu item(s). ` +
-          `Move or delete the items first.`,
+        `Move or delete the items first.`,
       );
     }
 
     // Delete S3 image if present
-    if (category.imageUrl) await this.s3.deleteByUrl(category.imageUrl);
+    if (category.imageUrl) await this.s3.deleteFile(category.imageUrl);
 
     await this.prisma.menuCategory.delete({ where: { id } });
     return { message: `Category "${category.name}" deleted successfully` };

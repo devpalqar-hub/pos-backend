@@ -7,19 +7,19 @@ import { OrdersGateway } from './orders.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '7d' },
-      }),
-    }),
-  ],
-  controllers: [OrdersController],
-  providers: [OrdersService, OrdersGateway],
-  exports: [OrdersService],
+    imports: [
+        PrismaModule,
+        JwtModule.registerAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+                secret: config.get<string>('JWT_SECRET'),
+                signOptions: { expiresIn: '7d' },
+            }),
+        }),
+    ],
+    controllers: [OrdersController],
+    providers: [OrdersService, OrdersGateway],
+    exports: [OrdersService],
 })
-export class OrdersModule {}
+export class OrdersModule { }
