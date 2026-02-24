@@ -119,6 +119,7 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
             case client_1.UserRole.RESTAURANT_ADMIN:
             case client_1.UserRole.WAITER:
             case client_1.UserRole.CHEF:
+            case client_1.UserRole.BILLER:
                 if (!actor.restaurantId)
                     return [];
                 return this.prisma.restaurant.findMany({
@@ -313,7 +314,7 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
             return;
         if (actor.role === client_1.UserRole.OWNER && restaurant.ownerId === actor.id)
             return;
-        if ([client_1.UserRole.RESTAURANT_ADMIN, client_1.UserRole.WAITER, client_1.UserRole.CHEF].includes(actor.role) &&
+        if ([client_1.UserRole.RESTAURANT_ADMIN, client_1.UserRole.WAITER, client_1.UserRole.CHEF, client_1.UserRole.BILLER].includes(actor.role) &&
             actor.restaurantId === restaurant.id)
             return;
         throw new common_1.ForbiddenException('You do not have access to this restaurant');

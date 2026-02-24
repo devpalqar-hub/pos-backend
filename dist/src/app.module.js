@@ -20,6 +20,8 @@ const common_module_1 = require("./common/common.module");
 const categories_module_1 = require("./categories/categories.module");
 const menu_module_1 = require("./menu/menu.module");
 const price_rules_module_1 = require("./price-rules/price-rules.module");
+const tables_module_1 = require("./tables/tables.module");
+const orders_module_1 = require("./orders/orders.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
@@ -41,6 +43,8 @@ exports.AppModule = AppModule = __decorate([
             categories_module_1.CategoriesModule,
             menu_module_1.MenuModule,
             price_rules_module_1.PriceRulesModule,
+            tables_module_1.TablesModule,
+            orders_module_1.OrdersModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

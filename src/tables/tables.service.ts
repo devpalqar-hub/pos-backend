@@ -10,7 +10,7 @@ import { CreateTableGroupDto } from './dto/create-table-group.dto';
 import { UpdateTableGroupDto } from './dto/update-table-group.dto';
 import { CreateTableDto } from './dto/create-table.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
-import { User, UserRole } from '../../generated/prisma';
+import { User, UserRole } from '@prisma/client';
 
 // ─── Include clauses ──────────────────────────────────────────────────────────
 

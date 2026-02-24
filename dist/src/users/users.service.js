@@ -14,7 +14,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
 const ADMIN_ROLES = [client_1.UserRole.SUPER_ADMIN, client_1.UserRole.OWNER, client_1.UserRole.RESTAURANT_ADMIN];
-const STAFF_ROLES = [client_1.UserRole.WAITER, client_1.UserRole.CHEF];
+const STAFF_ROLES = [client_1.UserRole.WAITER, client_1.UserRole.CHEF, client_1.UserRole.BILLER];
 const CREATABLE_BY = {
     [client_1.UserRole.SUPER_ADMIN]: [
         client_1.UserRole.SUPER_ADMIN,
@@ -22,15 +22,18 @@ const CREATABLE_BY = {
         client_1.UserRole.RESTAURANT_ADMIN,
         client_1.UserRole.WAITER,
         client_1.UserRole.CHEF,
+        client_1.UserRole.BILLER,
     ],
     [client_1.UserRole.OWNER]: [
         client_1.UserRole.RESTAURANT_ADMIN,
         client_1.UserRole.WAITER,
         client_1.UserRole.CHEF,
+        client_1.UserRole.BILLER,
     ],
-    [client_1.UserRole.RESTAURANT_ADMIN]: [client_1.UserRole.WAITER, client_1.UserRole.CHEF],
+    [client_1.UserRole.RESTAURANT_ADMIN]: [client_1.UserRole.WAITER, client_1.UserRole.CHEF, client_1.UserRole.BILLER],
     [client_1.UserRole.WAITER]: [],
     [client_1.UserRole.CHEF]: [],
+    [client_1.UserRole.BILLER]: [],
 };
 let UsersService = class UsersService {
     constructor(prisma) {

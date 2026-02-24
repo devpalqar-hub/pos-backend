@@ -143,8 +143,8 @@ let CategoriesService = class CategoriesService {
             throw new common_1.ForbiddenException('You are not assigned to this restaurant');
         }
         if (mode === 'manage' &&
-            (actor.role === client_1.UserRole.WAITER || actor.role === client_1.UserRole.CHEF)) {
-            throw new common_1.ForbiddenException('WAITER and CHEF can only view categories, not create or edit them');
+            (actor.role === client_1.UserRole.WAITER || actor.role === client_1.UserRole.CHEF || actor.role === client_1.UserRole.BILLER)) {
+            throw new common_1.ForbiddenException('WAITER, CHEF and BILLER can only view categories, not create or edit them');
         }
     }
     assertAdminOrAbove(actor) {

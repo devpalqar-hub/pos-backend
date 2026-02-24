@@ -49,7 +49,7 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: 'Restaurant ID to assign the user to. ' +
-            'Required for RESTAURANT_ADMIN, WAITER, CHEF roles.',
+            'Required for RESTAURANT_ADMIN, WAITER, CHEF, BILLER roles.',
         example: 'uuid-of-restaurant',
     }),
     (0, class_validator_1.IsOptional)(),

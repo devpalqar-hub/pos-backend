@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const platform_socket_io_1 = require("@nestjs/platform-socket.io");
 const app_module_1 = require("./app.module");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
@@ -12,6 +13,7 @@ async function bootstrap() {
         transform: true,
         transformOptions: { enableImplicitConversion: true },
     }));
+    app.useWebSocketAdapter(new platform_socket_io_1.IoAdapter(app));
     app.enableCors({
         origin: '*',
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
@@ -36,9 +38,10 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
 |------|-------------|
 | SUPER_ADMIN | Full access — create any user, manage everything |
 | OWNER | Manage users in their own restaurants |
-| RESTAURANT_ADMIN | Manage WAITER/CHEF in assigned restaurant |
-| WAITER | View and update own profile only |
-| CHEF | View and update own profile only |
+| RESTAURANT_ADMIN | Manage WAITER/CHEF/BILLER in assigned restaurant |
+| WAITER | View menus, tables; update own profile |
+| CHEF | View menus; update own profile |
+| BILLER | View menus, tables, categories; handle billing; update own profile |
       `)
         .setVersion('1.0')
         .setContact('POS Platform', '', 'support@posplatform.com')
@@ -57,6 +60,11 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
         .addTag('Categories', 'Menu category management per restaurant')
         .addTag('Menu Items', 'Menu item management with stock / availability control')
         .addTag('Price Rules', 'Day-based and time-window price overrides per menu item')
+        .addTag('Table Groups', 'Floor / section groupings for restaurant tables')
+        .addTag('Tables', 'Individual tables with seat count and optional group assignment')
+        .addTag('Orders', 'Session-based ordering — open sessions, add batches, item status flow')
+        .addTag('Kitchen', 'Chef view — active batches with item-level status management')
+        .addTag('Billing', 'Biller view — generate bills, record full / partial payments')
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api/docs', app, document, {

@@ -9,7 +9,7 @@ import {
     Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, UserRole } from '../../generated/prisma';
+import { User, UserRole } from '@prisma/client';
 import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
 import { UpdateItemStatusDto, OrderItemStatus } from './dto/update-item-status.dto';
@@ -772,8 +772,8 @@ export class OrdersService {
 
         const allowedRoles = [
             UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.BILLER,
-        ];
-        if (!allowedRoles.includes(actor.role)) {
+        ] as UserRole[];
+        if (!(allowedRoles as UserRole[]).includes(actor.role)) {
             throw new ForbiddenException('Only BILLER and above can access the billing view');
         }
 
@@ -819,7 +819,7 @@ export class OrdersService {
         const allowedRoles = [
             UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.BILLER,
         ];
-        if (!allowedRoles.includes(actor.role)) {
+        if (!(allowedRoles as UserRole[]).includes(actor.role)) {
             throw new ForbiddenException('Only BILLER and above can generate bills');
         }
 
@@ -1001,8 +1001,8 @@ export class OrdersService {
 
         const allowedRoles = [
             UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.BILLER,
-        ];
-        if (!allowedRoles.includes(actor.role)) {
+        ] as UserRole[];
+        if (!(allowedRoles as UserRole[]).includes(actor.role)) {
             throw new ForbiddenException('Only BILLER and above can record payments');
         }
 

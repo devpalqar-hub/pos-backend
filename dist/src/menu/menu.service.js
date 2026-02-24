@@ -242,8 +242,8 @@ let MenuService = MenuService_1 = class MenuService {
             throw new common_1.ForbiddenException('You are not assigned to this restaurant');
         }
         if (mode === 'manage' &&
-            actor.role === client_1.UserRole.WAITER) {
-            throw new common_1.ForbiddenException('WAITER cannot create or edit menu items');
+            (actor.role === client_1.UserRole.WAITER || actor.role === client_1.UserRole.BILLER)) {
+            throw new common_1.ForbiddenException('WAITER and BILLER cannot create or edit menu items');
         }
     }
     requireStockable(item, action) {
