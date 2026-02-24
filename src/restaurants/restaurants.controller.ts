@@ -35,7 +35,7 @@ export class RestaurantsController {
     constructor(private readonly restaurantsService: RestaurantsService) { }
 
     // ─── Create Restaurant ────────────────────────────────────────────────────
-
+    kitchen
     @Post()
     @Roles(UserRole.SUPER_ADMIN)
     @HttpCode(HttpStatus.CREATED)

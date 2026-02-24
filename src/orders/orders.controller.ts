@@ -67,7 +67,7 @@ const BILLER_AND_ABOVE = [
 @ApiTags('Orders')
 @ApiBearerAuth('Bearer')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller()
+@Controller("orders")
 export class OrdersController {
     constructor(private readonly ordersService: OrdersService) { }
 

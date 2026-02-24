@@ -6,6 +6,7 @@ import { User } from '@prisma/client';
 export declare class RestaurantsController {
     private readonly restaurantsService;
     constructor(restaurantsService: RestaurantsService);
+    kitchen: any;
     create(actor: User, dto: CreateRestaurantDto): Promise<{
         message: string;
         data: object;

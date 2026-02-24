@@ -1,0 +1,2 @@
+1. Restaurant id required for creating waiters. that same waiter can be assigned to anotther restaurant using assign api.
+and the previous restaurant was removed from the waiter. 
