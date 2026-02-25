@@ -12,8 +12,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -28,8 +28,8 @@ export declare class CategoriesController {
         message: string;
         data: {
             data: {
-                name: string;
                 id: string;
+                name: string;
                 isActive: boolean;
                 createdById: string | null;
                 restaurantId: string;
@@ -53,8 +53,8 @@ export declare class CategoriesController {
         message: string;
         data: {
             items: {
-                name: string;
                 id: string;
+                name: string;
                 imageUrl: string | null;
                 price: import("@prisma/client/runtime/library").Decimal;
                 discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
@@ -67,8 +67,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -86,8 +86,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;

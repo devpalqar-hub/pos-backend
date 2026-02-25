@@ -49,6 +49,7 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
     constructor(prisma) {
         this.prisma = prisma;
         this.logger = new common_1.Logger(RestaurantsService_1.name);
+        this.VALID_ROLES = [client_1.UserRole.SUPER_ADMIN, client_1.UserRole.OWNER, client_1.UserRole.RESTAURANT_ADMIN, client_1.UserRole.WAITER, client_1.UserRole.CHEF, client_1.UserRole.BILLER];
     }
     async create(actor, dto) {
         const owner = await this.prisma.user.findUnique({
@@ -297,10 +298,13 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
         if (filters?.name) {
             where.name = {
                 contains: filters.name,
-                mode: 'insensitive',
             };
         }
         if (filters?.roles && filters.roles.length > 0) {
+            const invalidRoles = filters.roles.filter(role => !this.VALID_ROLES.includes(role));
+            if (invalidRoles.length > 0) {
+                throw new common_1.BadRequestException(`Invalid role(s): ${invalidRoles.join(', ')}. Valid roles are: ${this.VALID_ROLES.join(', ')}`);
+            }
             where.role = {
                 in: filters.roles,
             };

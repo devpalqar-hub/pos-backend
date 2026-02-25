@@ -173,20 +173,26 @@ Working hours are **upserted** — supplying days overwrites those days, unmenti
     @Get(':id/staff')
     @ApiParam({ name: 'id', description: 'Restaurant UUID' })
     @ApiQuery({ name: 'name', required: false, description: 'Search staff by name (partial match)' })
-    @ApiQuery({ name: 'roles', required: false, description: 'Filter by role(s) - comma separated (e.g., WAITER,CHEF)' })
+    @ApiQuery({
+        name: 'roles',
+        required: false,
+        description: 'Filter by role(s) - comma separated. Valid roles: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN, WAITER, CHEF, BILLER (e.g., WAITER,CHEF)',
+        example: 'WAITER,CHEF'
+    })
     @ApiQuery({ name: 'isActive', required: false, enum: ['true', 'false'], description: 'Filter by active status' })
     @ApiOperation({
         summary: 'List staff assigned to a restaurant',
         description:
-            'Returns all users (RESTAURANT_ADMIN, WAITER, CHEF) assigned to this restaurant. Supports search by name and filtering by roles and active status.',
+            'Returns all staff users assigned to this restaurant. Supports search by name and filtering by roles (SUPER_ADMIN, OWNER, RESTAURANT_ADMIN, WAITER, CHEF, BILLER) and active status.',
     })
     @ApiResponse({ status: 200, description: 'Staff list returned.' })
+    @ApiResponse({ status: 400, description: 'Invalid role(s) provided.' })
     @ApiResponse({ status: 403, description: 'Access denied.' })
     @ApiResponse({ status: 404, description: 'Restaurant not found.' })
     async getStaff(
         @CurrentUser() actor: User,
         @Param('id', ParseUUIDPipe) id: string,
-        @Query('search') name?: string,
+        @Query('name') name?: string,
         @Query('roles') roles?: string,
         @Query('isActive') isActive?: string,
     ) {

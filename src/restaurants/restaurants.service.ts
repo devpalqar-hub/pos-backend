@@ -368,6 +368,8 @@ export class RestaurantsService {
 
     // ─── Get Staff List ───────────────────────────────────────────────────────
 
+    private readonly VALID_ROLES = [UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.WAITER, UserRole.CHEF, UserRole.BILLER];
+
     async getStaff(
         actor: User,
         restaurantId: string,
@@ -387,12 +389,18 @@ export class RestaurantsService {
         if (filters?.name) {
             where.name = {
                 contains: filters.name,
-                mode: 'insensitive',
             };
         }
 
-        // Roles filter
+        // Roles filter with validation
         if (filters?.roles && filters.roles.length > 0) {
+            // Validate that all provided roles are valid UserRole enum values
+            const invalidRoles = filters.roles.filter(role => !this.VALID_ROLES.includes(role as UserRole));
+            if (invalidRoles.length > 0) {
+                throw new BadRequestException(
+                    `Invalid role(s): ${invalidRoles.join(', ')}. Valid roles are: ${this.VALID_ROLES.join(', ')}`
+                );
+            }
             where.role = {
                 in: filters.roles,
             };

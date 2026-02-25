@@ -16,6 +16,7 @@ export declare class RestaurantsService {
     }>;
     assignStaff(actor: User, restaurantId: string, dto: AssignStaffDto): Promise<object>;
     removeStaff(actor: User, restaurantId: string, dto: RemoveStaffDto): Promise<object>;
+    private readonly VALID_ROLES;
     getStaff(actor: User, restaurantId: string, filters?: {
         name?: string;
         roles?: string[];
