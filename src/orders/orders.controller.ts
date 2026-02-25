@@ -109,14 +109,20 @@ export class OrdersController {
     @ApiQuery({ name: 'status', enum: SessionStatus, required: false })
     @ApiQuery({ name: 'tableId', required: false, description: 'Filter by table UUID' })
     @ApiQuery({ name: 'channel', required: false, description: 'Filter by channel (DINE_IN, ONLINE_OWN, UBER_EATS)' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     findAllSessions(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Query('status') status?: SessionStatus,
         @Query('tableId') tableId?: string,
         @Query('channel') channel?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
-        return this.ordersService.findAllSessions(actor, restaurantId, { status, tableId, channel });
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+        return this.ordersService.findAllSessions(actor, restaurantId, { status, tableId, channel }, pageNum, limitNum);
     }
 
     /**
@@ -195,12 +201,18 @@ export class OrdersController {
     @ApiOperation({ summary: 'List all batches of a session' })
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiParam({ name: 'sessionId', description: 'Session UUID' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     findAllBatches(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Param('sessionId', ParseUUIDPipe) sessionId: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
-        return this.ordersService.findAllBatches(actor, restaurantId, sessionId);
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+        return this.ordersService.findAllBatches(actor, restaurantId, sessionId, pageNum, limitNum);
     }
 
     /**

@@ -1,2 +1,21 @@
-1. Restaurant id required for creating waiters. that same waiter can be assigned to anotther restaurant using assign api.
-and the previous restaurant was removed from the waiter. 
+door dash integration. 
+1. create developer account
+2. generate credentials
+3. generate delivery
+4. using simulator to assing devliry to agent and advance the delivery.
+
+
+uber eats integration. 
+1. order ingegration only - vayicht evdnn thodangum enn oru pidi kitunilla
+
+mail server - general one edthu
+1. mail on bill payment. 
+2. bill can be send using mail (no paper required) - useless and optional case for pos system, 
+3. mail on successfull delivery.
+4. asking user for feedback/review
+
+push notification - serviceaccount.json required
+1. on bill payment. 
+2. on each stage of delivery
+3. on successfull delivery.
+4. remembering user to write feedback/review

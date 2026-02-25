@@ -30,11 +30,13 @@ let TablesController = class TablesController {
     create(actor, restaurantId, dto) {
         return this.tablesService.createTable(actor, restaurantId, dto);
     }
-    findAll(actor, restaurantId, groupId) {
+    findAll(actor, restaurantId, groupId, page, limit) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         if (groupId === 'ungrouped') {
-            return this.tablesService.findUngroupedTables(actor, restaurantId);
+            return this.tablesService.findUngroupedTables(actor, restaurantId, pageNum, limitNum);
         }
-        return this.tablesService.findAllTables(actor, restaurantId, groupId);
+        return this.tablesService.findAllTables(actor, restaurantId, groupId, pageNum, limitNum);
     }
     findOne(actor, restaurantId, id) {
         return this.tablesService.findOneTable(actor, restaurantId, id);
@@ -78,12 +80,16 @@ __decorate([
         required: false,
         description: 'Filter by table group UUID. Use "ungrouped" for tables without a group.',
     }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'List of tables' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('groupId')),
+    __param(3, (0, common_1.Query)('page')),
+    __param(4, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TablesController.prototype, "findAll", null);
 __decorate([

@@ -33,10 +33,12 @@ let UsersController = class UsersController {
             data: await this.usersService.create(actor, dto),
         };
     }
-    async findAll(actor) {
+    async findAll(actor, page, limit) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Users fetched successfully',
-            data: await this.usersService.findAll(actor),
+            data: await this.usersService.findAll(actor, pageNum, limitNum),
         };
     }
     async getProfile(actor) {
@@ -104,10 +106,14 @@ Returns users visible to the authenticated user:
 - **WAITER / CHEF**: Only their own profile
     `,
     }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'User list returned.' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
 __decorate([

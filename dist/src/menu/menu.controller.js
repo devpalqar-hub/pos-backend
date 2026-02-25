@@ -34,10 +34,12 @@ let MenuController = class MenuController {
             data: await this.menuService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId, categoryId) {
+    async findAll(actor, restaurantId, categoryId, page, limit) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         const data = categoryId
-            ? await this.menuService.findByCategory(actor, restaurantId, categoryId)
-            : await this.menuService.findAll(actor, restaurantId);
+            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum)
+            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum);
         return {
             message: 'Menu items fetched successfully',
             data,
@@ -104,6 +106,8 @@ __decorate([
         required: false,
         description: 'Filter by category UUID',
     }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiOperation)({
         summary: 'List menu items for a restaurant',
         description: 'Returns all menu items ordered by category, then sortOrder, then name. ' +
@@ -115,8 +119,10 @@ __decorate([
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('categoryId')),
+    __param(3, (0, common_1.Query)('page')),
+    __param(4, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], MenuController.prototype, "findAll", null);
 __decorate([

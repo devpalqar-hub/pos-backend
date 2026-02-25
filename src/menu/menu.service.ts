@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { S3Service } from 'src/s3/s3.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
@@ -75,10 +76,12 @@ export class MenuService {
 
   // ─── List (for a restaurant) ──────────────────────────────────────────────
 
-  async findAll(actor: User, restaurantId: string) {
+  async findAll(actor: User, restaurantId: string, page = 1, limit = 10) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
-
-    return this.prisma.menuItem.findMany({
+    return paginate({
+      prismaModel: this.prisma.menuItem,
+      page,
+      limit,
       where: { restaurantId },
       include: ITEM_INCLUDE,
       orderBy: [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
@@ -87,7 +90,7 @@ export class MenuService {
 
   // ─── List by category ─────────────────────────────────────────────────────
 
-  async findByCategory(actor: User, restaurantId: string, categoryId: string) {
+  async findByCategory(actor: User, restaurantId: string, categoryId: string, page = 1, limit = 10) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
     const category = await this.prisma.menuCategory.findFirst({
@@ -99,7 +102,10 @@ export class MenuService {
       );
     }
 
-    return this.prisma.menuItem.findMany({
+    return paginate({
+      prismaModel: this.prisma.menuItem,
+      page,
+      limit,
       where: { restaurantId, categoryId, isActive: true },
       include: ITEM_INCLUDE,
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],

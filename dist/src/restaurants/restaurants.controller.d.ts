@@ -11,9 +11,9 @@ export declare class RestaurantsController {
         message: string;
         data: object;
     }>;
-    findAll(actor: User): Promise<{
+    findAll(actor: User, page?: string, limit?: string): Promise<{
         message: string;
-        data: object[];
+        data: object;
     }>;
     findOne(actor: User, id: string): Promise<{
         message: string;
@@ -26,7 +26,7 @@ export declare class RestaurantsController {
     remove(actor: User, id: string): Promise<{
         message: string;
     }>;
-    getStaff(actor: User, id: string): Promise<{
+    getStaff(actor: User, id: string, name?: string, roles?: string, isActive?: string): Promise<{
         message: string;
         data: object[];
     }>;

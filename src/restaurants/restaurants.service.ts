@@ -7,6 +7,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { AssignStaffDto, RemoveStaffDto } from './dto/assign-staff.dto';
@@ -120,16 +121,22 @@ export class RestaurantsService {
 
     // ─── List Restaurants ─────────────────────────────────────────────────────
 
-    async findAll(actor: User): Promise<object[]> {
+    async findAll(actor: User, page: number = 1, limit: number = 10): Promise<object> {
         switch (actor.role) {
             case UserRole.SUPER_ADMIN:
-                return this.prisma.restaurant.findMany({
+                return paginate({
+                    prismaModel: this.prisma.restaurant,
+                    page,
+                    limit,
                     include: RESTAURANT_LIST_INCLUDE,
                     orderBy: { createdAt: 'desc' },
                 });
 
             case UserRole.OWNER:
-                return this.prisma.restaurant.findMany({
+                return paginate({
+                    prismaModel: this.prisma.restaurant,
+                    page,
+                    limit,
                     where: { ownerId: actor.id },
                     include: RESTAURANT_LIST_INCLUDE,
                     orderBy: { createdAt: 'desc' },
@@ -139,14 +146,17 @@ export class RestaurantsService {
             case UserRole.WAITER:
             case UserRole.CHEF:
             case UserRole.BILLER:
-                if (!actor.restaurantId) return [];
-                return this.prisma.restaurant.findMany({
+                if (!actor.restaurantId) return { data: [], meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPrevPage: false } };
+                return paginate({
+                    prismaModel: this.prisma.restaurant,
+                    page,
+                    limit,
                     where: { id: actor.restaurantId },
                     include: RESTAURANT_LIST_INCLUDE,
                 });
 
             default:
-                return [];
+                return { data: [], meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPrevPage: false } };
         }
     }
 
@@ -358,7 +368,11 @@ export class RestaurantsService {
 
     // ─── Get Staff List ───────────────────────────────────────────────────────
 
-    async getStaff(actor: User, restaurantId: string): Promise<object[]> {
+    async getStaff(
+        actor: User,
+        restaurantId: string,
+        filters?: { name?: string; roles?: string[]; isActive?: boolean }
+    ): Promise<object[]> {
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
         });
@@ -366,8 +380,31 @@ export class RestaurantsService {
 
         this.assertCanViewRestaurant(actor, restaurant);
 
+        // Build where clause with filters
+        const where: any = { restaurantId };
+
+        // Name search (case-insensitive partial match)
+        if (filters?.name) {
+            where.name = {
+                contains: filters.name,
+                mode: 'insensitive',
+            };
+        }
+
+        // Roles filter
+        if (filters?.roles && filters.roles.length > 0) {
+            where.role = {
+                in: filters.roles,
+            };
+        }
+
+        // IsActive filter
+        if (filters?.isActive !== undefined) {
+            where.isActive = filters.isActive;
+        }
+
         return this.prisma.user.findMany({
-            where: { restaurantId },
+            where,
             select: {
                 id: true,
                 name: true,

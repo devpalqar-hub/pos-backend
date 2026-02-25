@@ -9,9 +9,9 @@ export declare class UsersController {
         message: string;
         data: object;
     }>;
-    findAll(actor: User): Promise<{
+    findAll(actor: User, page?: string, limit?: string): Promise<{
         message: string;
-        data: object[];
+        data: object;
     }>;
     getProfile(actor: User): Promise<{
         message: string;

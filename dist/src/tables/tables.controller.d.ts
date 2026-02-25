@@ -7,95 +7,99 @@ export declare class TablesController {
     constructor(tablesService: TablesService);
     create(actor: User, restaurantId: string, dto: CreateTableDto): Promise<{
         group: {
-            id: string;
             name: string;
+            id: string;
             color: string | null;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         seatCount: number;
-        groupId: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
+        groupId: string | null;
     }>;
-    findAll(actor: User, restaurantId: string, groupId?: string): Promise<({
-        group: {
-            id: string;
+    findAll(actor: User, restaurantId: string, groupId?: string, page?: string, limit?: string): Promise<{
+        data: {
             name: string;
-            color: string | null;
-        } | null;
-    } & {
-        id: string;
-        name: string;
-        isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        seatCount: number;
-        groupId: string | null;
-        status: import(".prisma/client").$Enums.TableStatus;
-    })[]>;
+            id: string;
+            isActive: boolean;
+            createdById: string | null;
+            restaurantId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            seatCount: number;
+            status: import(".prisma/client").$Enums.TableStatus;
+            groupId: string | null;
+        }[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+            hasNextPage: boolean;
+            hasPrevPage: boolean;
+        };
+    }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         group: {
-            id: string;
             name: string;
+            id: string;
             color: string | null;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         seatCount: number;
-        groupId: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
+        groupId: string | null;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateTableDto): Promise<{
         group: {
-            id: string;
             name: string;
+            id: string;
             color: string | null;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         seatCount: number;
-        groupId: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
+        groupId: string | null;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
     }>;
     assignGroup(actor: User, restaurantId: string, id: string, groupId: string | null): Promise<{
         group: {
-            id: string;
             name: string;
+            id: string;
             color: string | null;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         seatCount: number;
-        groupId: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
+        groupId: string | null;
     }>;
 }

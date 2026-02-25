@@ -81,6 +81,8 @@ Creates a new item in the restaurant menu.
     required: false,
     description: 'Filter by category UUID',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiOperation({
     summary: 'List menu items for a restaurant',
     description:
@@ -94,10 +96,14 @@ Creates a new item in the restaurant menu.
     @CurrentUser() actor: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Query('categoryId') categoryId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
+    const pageNum = parseInt(page ?? '1');
+    const limitNum = parseInt(limit ?? '10');
     const data = categoryId
-      ? await this.menuService.findByCategory(actor, restaurantId, categoryId)
-      : await this.menuService.findAll(actor, restaurantId);
+      ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum)
+      : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum);
 
     return {
       message: 'Menu items fetched successfully',

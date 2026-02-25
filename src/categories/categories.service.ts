@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { S3Service } from 'src/s3/s3.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -47,10 +48,12 @@ export class CategoriesService {
 
   // ─── List (for a restaurant) ──────────────────────────────────────────────
 
-  async findAll(actor: User, restaurantId: string) {
+  async findAll(actor: User, restaurantId: string, page = 1, limit = 10) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
-
-    return this.prisma.menuCategory.findMany({
+    return paginate({
+      prismaModel: this.prisma.menuCategory,
+      page,
+      limit,
       where: { restaurantId },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       include: { _count: { select: { items: true } } },

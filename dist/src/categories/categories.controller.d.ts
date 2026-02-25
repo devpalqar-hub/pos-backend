@@ -12,8 +12,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -24,31 +24,37 @@ export declare class CategoriesController {
             sortOrder: number;
         };
     }>;
-    findAll(actor: User, restaurantId: string): Promise<{
+    findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
         message: string;
-        data: ({
-            _count: {
-                items: number;
+        data: {
+            data: {
+                name: string;
+                id: string;
+                isActive: boolean;
+                createdById: string | null;
+                restaurantId: string;
+                createdAt: Date;
+                updatedAt: Date;
+                description: string | null;
+                imageUrl: string | null;
+                sortOrder: number;
+            }[];
+            meta: {
+                total: number;
+                page: number;
+                limit: number;
+                totalPages: number;
+                hasNextPage: boolean;
+                hasPrevPage: boolean;
             };
-        } & {
-            id: string;
-            name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
-        })[];
+        };
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
         data: {
             items: {
-                id: string;
                 name: string;
+                id: string;
                 imageUrl: string | null;
                 price: import("@prisma/client/runtime/library").Decimal;
                 discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
@@ -61,8 +67,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -80,8 +86,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;

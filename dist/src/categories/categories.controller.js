@@ -33,10 +33,10 @@ let CategoriesController = class CategoriesController {
             data: await this.categoriesService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId) {
+    async findAll(actor, restaurantId, page, limit) {
         return {
             message: 'Categories fetched successfully',
-            data: await this.categoriesService.findAll(actor, restaurantId),
+            data: await this.categoriesService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10')),
         };
     }
     async findOne(actor, restaurantId, id) {
@@ -85,6 +85,8 @@ Creates a new category for the specified restaurant. Category names are **unique
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiOperation)({
         summary: 'List all categories for a restaurant',
         description: 'Returns all categories ordered by `sortOrder` then name. ' +
@@ -95,8 +97,10 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Restaurant not found.' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)('page')),
+    __param(3, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], CategoriesController.prototype, "findAll", null);
 __decorate([

@@ -75,16 +75,22 @@ export class TablesController {
         required: false,
         description: 'Filter by table group UUID. Use "ungrouped" for tables without a group.',
     })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiResponse({ status: 200, description: 'List of tables' })
     findAll(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Query('groupId') groupId?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         if (groupId === 'ungrouped') {
-            return this.tablesService.findUngroupedTables(actor, restaurantId);
+            return this.tablesService.findUngroupedTables(actor, restaurantId, pageNum, limitNum);
         }
-        return this.tablesService.findAllTables(actor, restaurantId, groupId);
+        return this.tablesService.findAllTables(actor, restaurantId, groupId, pageNum, limitNum);
     }
 
     // ─── Get one ──────────────────────────────────────────────────────────────

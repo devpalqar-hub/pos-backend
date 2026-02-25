@@ -6,6 +6,7 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { CreateTableGroupDto } from './dto/create-table-group.dto';
 import { UpdateTableGroupDto } from './dto/update-table-group.dto';
 import { CreateTableDto } from './dto/create-table.dto';
@@ -16,6 +17,15 @@ import { User, UserRole } from '@prisma/client';
 
 const GROUP_INCLUDE = {
     _count: { select: { tables: true } },
+} as const;
+
+const GROUP_LIST_INCLUDE = {
+    _count: { select: { tables: true } },
+    tables: {
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, seatCount: true, isActive: true },
+    },
 } as const;
 
 const TABLE_INCLUDE = {
@@ -98,20 +108,16 @@ export class TablesService {
 
     // ─── List groups ──────────────────────────────────────────────────────────
 
-    async findAllGroups(actor: User, restaurantId: string) {
+    async findAllGroups(actor: User, restaurantId: string, page: number = 1, limit: number = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
-        return this.prisma.tableGroup.findMany({
+        return paginate({
+            prismaModel: this.prisma.tableGroup,
+            page,
+            limit,
             where: { restaurantId },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-            include: {
-                _count: { select: { tables: true } },
-                tables: {
-                    where: { isActive: true },
-                    orderBy: { name: 'asc' },
-                    select: { id: true, name: true, seatCount: true, isActive: true },
-                },
-            },
+            include: GROUP_LIST_INCLUDE,
         });
     }
 
@@ -266,6 +272,8 @@ export class TablesService {
         actor: User,
         restaurantId: string,
         groupId?: string,
+        page: number = 1,
+        limit: number = 10,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
@@ -281,7 +289,10 @@ export class TablesService {
             }
         }
 
-        return this.prisma.table.findMany({
+        return paginate({
+            prismaModel: this.prisma.table,
+            page,
+            limit,
             where: {
                 restaurantId,
                 ...(groupId !== undefined ? { groupId } : {}),
@@ -293,10 +304,13 @@ export class TablesService {
 
     // ─── List ungrouped tables ───────────────────────────────────────────────
 
-    async findUngroupedTables(actor: User, restaurantId: string) {
+    async findUngroupedTables(actor: User, restaurantId: string, page: number = 1, limit: number = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
-        return this.prisma.table.findMany({
+        return paginate({
+            prismaModel: this.prisma.table,
+            page,
+            limit,
             where: { restaurantId, groupId: null },
             orderBy: { name: 'asc' },
             include: TABLE_INCLUDE,

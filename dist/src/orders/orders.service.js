@@ -16,6 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrdersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const pagination_util_1 = require("../common/utlility/pagination.util");
 const client_1 = require("@prisma/client");
 const create_session_dto_1 = require("./dto/create-session.dto");
 const update_item_status_dto_1 = require("./dto/update-item-status.dto");
@@ -49,6 +50,10 @@ const SESSION_DETAIL_INCLUDE = {
             generatedBy: { select: { id: true, name: true } },
         },
     },
+};
+const BATCH_INCLUDE = {
+    items: { include: { menuItem: { select: { id: true, name: true } } } },
+    createdBy: { select: { id: true, name: true, role: true } },
 };
 const ITEM_STATUS_TRANSITIONS = {
     [update_item_status_dto_1.OrderItemStatus.PENDING]: [
@@ -235,15 +240,20 @@ let OrdersService = OrdersService_1 = class OrdersService {
         this.logger.log(`Session ${sessionNumber} opened by ${actor.name} (${actor.role}) in restaurant ${restaurantId}`);
         return session;
     }
-    async findAllSessions(actor, restaurantId, filters) {
+    async findAllSessions(actor, restaurantId, filters, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId);
-        return this.prisma.orderSession.findMany({
-            where: {
-                restaurantId,
-                ...(filters?.status && { status: filters.status }),
-                ...(filters?.tableId && { tableId: filters.tableId }),
-                ...(filters?.channel && { channel: filters.channel }),
-            },
+        const where = { restaurantId };
+        if (filters?.status)
+            where.status = filters.status;
+        if (filters?.tableId)
+            where.tableId = filters.tableId;
+        if (filters?.channel)
+            where.channel = filters.channel;
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.orderSession,
+            page,
+            limit,
+            where,
             orderBy: { createdAt: 'desc' },
             include: SESSION_SUMMARY_INCLUDE,
         });
@@ -381,20 +391,20 @@ let OrdersService = OrdersService_1 = class OrdersService {
         this.logger.log(`Batch ${batchNumber} created in session ${session.sessionNumber} by ${actor.name}`);
         return batch;
     }
-    async findAllBatches(actor, restaurantId, sessionId) {
+    async findAllBatches(actor, restaurantId, sessionId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId);
         const session = await this.prisma.orderSession.findFirst({
             where: { id: sessionId, restaurantId },
         });
         if (!session)
             throw new common_1.NotFoundException(`Session ${sessionId} not found`);
-        return this.prisma.orderBatch.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.orderBatch,
+            page,
+            limit,
             where: { sessionId },
             orderBy: { createdAt: 'asc' },
-            include: {
-                items: { include: { menuItem: { select: { id: true, name: true } } } },
-                createdBy: { select: { id: true, name: true, role: true } },
-            },
+            include: BATCH_INCLUDE,
         });
     }
     async updateBatchStatus(actor, batchId, dto) {

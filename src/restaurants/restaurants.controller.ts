@@ -10,6 +10,7 @@ import {
     HttpCode,
     HttpStatus,
     ParseUUIDPipe,
+    Query,
 } from '@nestjs/common';
 import {
     ApiTags,
@@ -17,6 +18,7 @@ import {
     ApiResponse,
     ApiBearerAuth,
     ApiParam,
+    ApiQuery,
 } from '@nestjs/swagger';
 import { RestaurantsService } from './restaurants.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
@@ -77,11 +79,15 @@ Returns restaurants visible to the authenticated user:
 | RESTAURANT_ADMIN / WAITER / CHEF | Only their assigned restaurant |
     `,
     })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiResponse({ status: 200, description: 'Restaurant list returned.' })
-    async findAll(@CurrentUser() actor: User) {
+    async findAll(@CurrentUser() actor: User, @Query('page') page?: string, @Query('limit') limit?: string) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Restaurants fetched successfully',
-            data: await this.restaurantsService.findAll(actor),
+            data: await this.restaurantsService.findAll(actor, pageNum, limitNum),
         };
     }
 
@@ -166,10 +172,13 @@ Working hours are **upserted** — supplying days overwrites those days, unmenti
 
     @Get(':id/staff')
     @ApiParam({ name: 'id', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'name', required: false, description: 'Search staff by name (partial match)' })
+    @ApiQuery({ name: 'roles', required: false, description: 'Filter by role(s) - comma separated (e.g., WAITER,CHEF)' })
+    @ApiQuery({ name: 'isActive', required: false, enum: ['true', 'false'], description: 'Filter by active status' })
     @ApiOperation({
         summary: 'List staff assigned to a restaurant',
         description:
-            'Returns all users (RESTAURANT_ADMIN, WAITER, CHEF) assigned to this restaurant.',
+            'Returns all users (RESTAURANT_ADMIN, WAITER, CHEF) assigned to this restaurant. Supports search by name and filtering by roles and active status.',
     })
     @ApiResponse({ status: 200, description: 'Staff list returned.' })
     @ApiResponse({ status: 403, description: 'Access denied.' })
@@ -177,10 +186,16 @@ Working hours are **upserted** — supplying days overwrites those days, unmenti
     async getStaff(
         @CurrentUser() actor: User,
         @Param('id', ParseUUIDPipe) id: string,
+        @Query('search') name?: string,
+        @Query('roles') roles?: string,
+        @Query('isActive') isActive?: string,
     ) {
+        const roleArray = roles ? roles.split(',').map(r => r.trim()).filter(r => r) : undefined;
+        const activeStatus = isActive ? isActive === 'true' : undefined;
+
         return {
             message: 'Staff fetched successfully',
-            data: await this.restaurantsService.getStaff(actor, id),
+            data: await this.restaurantsService.getStaff(actor, id, { name, roles: roleArray, isActive: activeStatus }),
         };
     }
 

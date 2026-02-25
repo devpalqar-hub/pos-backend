@@ -34,10 +34,12 @@ let RestaurantsController = class RestaurantsController {
             data: await this.restaurantsService.create(actor, dto),
         };
     }
-    async findAll(actor) {
+    async findAll(actor, page, limit) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Restaurants fetched successfully',
-            data: await this.restaurantsService.findAll(actor),
+            data: await this.restaurantsService.findAll(actor, pageNum, limitNum),
         };
     }
     async findOne(actor, id) {
@@ -55,10 +57,12 @@ let RestaurantsController = class RestaurantsController {
     async remove(actor, id) {
         return this.restaurantsService.remove(actor, id);
     }
-    async getStaff(actor, id) {
+    async getStaff(actor, id, name, roles, isActive) {
+        const roleArray = roles ? roles.split(',').map(r => r.trim()).filter(r => r) : undefined;
+        const activeStatus = isActive ? isActive === 'true' : undefined;
         return {
             message: 'Staff fetched successfully',
-            data: await this.restaurantsService.getStaff(actor, id),
+            data: await this.restaurantsService.getStaff(actor, id, { name, roles: roleArray, isActive: activeStatus }),
         };
     }
     async assignStaff(actor, id, dto) {
@@ -115,10 +119,14 @@ Returns restaurants visible to the authenticated user:
 | RESTAURANT_ADMIN / WAITER / CHEF | Only their assigned restaurant |
     `,
     }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Restaurant list returned.' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], RestaurantsController.prototype, "findAll", null);
 __decorate([
@@ -187,17 +195,23 @@ __decorate([
 __decorate([
     (0, common_1.Get)(':id/staff'),
     (0, swagger_1.ApiParam)({ name: 'id', description: 'Restaurant UUID' }),
+    (0, swagger_1.ApiQuery)({ name: 'name', required: false, description: 'Search staff by name (partial match)' }),
+    (0, swagger_1.ApiQuery)({ name: 'roles', required: false, description: 'Filter by role(s) - comma separated (e.g., WAITER,CHEF)' }),
+    (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, enum: ['true', 'false'], description: 'Filter by active status' }),
     (0, swagger_1.ApiOperation)({
         summary: 'List staff assigned to a restaurant',
-        description: 'Returns all users (RESTAURANT_ADMIN, WAITER, CHEF) assigned to this restaurant.',
+        description: 'Returns all users (RESTAURANT_ADMIN, WAITER, CHEF) assigned to this restaurant. Supports search by name and filtering by roles and active status.',
     }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Staff list returned.' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Access denied.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Restaurant not found.' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)('search')),
+    __param(3, (0, common_1.Query)('roles')),
+    __param(4, (0, common_1.Query)('isActive')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], RestaurantsController.prototype, "getStaff", null);
 __decorate([

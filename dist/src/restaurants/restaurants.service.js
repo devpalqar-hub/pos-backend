@@ -13,6 +13,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RestaurantsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const pagination_util_1 = require("../common/utlility/pagination.util");
 const client_1 = require("@prisma/client");
 const RESTAURANT_INCLUDE = {
     owner: { select: { id: true, name: true, email: true } },
@@ -103,15 +104,21 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
         });
         return restaurant;
     }
-    async findAll(actor) {
+    async findAll(actor, page = 1, limit = 10) {
         switch (actor.role) {
             case client_1.UserRole.SUPER_ADMIN:
-                return this.prisma.restaurant.findMany({
+                return (0, pagination_util_1.paginate)({
+                    prismaModel: this.prisma.restaurant,
+                    page,
+                    limit,
                     include: RESTAURANT_LIST_INCLUDE,
                     orderBy: { createdAt: 'desc' },
                 });
             case client_1.UserRole.OWNER:
-                return this.prisma.restaurant.findMany({
+                return (0, pagination_util_1.paginate)({
+                    prismaModel: this.prisma.restaurant,
+                    page,
+                    limit,
                     where: { ownerId: actor.id },
                     include: RESTAURANT_LIST_INCLUDE,
                     orderBy: { createdAt: 'desc' },
@@ -121,13 +128,16 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
             case client_1.UserRole.CHEF:
             case client_1.UserRole.BILLER:
                 if (!actor.restaurantId)
-                    return [];
-                return this.prisma.restaurant.findMany({
+                    return { data: [], meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPrevPage: false } };
+                return (0, pagination_util_1.paginate)({
+                    prismaModel: this.prisma.restaurant,
+                    page,
+                    limit,
                     where: { id: actor.restaurantId },
                     include: RESTAURANT_LIST_INCLUDE,
                 });
             default:
-                return [];
+                return { data: [], meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPrevPage: false } };
         }
     }
     async findOne(actor, id) {
@@ -276,15 +286,30 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
             message: `${user.name} has been removed from ${restaurant.name}`,
         };
     }
-    async getStaff(actor, restaurantId) {
+    async getStaff(actor, restaurantId, filters) {
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
         });
         if (!restaurant)
             throw new common_1.NotFoundException(`Restaurant ${restaurantId} not found`);
         this.assertCanViewRestaurant(actor, restaurant);
+        const where = { restaurantId };
+        if (filters?.name) {
+            where.name = {
+                contains: filters.name,
+                mode: 'insensitive',
+            };
+        }
+        if (filters?.roles && filters.roles.length > 0) {
+            where.role = {
+                in: filters.roles,
+            };
+        }
+        if (filters?.isActive !== undefined) {
+            where.isActive = filters.isActive;
+        }
         return this.prisma.user.findMany({
-            where: { restaurantId },
+            where,
             select: {
                 id: true,
                 name: true,

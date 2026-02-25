@@ -60,8 +60,10 @@ let OrdersController = class OrdersController {
     createSession(actor, restaurantId, dto) {
         return this.ordersService.createSession(actor, restaurantId, dto);
     }
-    findAllSessions(actor, restaurantId, status, tableId, channel) {
-        return this.ordersService.findAllSessions(actor, restaurantId, { status, tableId, channel });
+    findAllSessions(actor, restaurantId, status, tableId, channel, page, limit) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+        return this.ordersService.findAllSessions(actor, restaurantId, { status, tableId, channel }, pageNum, limitNum);
     }
     findOneSession(actor, restaurantId, sessionId) {
         return this.ordersService.findOneSession(actor, restaurantId, sessionId);
@@ -72,8 +74,10 @@ let OrdersController = class OrdersController {
     addBatch(actor, restaurantId, sessionId, dto) {
         return this.ordersService.addBatch(actor, restaurantId, sessionId, dto);
     }
-    findAllBatches(actor, restaurantId, sessionId) {
-        return this.ordersService.findAllBatches(actor, restaurantId, sessionId);
+    findAllBatches(actor, restaurantId, sessionId, page, limit) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+        return this.ordersService.findAllBatches(actor, restaurantId, sessionId, pageNum, limitNum);
     }
     updateBatchStatus(actor, batchId, dto) {
         return this.ordersService.updateBatchStatus(actor, batchId, dto);
@@ -128,13 +132,17 @@ __decorate([
     (0, swagger_1.ApiQuery)({ name: 'status', enum: update_session_status_dto_1.SessionStatus, required: false }),
     (0, swagger_1.ApiQuery)({ name: 'tableId', required: false, description: 'Filter by table UUID' }),
     (0, swagger_1.ApiQuery)({ name: 'channel', required: false, description: 'Filter by channel (DINE_IN, ONLINE_OWN, UBER_EATS)' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('status')),
     __param(3, (0, common_1.Query)('tableId')),
     __param(4, (0, common_1.Query)('channel')),
+    __param(5, (0, common_1.Query)('page')),
+    __param(6, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], OrdersController.prototype, "findAllSessions", null);
 __decorate([
@@ -195,11 +203,15 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'List all batches of a session' }),
     (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
     (0, swagger_1.ApiParam)({ name: 'sessionId', description: 'Session UUID' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Param)('sessionId', common_1.ParseUUIDPipe)),
+    __param(3, (0, common_1.Query)('page')),
+    __param(4, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], OrdersController.prototype, "findAllBatches", null);
 __decorate([

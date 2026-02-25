@@ -12,9 +12,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TablesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const pagination_util_1 = require("../common/utlility/pagination.util");
 const client_1 = require("@prisma/client");
 const GROUP_INCLUDE = {
     _count: { select: { tables: true } },
+};
+const GROUP_LIST_INCLUDE = {
+    _count: { select: { tables: true } },
+    tables: {
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, seatCount: true, isActive: true },
+    },
 };
 const TABLE_INCLUDE = {
     group: { select: { id: true, name: true, color: true } },
@@ -67,19 +76,15 @@ let TablesService = class TablesService {
             include: GROUP_INCLUDE,
         });
     }
-    async findAllGroups(actor, restaurantId) {
+    async findAllGroups(actor, restaurantId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
-        return this.prisma.tableGroup.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.tableGroup,
+            page,
+            limit,
             where: { restaurantId },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-            include: {
-                _count: { select: { tables: true } },
-                tables: {
-                    where: { isActive: true },
-                    orderBy: { name: 'asc' },
-                    select: { id: true, name: true, seatCount: true, isActive: true },
-                },
-            },
+            include: GROUP_LIST_INCLUDE,
         });
     }
     async findOneGroup(actor, restaurantId, id) {
@@ -177,7 +182,7 @@ let TablesService = class TablesService {
             include: TABLE_INCLUDE,
         });
     }
-    async findAllTables(actor, restaurantId, groupId) {
+    async findAllTables(actor, restaurantId, groupId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         if (groupId) {
             const group = await this.prisma.tableGroup.findFirst({
@@ -187,7 +192,10 @@ let TablesService = class TablesService {
                 throw new common_1.NotFoundException(`Table group ${groupId} not found in restaurant ${restaurantId}`);
             }
         }
-        return this.prisma.table.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.table,
+            page,
+            limit,
             where: {
                 restaurantId,
                 ...(groupId !== undefined ? { groupId } : {}),
@@ -196,9 +204,12 @@ let TablesService = class TablesService {
             include: TABLE_INCLUDE,
         });
     }
-    async findUngroupedTables(actor, restaurantId) {
+    async findUngroupedTables(actor, restaurantId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
-        return this.prisma.table.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.table,
+            page,
+            limit,
             where: { restaurantId, groupId: null },
             orderBy: { name: 'asc' },
             include: TABLE_INCLUDE,

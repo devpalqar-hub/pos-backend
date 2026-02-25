@@ -13,6 +13,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PriceRulesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const pagination_util_1 = require("../common/utlility/pagination.util");
 const create_price_rule_dto_1 = require("./dto/create-price-rule.dto");
 const client_1 = require("@prisma/client");
 const RULE_INCLUDE = {
@@ -119,11 +120,14 @@ let PriceRulesService = PriceRulesService_1 = class PriceRulesService {
         });
         return rule;
     }
-    async findAllByMenuItem(actor, restaurantId, menuItemId) {
+    async findAllByMenuItem(actor, restaurantId, menuItemId, page = 1, limit = 10) {
         await this.assertAccess(actor, restaurantId);
         await this.assertRestaurantExists(restaurantId);
         await this.assertMenuItemExists(restaurantId, menuItemId);
-        return this.prisma.priceRule.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.priceRule,
+            page,
+            limit,
             where: { restaurantId, menuItemId },
             orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
             include: RULE_INCLUDE,

@@ -8,7 +8,7 @@ export declare class RestaurantsService {
     private readonly logger;
     constructor(prisma: PrismaService);
     create(actor: User, dto: CreateRestaurantDto): Promise<object>;
-    findAll(actor: User): Promise<object[]>;
+    findAll(actor: User, page?: number, limit?: number): Promise<object>;
     findOne(actor: User, id: string): Promise<object>;
     update(actor: User, id: string, dto: UpdateRestaurantDto): Promise<object>;
     remove(actor: User, id: string): Promise<{
@@ -16,7 +16,11 @@ export declare class RestaurantsService {
     }>;
     assignStaff(actor: User, restaurantId: string, dto: AssignStaffDto): Promise<object>;
     removeStaff(actor: User, restaurantId: string, dto: RemoveStaffDto): Promise<object>;
-    getStaff(actor: User, restaurantId: string): Promise<object[]>;
+    getStaff(actor: User, restaurantId: string, filters?: {
+        name?: string;
+        roles?: string[];
+        isActive?: boolean;
+    }): Promise<object[]>;
     getWorkingHours(actor: User, restaurantId: string): Promise<object[]>;
     private assertCanViewRestaurant;
     private assertCanEditRestaurant;

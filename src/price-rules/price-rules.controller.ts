@@ -64,13 +64,19 @@ export class PriceRulesController {
   @ApiOperation({ summary: 'List all price rules for a menu item' })
   @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
   @ApiParam({ name: 'menuItemId', description: 'Menu item UUID' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiResponse({ status: 200, description: 'List of price rules' })
   findAll(
     @CurrentUser() actor: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Param('menuItemId', ParseUUIDPipe) menuItemId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.priceRulesService.findAllByMenuItem(actor, restaurantId, menuItemId);
+    const pageNum = parseInt(page ?? '1');
+    const limitNum = parseInt(limit ?? '10');
+    return this.priceRulesService.findAllByMenuItem(actor, restaurantId, menuItemId, pageNum, limitNum);
   }
 
   // ─── Effective price ──────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoriesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const pagination_util_1 = require("../common/utlility/pagination.util");
 const s3_service_1 = require("../s3/s3.service");
 const client_1 = require("@prisma/client");
 let CategoriesService = class CategoriesService {
@@ -39,9 +40,12 @@ let CategoriesService = class CategoriesService {
             include: { _count: { select: { items: true } } },
         });
     }
-    async findAll(actor, restaurantId) {
+    async findAll(actor, restaurantId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
-        return this.prisma.menuCategory.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.menuCategory,
+            page,
+            limit,
             where: { restaurantId },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
             include: { _count: { select: { items: true } } },

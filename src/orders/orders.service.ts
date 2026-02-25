@@ -9,6 +9,7 @@ import {
     Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { User, UserRole } from '@prisma/client';
 import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
@@ -50,6 +51,11 @@ const SESSION_DETAIL_INCLUDE = {
             generatedBy: { select: { id: true, name: true } },
         },
     },
+} as const;
+
+const BATCH_INCLUDE = {
+    items: { include: { menuItem: { select: { id: true, name: true } } } },
+    createdBy: { select: { id: true, name: true, role: true } },
 } as const;
 
 // ─── Allowed item status transitions ─────────────────────────────────────────
@@ -296,16 +302,21 @@ export class OrdersService {
         actor: User,
         restaurantId: string,
         filters?: { status?: SessionStatus; tableId?: string; channel?: string },
+        page: number = 1,
+        limit: number = 10,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        return this.prisma.orderSession.findMany({
-            where: {
-                restaurantId,
-                ...(filters?.status && { status: filters.status as any }),
-                ...(filters?.tableId && { tableId: filters.tableId }),
-                ...(filters?.channel && { channel: filters.channel as any }),
-            },
+        const where: any = { restaurantId };
+        if (filters?.status) where.status = filters.status;
+        if (filters?.tableId) where.tableId = filters.tableId;
+        if (filters?.channel) where.channel = filters.channel;
+
+        return paginate({
+            prismaModel: this.prisma.orderSession,
+            page,
+            limit,
+            where,
             orderBy: { createdAt: 'desc' },
             include: SESSION_SUMMARY_INCLUDE,
         });
@@ -507,6 +518,8 @@ export class OrdersService {
         actor: User,
         restaurantId: string,
         sessionId: string,
+        page: number = 1,
+        limit: number = 10,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
@@ -515,13 +528,13 @@ export class OrdersService {
         });
         if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
 
-        return this.prisma.orderBatch.findMany({
+        return paginate({
+            prismaModel: this.prisma.orderBatch,
+            page,
+            limit,
             where: { sessionId },
             orderBy: { createdAt: 'asc' },
-            include: {
-                items: { include: { menuItem: { select: { id: true, name: true } } } },
-                createdBy: { select: { id: true, name: true, role: true } },
-            },
+            include: BATCH_INCLUDE,
         });
     }
 

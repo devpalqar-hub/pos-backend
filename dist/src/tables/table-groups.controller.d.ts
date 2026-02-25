@@ -10,43 +10,43 @@ export declare class TableGroupsController {
             tables: number;
         };
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        sortOrder: number;
         color: string | null;
+        sortOrder: number;
     }>;
-    findAll(actor: User, restaurantId: string): Promise<({
-        tables: {
-            id: string;
+    findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
+        data: {
             name: string;
+            id: string;
             isActive: boolean;
-            seatCount: number;
+            createdById: string | null;
+            restaurantId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            description: string | null;
+            color: string | null;
+            sortOrder: number;
         }[];
-        _count: {
-            tables: number;
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+            hasNextPage: boolean;
+            hasPrevPage: boolean;
         };
-    } & {
-        id: string;
-        name: string;
-        isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        description: string | null;
-        sortOrder: number;
-        color: string | null;
-    })[]>;
+    }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         tables: {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdAt: Date;
             seatCount: number;
@@ -55,32 +55,32 @@ export declare class TableGroupsController {
             tables: number;
         };
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        sortOrder: number;
         color: string | null;
+        sortOrder: number;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateTableGroupDto): Promise<{
         _count: {
             tables: number;
         };
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        sortOrder: number;
         color: string | null;
+        sortOrder: number;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

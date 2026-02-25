@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +18,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -69,6 +71,8 @@ Creates a new category for the specified restaurant. Category names are **unique
 
   @Get()
   @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiOperation({
     summary: 'List all categories for a restaurant',
     description:
@@ -81,10 +85,12 @@ Creates a new category for the specified restaurant. Category names are **unique
   async findAll(
     @CurrentUser() actor: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return {
       message: 'Categories fetched successfully',
-      data: await this.categoriesService.findAll(actor, restaurantId),
+      data: await this.categoriesService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10')),
     };
   }
 

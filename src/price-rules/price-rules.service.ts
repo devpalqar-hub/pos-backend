@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { CreatePriceRuleDto, PriceRuleType } from './dto/create-price-rule.dto';
 import { UpdatePriceRuleDto } from './dto/update-price-rule.dto';
 import { User, UserRole } from '@prisma/client'
@@ -164,12 +165,17 @@ export class PriceRulesService {
     actor: User,
     restaurantId: string,
     menuItemId: string,
+    page: number = 1,
+    limit: number = 10,
   ) {
     await this.assertAccess(actor, restaurantId);
     await this.assertRestaurantExists(restaurantId);
     await this.assertMenuItemExists(restaurantId, menuItemId);
 
-    return this.prisma.priceRule.findMany({
+    return paginate({
+      prismaModel: this.prisma.priceRule,
+      page,
+      limit,
       where: { restaurantId, menuItemId },
       orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
       include: RULE_INCLUDE,

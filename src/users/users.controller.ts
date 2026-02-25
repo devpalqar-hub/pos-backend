@@ -10,6 +10,7 @@ import {
     HttpCode,
     HttpStatus,
     ParseUUIDPipe,
+    Query,
 } from '@nestjs/common';
 import {
     ApiTags,
@@ -17,6 +18,7 @@ import {
     ApiResponse,
     ApiBearerAuth,
     ApiParam,
+    ApiQuery,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -73,11 +75,15 @@ Returns users visible to the authenticated user:
 - **WAITER / CHEF**: Only their own profile
     `,
     })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiResponse({ status: 200, description: 'User list returned.' })
-    async findAll(@CurrentUser() actor: User) {
+    async findAll(@CurrentUser() actor: User, @Query('page') page?: string, @Query('limit') limit?: string) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Users fetched successfully',
-            data: await this.usersService.findAll(actor),
+            data: await this.usersService.findAll(actor, pageNum, limitNum),
         };
     }
 

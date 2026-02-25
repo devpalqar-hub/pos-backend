@@ -14,6 +14,7 @@ exports.MenuService = void 0;
 const common_1 = require("@nestjs/common");
 const schedule_1 = require("@nestjs/schedule");
 const prisma_service_1 = require("../prisma/prisma.service");
+const pagination_util_1 = require("../common/utlility/pagination.util");
 const s3_service_1 = require("../s3/s3.service");
 const stock_action_dto_1 = require("./dto/stock-action.dto");
 const client_1 = require("@prisma/client");
@@ -57,15 +58,18 @@ let MenuService = MenuService_1 = class MenuService {
             include: ITEM_INCLUDE,
         });
     }
-    async findAll(actor, restaurantId) {
+    async findAll(actor, restaurantId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
-        return this.prisma.menuItem.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.menuItem,
+            page,
+            limit,
             where: { restaurantId },
             include: ITEM_INCLUDE,
             orderBy: [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
         });
     }
-    async findByCategory(actor, restaurantId, categoryId) {
+    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const category = await this.prisma.menuCategory.findFirst({
             where: { id: categoryId, restaurantId },
@@ -73,7 +77,10 @@ let MenuService = MenuService_1 = class MenuService {
         if (!category) {
             throw new common_1.NotFoundException(`Category ${categoryId} not found in restaurant ${restaurantId}`);
         }
-        return this.prisma.menuItem.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.menuItem,
+            page,
+            limit,
             where: { restaurantId, categoryId, isActive: true },
             include: ITEM_INCLUDE,
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],

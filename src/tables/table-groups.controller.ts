@@ -10,6 +10,7 @@ import {
     HttpCode,
     HttpStatus,
     UseGuards,
+    Query,
 } from '@nestjs/common';
 import {
     ApiTags,
@@ -17,6 +18,7 @@ import {
     ApiResponse,
     ApiBearerAuth,
     ApiParam,
+    ApiQuery,
 } from '@nestjs/swagger';
 import { TablesService } from './tables.service';
 import { CreateTableGroupDto } from './dto/create-table-group.dto';
@@ -66,12 +68,18 @@ export class TableGroupsController {
         summary: 'List all table groups for a restaurant (includes tables)',
     })
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiResponse({ status: 200, description: 'List of table groups' })
     findAll(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
-        return this.tablesService.findAllGroups(actor, restaurantId);
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+        return this.tablesService.findAllGroups(actor, restaurantId, pageNum, limitNum);
     }
 
     // ─── Get one ──────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { paginate } from '../common/utlility/pagination.util';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto, UpdateProfileDto } from './dto/update-user.dto';
 import { User, UserRole } from '@prisma/client';
@@ -105,20 +106,26 @@ export class UsersService {
 
     // ─── List Users ───────────────────────────────────────────────────────────
 
-    async findAll(actor: User): Promise<object[]> {
+    async findAll(actor: User, page: number = 1, limit: number = 10): Promise<object> {
+        const skip = (page - 1) * limit;
         let users: any[];
+        let total: number;
+
+        const USER_INCLUDE = {
+            restaurant: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true } },
+            ownedRestaurants: { select: { id: true, name: true } },
+        };
 
         switch (actor.role) {
             case UserRole.SUPER_ADMIN:
-                users = await this.prisma.user.findMany({
-                    include: {
-                        restaurant: { select: { id: true, name: true } },
-                        createdBy: { select: { id: true, name: true } },
-                        ownedRestaurants: { select: { id: true, name: true } },
-                    },
+                return paginate({
+                    prismaModel: this.prisma.user,
+                    page,
+                    limit,
+                    include: USER_INCLUDE,
                     orderBy: { createdAt: 'desc' },
                 });
-                break;
 
             case UserRole.OWNER: {
                 // Users in all restaurants owned by this owner
@@ -127,6 +134,16 @@ export class UsersService {
                     select: { id: true },
                 });
                 const restaurantIds = owned.map((r) => r.id);
+
+                total = await this.prisma.user.count({
+                    where: {
+                        OR: [
+                            { restaurantId: { in: restaurantIds } },
+                            { id: actor.id },
+                        ],
+                    },
+                });
+
                 users = await this.prisma.user.findMany({
                     where: {
                         OR: [
@@ -139,25 +156,47 @@ export class UsersService {
                         createdBy: { select: { id: true, name: true } },
                     },
                     orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: limit,
                 });
                 break;
             }
 
             case UserRole.RESTAURANT_ADMIN:
-                if (!actor.restaurantId) return [];
-                users = await this.prisma.user.findMany({
+                if (!actor.restaurantId) return { data: [], meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPrevPage: false } };
+                return paginate({
+                    prismaModel: this.prisma.user,
+                    page,
+                    limit,
                     where: { restaurantId: actor.restaurantId },
                     include: { restaurant: { select: { id: true, name: true } } },
                     orderBy: { createdAt: 'desc' },
                 });
-                break;
 
             // Waiter / Chef — see only themselves
             default:
+                total = 1;
                 users = await this.prisma.user.findMany({
                     where: { id: actor.id },
                 });
                 break;
+        }
+
+        // For OWNER and staff roles that use manual count/fetch
+        if (actor.role === UserRole.OWNER || STAFF_ROLES.includes(actor.role)) {
+            const filteredUsers = users.map((u) => this.filterResponse(actor.role, u));
+            const totalPages = Math.ceil(total / limit);
+            return {
+                data: filteredUsers,
+                meta: {
+                    total,
+                    page,
+                    limit,
+                    totalPages,
+                    hasNextPage: page * limit < total,
+                    hasPrevPage: page > 1,
+                },
+            };
         }
 
         return users.map((u) => this.filterResponse(actor.role, u));
