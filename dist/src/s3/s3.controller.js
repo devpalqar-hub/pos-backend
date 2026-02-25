@@ -16,10 +16,8 @@ exports.S3Controller = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const s3_service_1 = require("./s3.service");
-const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
-const roles_guard_1 = require("../common/guards/roles.guard");
-const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const swagger_1 = require("@nestjs/swagger");
+const public_decorator_1 = require("../common/decorators/public.decorator");
 let S3Controller = class S3Controller {
     constructor(s3Service) {
         this.s3Service = s3Service;
@@ -53,8 +51,6 @@ let S3Controller = class S3Controller {
 };
 exports.S3Controller = S3Controller;
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('SUPER_ADMIN'),
     (0, common_1.Post)('upload'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
     __param(0, (0, common_1.UploadedFile)()),
@@ -64,8 +60,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], S3Controller.prototype, "uploadFile", null);
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('SUPER_ADMIN'),
     (0, common_1.Post)('upload-multiple'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', 10)),
     __param(0, (0, common_1.UploadedFiles)()),
@@ -75,8 +69,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], S3Controller.prototype, "uploadMultipleFiles", null);
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('SUPER_ADMIN'),
     (0, common_1.Delete)('delete'),
     __param(0, (0, common_1.Body)('key')),
     __metadata("design:type", Function),
@@ -84,8 +76,6 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], S3Controller.prototype, "deleteFile", null);
 __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('SUPER_ADMIN'),
     (0, common_1.Delete)('delete-multiple'),
     __param(0, (0, common_1.Body)('keys')),
     __metadata("design:type", Function),
@@ -94,6 +84,7 @@ __decorate([
 ], S3Controller.prototype, "deleteMultipleFiles", null);
 exports.S3Controller = S3Controller = __decorate([
     (0, swagger_1.ApiTags)('S3'),
+    (0, public_decorator_1.Public)(),
     (0, common_1.Controller)('s3'),
     __metadata("design:paramtypes", [s3_service_1.S3Service])
 ], S3Controller);

@@ -6,18 +6,16 @@ import {
   UseInterceptors,
   UploadedFile,
   UploadedFiles,
-  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { S3Service } from './s3.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
 import { UploadResponseDto } from './dto/upload-response.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('S3')
+@Public()
 @Controller('s3')
 export class S3Controller {
   constructor(private readonly s3Service: S3Service) { }
