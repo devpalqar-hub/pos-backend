@@ -57,12 +57,14 @@ let RestaurantsController = class RestaurantsController {
     async remove(actor, id) {
         return this.restaurantsService.remove(actor, id);
     }
-    async getStaff(actor, id, name, roles, isActive) {
+    async getStaff(actor, id, name, roles, isActive, page, limit) {
         const roleArray = roles ? roles.split(',').map(r => r.trim()).filter(r => r) : undefined;
         const activeStatus = isActive ? isActive === 'true' : undefined;
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Staff fetched successfully',
-            data: await this.restaurantsService.getStaff(actor, id, { name, roles: roleArray, isActive: activeStatus }),
+            data: await this.restaurantsService.getStaff(actor, id, { name, roles: roleArray, isActive: activeStatus }, pageNum, limitNum),
         };
     }
     async assignStaff(actor, id, dto) {
@@ -203,6 +205,8 @@ __decorate([
         example: 'WAITER,CHEF'
     }),
     (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, enum: ['true', 'false'], description: 'Filter by active status' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiOperation)({
         summary: 'List staff assigned to a restaurant',
         description: 'Returns all staff users assigned to this restaurant. Supports search by name and filtering by roles (SUPER_ADMIN, OWNER, RESTAURANT_ADMIN, WAITER, CHEF, BILLER) and active status.',
@@ -216,8 +220,10 @@ __decorate([
     __param(2, (0, common_1.Query)('name')),
     __param(3, (0, common_1.Query)('roles')),
     __param(4, (0, common_1.Query)('isActive')),
+    __param(5, (0, common_1.Query)('page')),
+    __param(6, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], RestaurantsController.prototype, "getStaff", null);
 __decorate([

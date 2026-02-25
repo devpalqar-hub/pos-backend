@@ -287,7 +287,7 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
             message: `${user.name} has been removed from ${restaurant.name}`,
         };
     }
-    async getStaff(actor, restaurantId, filters) {
+    async getStaff(actor, restaurantId, filters, page = 1, limit = 10) {
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
         });
@@ -312,16 +312,11 @@ let RestaurantsService = RestaurantsService_1 = class RestaurantsService {
         if (filters?.isActive !== undefined) {
             where.isActive = filters.isActive;
         }
-        return this.prisma.user.findMany({
+        return (0, pagination_util_1.paginate)({
+            prismaModel: this.prisma.user,
+            page,
+            limit,
             where,
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                isActive: true,
-                createdAt: true,
-            },
             orderBy: { createdAt: 'asc' },
         });
     }

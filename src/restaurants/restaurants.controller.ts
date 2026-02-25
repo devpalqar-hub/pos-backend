@@ -180,6 +180,8 @@ Working hours are **upserted** — supplying days overwrites those days, unmenti
         example: 'WAITER,CHEF'
     })
     @ApiQuery({ name: 'isActive', required: false, enum: ['true', 'false'], description: 'Filter by active status' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiOperation({
         summary: 'List staff assigned to a restaurant',
         description:
@@ -195,13 +197,17 @@ Working hours are **upserted** — supplying days overwrites those days, unmenti
         @Query('name') name?: string,
         @Query('roles') roles?: string,
         @Query('isActive') isActive?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
         const roleArray = roles ? roles.split(',').map(r => r.trim()).filter(r => r) : undefined;
         const activeStatus = isActive ? isActive === 'true' : undefined;
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
 
         return {
             message: 'Staff fetched successfully',
-            data: await this.restaurantsService.getStaff(actor, id, { name, roles: roleArray, isActive: activeStatus }),
+            data: await this.restaurantsService.getStaff(actor, id, { name, roles: roleArray, isActive: activeStatus }, pageNum, limitNum),
         };
     }
 

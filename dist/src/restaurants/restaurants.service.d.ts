@@ -21,7 +21,7 @@ export declare class RestaurantsService {
         name?: string;
         roles?: string[];
         isActive?: boolean;
-    }): Promise<object[]>;
+    }, page?: number, limit?: number): Promise<object>;
     getWorkingHours(actor: User, restaurantId: string): Promise<object[]>;
     private assertCanViewRestaurant;
     private assertCanEditRestaurant;

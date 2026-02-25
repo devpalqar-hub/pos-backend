@@ -26,9 +26,9 @@ export declare class RestaurantsController {
     remove(actor: User, id: string): Promise<{
         message: string;
     }>;
-    getStaff(actor: User, id: string, name?: string, roles?: string, isActive?: string): Promise<{
+    getStaff(actor: User, id: string, name?: string, roles?: string, isActive?: string, page?: string, limit?: string): Promise<{
         message: string;
-        data: object[];
+        data: object;
     }>;
     assignStaff(actor: User, id: string, dto: AssignStaffDto): Promise<object>;
     removeStaff(actor: User, id: string, dto: RemoveStaffDto): Promise<object>;

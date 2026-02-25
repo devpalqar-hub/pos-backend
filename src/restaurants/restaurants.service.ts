@@ -373,8 +373,10 @@ export class RestaurantsService {
     async getStaff(
         actor: User,
         restaurantId: string,
-        filters?: { name?: string; roles?: string[]; isActive?: boolean }
-    ): Promise<object[]> {
+        filters?: { name?: string; roles?: string[]; isActive?: boolean },
+        page: number = 1,
+        limit: number = 10,
+    ): Promise<object> {
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
         });
@@ -411,16 +413,11 @@ export class RestaurantsService {
             where.isActive = filters.isActive;
         }
 
-        return this.prisma.user.findMany({
+        return paginate({
+            prismaModel: this.prisma.user,
+            page,
+            limit,
             where,
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                isActive: true,
-                createdAt: true,
-            },
             orderBy: { createdAt: 'asc' },
         });
     }
