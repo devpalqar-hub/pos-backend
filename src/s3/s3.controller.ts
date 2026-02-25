@@ -26,8 +26,7 @@ export class S3Controller {
    * Upload a single image
    * POST /s3/upload
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
@@ -44,8 +43,7 @@ export class S3Controller {
    * Upload multiple images
    * POST /s3/upload-multiple
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+
   @Post('upload-multiple')
   @UseInterceptors(FilesInterceptor('files', 10)) // Max 10 files
   async uploadMultipleFiles(
@@ -62,8 +60,7 @@ export class S3Controller {
    * Delete a file from S3
    * DELETE /s3/delete
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+
   @Delete('delete')
   async deleteFile(@Body('key') key: string): Promise<{ message: string }> {
     if (!key) {
@@ -77,8 +74,7 @@ export class S3Controller {
    * Delete multiple files from S3
    * DELETE /s3/delete-multiple
    */
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+
   @Delete('delete-multiple')
   async deleteMultipleFiles(
     @Body('keys') keys: string[],

@@ -167,16 +167,27 @@ export class PriceRulesService {
     menuItemId: string,
     page: number = 1,
     limit: number = 10,
+    ruleType?: PriceRuleType,
+    isActive?: boolean,
   ) {
+
     await this.assertAccess(actor, restaurantId);
     await this.assertRestaurantExists(restaurantId);
     await this.assertMenuItemExists(restaurantId, menuItemId);
+
+    // Build dynamic where clause with optional filters
+    const where: any = {
+      restaurantId,
+      menuItemId,
+      ...(ruleType !== undefined && { ruleType }),
+      ...(isActive !== undefined && { isActive }),
+    };
 
     return paginate({
       prismaModel: this.prisma.priceRule,
       page,
       limit,
-      where: { restaurantId, menuItemId },
+      where,
       orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
       include: RULE_INCLUDE,
     });

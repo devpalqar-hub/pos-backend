@@ -19,3 +19,15 @@ push notification - serviceaccount.json required
 2. on each stage of delivery
 3. on successfull delivery.
 4. remembering user to write feedback/review
+
+
+
+
+added next workflow. 
+added pagination on all get methods
+add search, filters on list staff, list price rules
+adding loyality points setup
+
+
+Need to do Loyality Points Logic 
+You are a Senior Backend Developer. You need to add loyality point logic to this project. 

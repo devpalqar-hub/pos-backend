@@ -12,13 +12,25 @@ const operators_1 = require("rxjs/operators");
 let TransformInterceptor = class TransformInterceptor {
     intercept(context, next) {
         const statusCode = context.switchToHttp().getResponse().statusCode;
-        return next.handle().pipe((0, operators_1.map)((data) => ({
-            success: true,
-            statusCode,
-            message: data?.message ?? 'Request successful',
-            data: data?.data !== undefined ? data.data : data,
-            timestamp: new Date().toISOString(),
-        })));
+        return next.handle().pipe((0, operators_1.map)((data) => {
+            if (data?.meta && data?.data !== undefined) {
+                return {
+                    success: true,
+                    statusCode,
+                    message: data?.message ?? 'Request successful',
+                    data: data.data,
+                    meta: data.meta,
+                    timestamp: new Date().toISOString(),
+                };
+            }
+            return {
+                success: true,
+                statusCode,
+                message: data?.message ?? 'Request successful',
+                data: data?.data !== undefined ? data.data : data,
+                timestamp: new Date().toISOString(),
+            };
+        }));
     }
 };
 exports.TransformInterceptor = TransformInterceptor;

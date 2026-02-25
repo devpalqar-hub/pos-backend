@@ -120,15 +120,21 @@ let PriceRulesService = PriceRulesService_1 = class PriceRulesService {
         });
         return rule;
     }
-    async findAllByMenuItem(actor, restaurantId, menuItemId, page = 1, limit = 10) {
+    async findAllByMenuItem(actor, restaurantId, menuItemId, page = 1, limit = 10, ruleType, isActive) {
         await this.assertAccess(actor, restaurantId);
         await this.assertRestaurantExists(restaurantId);
         await this.assertMenuItemExists(restaurantId, menuItemId);
+        const where = {
+            restaurantId,
+            menuItemId,
+            ...(ruleType !== undefined && { ruleType }),
+            ...(isActive !== undefined && { isActive }),
+        };
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.priceRule,
             page,
             limit,
-            where: { restaurantId, menuItemId },
+            where,
             orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
             include: RULE_INCLUDE,
         });
