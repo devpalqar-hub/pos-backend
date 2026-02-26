@@ -585,20 +585,30 @@ model LoyalityPoint {
   // ── Max redemptions per customer (optional) ───────────────────────────────
   maxUsagePerCustomer Int? // null = unlimited
 
-  day DayOfWeek?
-
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   categories MenuCategory[]
   menuItems  MenuItem[]
+  days       LoyalityPointDay[]
 
   redemptions LoyalityPointRedemption[]
 
   @@index([restaurantId])
   @@map("loyality_points")
+}
+
+model LoyalityPointDay {
+  id              String    @id @default(uuid())
+  loyalityPointId String
+  day             DayOfWeek
+
+  loyalityPoint LoyalityPoint @relation(fields: [loyalityPointId], references: [id], onDelete: Cascade)
+
+  @@unique([loyalityPointId, day])
+  @@map("loyality_point_days")
 }
 
 model LoyalityPointRedemption {

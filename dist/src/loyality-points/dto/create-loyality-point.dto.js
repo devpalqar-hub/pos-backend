@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateLoyalityPointDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
+const client_1 = require("@prisma/client");
 const class_validator_1 = require("class-validator");
 class CreateLoyalityPointDto {
 }
@@ -85,4 +86,45 @@ __decorate([
     (0, class_validator_1.Min)(1),
     __metadata("design:type", Number)
 ], CreateLoyalityPointDto.prototype, "maxUsagePerCustomer", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Whether this rule applies to a group of items/categories',
+        example: false,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateLoyalityPointDto.prototype, "isGroup", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Days of the week when this rule is active',
+        example: ['MONDAY', 'FRIDAY'],
+        enum: client_1.DayOfWeek,
+        isArray: true,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsEnum)(client_1.DayOfWeek, { each: true }),
+    __metadata("design:type", Array)
+], CreateLoyalityPointDto.prototype, "weekDays", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Category UUIDs this rule applies to',
+        example: ['uuid-1', 'uuid-2'],
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsUUID)('4', { each: true }),
+    __metadata("design:type", Array)
+], CreateLoyalityPointDto.prototype, "categoryIds", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Menu item UUIDs this rule applies to',
+        example: ['uuid-1', 'uuid-2'],
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsUUID)('4', { each: true }),
+    __metadata("design:type", Array)
+], CreateLoyalityPointDto.prototype, "menuItemIds", void 0);
 //# sourceMappingURL=create-loyality-point.dto.js.map

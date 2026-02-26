@@ -19,6 +19,9 @@ let LoyalityPointsService = class LoyalityPointsService {
         this.prisma = prisma;
         this.defaultInclude = {
             restaurant: { select: { id: true, name: true } },
+            days: { select: { id: true, day: true } },
+            categories: { select: { id: true, name: true } },
+            menuItems: { select: { id: true, name: true, price: true } },
         };
     }
     async create(actor, restaurantId, dto) {
@@ -28,11 +31,27 @@ let LoyalityPointsService = class LoyalityPointsService {
                 restaurantId,
                 name: dto.name,
                 points: dto.points ?? 0,
+                isGroup: dto.isGroup ?? false,
                 startDate: dto.startDate ? new Date(dto.startDate) : null,
                 endDate: dto.endDate ? new Date(dto.endDate) : null,
                 startTime: dto.startTime ?? null,
                 endTime: dto.endTime ?? null,
                 maxUsagePerCustomer: dto.maxUsagePerCustomer ?? null,
+                ...(dto.weekDays?.length && {
+                    days: {
+                        create: dto.weekDays.map((day) => ({ day })),
+                    },
+                }),
+                ...(dto.categoryIds?.length && {
+                    categories: {
+                        connect: dto.categoryIds.map((id) => ({ id })),
+                    },
+                }),
+                ...(dto.menuItemIds?.length && {
+                    menuItems: {
+                        connect: dto.menuItemIds.map((id) => ({ id })),
+                    },
+                }),
             },
             include: this.defaultInclude,
         });
@@ -67,25 +86,51 @@ let LoyalityPointsService = class LoyalityPointsService {
         if (!existing) {
             throw new common_1.NotFoundException(`Loyalty point rule ${id} not found in restaurant ${restaurantId}`);
         }
-        return this.prisma.loyalityPoint.update({
-            where: { id },
-            data: {
-                ...(dto.name !== undefined && { name: dto.name }),
-                ...(dto.points !== undefined && { points: dto.points }),
-                ...(dto.startDate !== undefined && {
-                    startDate: dto.startDate ? new Date(dto.startDate) : null,
-                }),
-                ...(dto.endDate !== undefined && {
-                    endDate: dto.endDate ? new Date(dto.endDate) : null,
-                }),
-                ...(dto.startTime !== undefined && { startTime: dto.startTime }),
-                ...(dto.endTime !== undefined && { endTime: dto.endTime }),
-                ...(dto.maxUsagePerCustomer !== undefined && {
-                    maxUsagePerCustomer: dto.maxUsagePerCustomer,
-                }),
-                ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-            },
-            include: this.defaultInclude,
+        return this.prisma.$transaction(async (tx) => {
+            if (dto.weekDays !== undefined) {
+                await tx.loyalityPointDay.deleteMany({
+                    where: { loyalityPointId: id },
+                });
+                if (dto.weekDays.length) {
+                    await tx.loyalityPointDay.createMany({
+                        data: dto.weekDays.map((day) => ({
+                            loyalityPointId: id,
+                            day,
+                        })),
+                    });
+                }
+            }
+            return tx.loyalityPoint.update({
+                where: { id },
+                data: {
+                    ...(dto.name !== undefined && { name: dto.name }),
+                    ...(dto.points !== undefined && { points: dto.points }),
+                    ...(dto.isGroup !== undefined && { isGroup: dto.isGroup }),
+                    ...(dto.startDate !== undefined && {
+                        startDate: dto.startDate ? new Date(dto.startDate) : null,
+                    }),
+                    ...(dto.endDate !== undefined && {
+                        endDate: dto.endDate ? new Date(dto.endDate) : null,
+                    }),
+                    ...(dto.startTime !== undefined && { startTime: dto.startTime }),
+                    ...(dto.endTime !== undefined && { endTime: dto.endTime }),
+                    ...(dto.maxUsagePerCustomer !== undefined && {
+                        maxUsagePerCustomer: dto.maxUsagePerCustomer,
+                    }),
+                    ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+                    ...(dto.categoryIds !== undefined && {
+                        categories: {
+                            set: dto.categoryIds.map((cid) => ({ id: cid })),
+                        },
+                    }),
+                    ...(dto.menuItemIds !== undefined && {
+                        menuItems: {
+                            set: dto.menuItemIds.map((mid) => ({ id: mid })),
+                        },
+                    }),
+                },
+                include: this.defaultInclude,
+            });
         });
     }
     async remove(actor, restaurantId, id) {

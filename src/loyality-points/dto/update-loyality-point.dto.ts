@@ -1,11 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { DayOfWeek } from '@prisma/client';
 import {
+    IsArray,
     IsBoolean,
     IsDateString,
+    IsEnum,
     IsInt,
     IsNumber,
     IsOptional,
     IsString,
+    IsUUID,
     MaxLength,
     Min,
 } from 'class-validator';
@@ -72,6 +76,42 @@ export class UpdateLoyalityPointDto {
     @IsInt()
     @Min(1)
     maxUsagePerCustomer?: number;
+
+    @ApiPropertyOptional({
+        description: 'Whether this rule applies to a group of items/categories',
+    })
+    @IsOptional()
+    @IsBoolean()
+    isGroup?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'Days of the week when this rule is active',
+        example: ['MONDAY', 'FRIDAY'],
+        enum: DayOfWeek,
+        isArray: true,
+    })
+    @IsOptional()
+    @IsArray()
+    @IsEnum(DayOfWeek, { each: true })
+    weekDays?: DayOfWeek[];
+
+    @ApiPropertyOptional({
+        description: 'Category UUIDs this rule applies to',
+        example: ['uuid-1', 'uuid-2'],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsUUID('4', { each: true })
+    categoryIds?: string[];
+
+    @ApiPropertyOptional({
+        description: 'Menu item UUIDs this rule applies to',
+        example: ['uuid-1', 'uuid-2'],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsUUID('4', { each: true })
+    menuItemIds?: string[];
 
     @ApiPropertyOptional({
         description: 'Activate or deactivate the loyalty point rule',

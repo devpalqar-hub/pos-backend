@@ -1,3 +1,4 @@
+import { DayOfWeek } from '@prisma/client';
 export declare class CreateLoyalityPointDto {
     name: string;
     points?: number;
@@ -6,4 +7,8 @@ export declare class CreateLoyalityPointDto {
     startTime?: string;
     endTime?: string;
     maxUsagePerCustomer?: number;
+    isGroup?: boolean;
+    weekDays?: DayOfWeek[];
+    categoryIds?: string[];
+    menuItemIds?: string[];
 }

@@ -9,13 +9,13 @@ export declare class CustomersController {
         message: string;
         data: {
             id: string;
-            phone: string;
             name: string | null;
-            wallet: import("@prisma/client/runtime/library").Decimal;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            phone: string;
+            wallet: import("@prisma/client/runtime/library").Decimal;
         };
     }>;
     findAll(actor: User, restaurantId: string, page?: string, limit?: string, search?: string): Promise<{
@@ -23,13 +23,13 @@ export declare class CustomersController {
         data: {
             data: {
                 id: string;
-                phone: string;
                 name: string | null;
-                wallet: import("@prisma/client/runtime/library").Decimal;
                 isActive: boolean;
+                restaurantId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                restaurantId: string;
+                phone: string;
+                wallet: import("@prisma/client/runtime/library").Decimal;
             }[];
             meta: {
                 total: number;
@@ -58,13 +58,13 @@ export declare class CustomersController {
             })[];
         } & {
             id: string;
-            phone: string;
             name: string | null;
-            wallet: import("@prisma/client/runtime/library").Decimal;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            phone: string;
+            wallet: import("@prisma/client/runtime/library").Decimal;
         };
     }>;
     findByPhone(actor: User, restaurantId: string, phone: string): Promise<{
@@ -84,26 +84,26 @@ export declare class CustomersController {
             })[];
         } & {
             id: string;
-            phone: string;
             name: string | null;
-            wallet: import("@prisma/client/runtime/library").Decimal;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            phone: string;
+            wallet: import("@prisma/client/runtime/library").Decimal;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateCustomerDto): Promise<{
         message: string;
         data: {
             id: string;
-            phone: string;
             name: string | null;
-            wallet: import("@prisma/client/runtime/library").Decimal;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            phone: string;
+            wallet: import("@prisma/client/runtime/library").Decimal;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

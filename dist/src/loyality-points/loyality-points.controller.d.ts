@@ -12,6 +12,19 @@ export declare class LoyalityPointsController {
                 id: string;
                 name: string;
             };
+            categories: {
+                id: string;
+                name: string;
+            }[];
+            menuItems: {
+                id: string;
+                name: string;
+                price: import("@prisma/client/runtime/library").Decimal;
+            }[];
+            days: {
+                id: string;
+                day: import(".prisma/client").$Enums.DayOfWeek;
+            }[];
         } & {
             id: string;
             name: string;
@@ -19,14 +32,13 @@ export declare class LoyalityPointsController {
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            day: import(".prisma/client").$Enums.DayOfWeek | null;
             startTime: string | null;
             endTime: string | null;
             startDate: Date | null;
             endDate: Date | null;
+            isGroup: boolean;
             points: import("@prisma/client/runtime/library").Decimal;
             maxUsagePerCustomer: number | null;
-            isGroup: boolean;
         };
     }>;
     findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
@@ -39,14 +51,13 @@ export declare class LoyalityPointsController {
                 restaurantId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                day: import(".prisma/client").$Enums.DayOfWeek | null;
                 startTime: string | null;
                 endTime: string | null;
                 startDate: Date | null;
                 endDate: Date | null;
+                isGroup: boolean;
                 points: import("@prisma/client/runtime/library").Decimal;
                 maxUsagePerCustomer: number | null;
-                isGroup: boolean;
             }[];
             meta: {
                 total: number;
@@ -65,6 +76,19 @@ export declare class LoyalityPointsController {
                 id: string;
                 name: string;
             };
+            categories: {
+                id: string;
+                name: string;
+            }[];
+            menuItems: {
+                id: string;
+                name: string;
+                price: import("@prisma/client/runtime/library").Decimal;
+            }[];
+            days: {
+                id: string;
+                day: import(".prisma/client").$Enums.DayOfWeek;
+            }[];
         } & {
             id: string;
             name: string;
@@ -72,14 +96,13 @@ export declare class LoyalityPointsController {
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            day: import(".prisma/client").$Enums.DayOfWeek | null;
             startTime: string | null;
             endTime: string | null;
             startDate: Date | null;
             endDate: Date | null;
+            isGroup: boolean;
             points: import("@prisma/client/runtime/library").Decimal;
             maxUsagePerCustomer: number | null;
-            isGroup: boolean;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateLoyalityPointDto): Promise<{
@@ -89,6 +112,19 @@ export declare class LoyalityPointsController {
                 id: string;
                 name: string;
             };
+            categories: {
+                id: string;
+                name: string;
+            }[];
+            menuItems: {
+                id: string;
+                name: string;
+                price: import("@prisma/client/runtime/library").Decimal;
+            }[];
+            days: {
+                id: string;
+                day: import(".prisma/client").$Enums.DayOfWeek;
+            }[];
         } & {
             id: string;
             name: string;
@@ -96,14 +132,13 @@ export declare class LoyalityPointsController {
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            day: import(".prisma/client").$Enums.DayOfWeek | null;
             startTime: string | null;
             endTime: string | null;
             startDate: Date | null;
             endDate: Date | null;
+            isGroup: boolean;
             points: import("@prisma/client/runtime/library").Decimal;
             maxUsagePerCustomer: number | null;
-            isGroup: boolean;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
