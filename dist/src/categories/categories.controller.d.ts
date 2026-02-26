@@ -12,8 +12,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -24,12 +24,12 @@ export declare class CategoriesController {
             sortOrder: number;
         };
     }>;
-    findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
+    findAll(actor: User, restaurantId: string, page?: string, limit?: string, search?: string): Promise<{
         message: string;
         data: {
             data: {
-                id: string;
                 name: string;
+                id: string;
                 isActive: boolean;
                 createdById: string | null;
                 restaurantId: string;
@@ -53,8 +53,8 @@ export declare class CategoriesController {
         message: string;
         data: {
             items: {
-                id: string;
                 name: string;
+                id: string;
                 imageUrl: string | null;
                 price: import("@prisma/client/runtime/library").Decimal;
                 discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
@@ -67,8 +67,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -86,8 +86,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;

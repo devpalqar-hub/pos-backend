@@ -81,6 +81,18 @@ Creates a new item in the restaurant menu.
     required: false,
     description: 'Filter by category UUID',
   })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search menu item by name or description',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    type: String,
+    description: 'Sort menu items (newest | oldest | price_asc | price_desc | name_asc | name_desc)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiOperation({
@@ -98,13 +110,29 @@ Creates a new item in the restaurant menu.
     @Query('categoryId') categoryId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
   ) {
     const pageNum = parseInt(page ?? '1');
     const limitNum = parseInt(limit ?? '10');
     const data = categoryId
-      ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum)
-      : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum);
-
+      ? await this.menuService.findByCategory(
+        actor,
+        restaurantId,
+        categoryId,
+        pageNum,
+        limitNum,
+        search,
+        sortBy
+      )
+      : await this.menuService.findAll(
+        actor,
+        restaurantId,
+        pageNum,
+        limitNum,
+        search,
+        sortBy
+      );
     return {
       message: 'Menu items fetched successfully',
       data,

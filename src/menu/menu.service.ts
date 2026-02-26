@@ -76,21 +76,56 @@ export class MenuService {
 
   // ─── List (for a restaurant) ──────────────────────────────────────────────
 
-  async findAll(actor: User, restaurantId: string, page = 1, limit = 10) {
+  private resolveSort(sortBy?: string) {
+    switch (sortBy) {
+      case 'newest':
+        return [{ createdAt: 'desc' }];
+      case 'oldest':
+        return [{ createdAt: 'asc' }];
+      case 'price_asc':
+        return [{ price: 'asc' }];
+      case 'price_desc':
+        return [{ price: 'desc' }];
+      case 'name_asc':
+        return [{ name: 'asc' }];
+      case 'name_desc':
+        return [{ name: 'desc' }];
+      default:
+        return [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }];
+    }
+  }
+
+  async findAll(actor: User, restaurantId: string, page = 1, limit = 10, search?: string, sortBy?: string,) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
     return paginate({
       prismaModel: this.prisma.menuItem,
       page,
       limit,
-      where: { restaurantId },
+      where: {
+        restaurantId,
+        ...(search && {
+          OR: [
+            {
+              name: {
+                contains: search
+              },
+            },
+            {
+              description: {
+                contains: search
+              },
+            },
+          ],
+        }),
+      },
       include: ITEM_INCLUDE,
-      orderBy: [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
+      orderBy: this.resolveSort(sortBy),
     });
   }
 
   // ─── List by category ─────────────────────────────────────────────────────
 
-  async findByCategory(actor: User, restaurantId: string, categoryId: string, page = 1, limit = 10) {
+  async findByCategory(actor: User, restaurantId: string, categoryId: string, page = 1, limit = 10, search?: string, sortBy?: string,) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
     const category = await this.prisma.menuCategory.findFirst({
@@ -106,9 +141,29 @@ export class MenuService {
       prismaModel: this.prisma.menuItem,
       page,
       limit,
-      where: { restaurantId, categoryId, isActive: true },
+      where: {
+        restaurantId,
+        categoryId,
+        isActive: true,
+        ...(search && {
+          OR: [
+            {
+              name: {
+                contains: search,
+              },
+            },
+            {
+              description: {
+                contains: search,
+              },
+            },
+          ],
+        }),
+      },
       include: ITEM_INCLUDE,
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      orderBy: sortBy
+        ? this.resolveSort(sortBy)
+        : [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
   }
 

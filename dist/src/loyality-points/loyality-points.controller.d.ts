@@ -27,37 +27,37 @@ export declare class LoyalityPointsController {
             }[];
         } & {
             id: string;
+            isGroup: boolean;
             name: string;
-            isActive: boolean;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startTime: string | null;
-            endTime: string | null;
+            points: import("@prisma/client/runtime/library").Decimal;
             startDate: Date | null;
             endDate: Date | null;
-            isGroup: boolean;
-            points: import("@prisma/client/runtime/library").Decimal;
+            startTime: string | null;
+            endTime: string | null;
             maxUsagePerCustomer: number | null;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
         };
     }>;
-    findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
+    findAll(actor: User, restaurantId: string, page?: string, limit?: string, search?: string, status?: string, type?: string): Promise<{
         message: string;
         data: {
             data: {
                 id: string;
+                isGroup: boolean;
                 name: string;
-                isActive: boolean;
-                restaurantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                startTime: string | null;
-                endTime: string | null;
+                points: import("@prisma/client/runtime/library").Decimal;
                 startDate: Date | null;
                 endDate: Date | null;
-                isGroup: boolean;
-                points: import("@prisma/client/runtime/library").Decimal;
+                startTime: string | null;
+                endTime: string | null;
                 maxUsagePerCustomer: number | null;
+                isActive: boolean;
+                createdAt: Date;
+                updatedAt: Date;
+                restaurantId: string;
             }[];
             meta: {
                 total: number;
@@ -91,18 +91,18 @@ export declare class LoyalityPointsController {
             }[];
         } & {
             id: string;
+            isGroup: boolean;
             name: string;
-            isActive: boolean;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startTime: string | null;
-            endTime: string | null;
+            points: import("@prisma/client/runtime/library").Decimal;
             startDate: Date | null;
             endDate: Date | null;
-            isGroup: boolean;
-            points: import("@prisma/client/runtime/library").Decimal;
+            startTime: string | null;
+            endTime: string | null;
             maxUsagePerCustomer: number | null;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateLoyalityPointDto): Promise<{
@@ -127,18 +127,18 @@ export declare class LoyalityPointsController {
             }[];
         } & {
             id: string;
+            isGroup: boolean;
             name: string;
-            isActive: boolean;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startTime: string | null;
-            endTime: string | null;
+            points: import("@prisma/client/runtime/library").Decimal;
             startDate: Date | null;
             endDate: Date | null;
-            isGroup: boolean;
-            points: import("@prisma/client/runtime/library").Decimal;
+            startTime: string | null;
+            endTime: string | null;
             maxUsagePerCustomer: number | null;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

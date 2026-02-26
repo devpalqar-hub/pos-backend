@@ -33,10 +33,10 @@ let CategoriesController = class CategoriesController {
             data: await this.categoriesService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId, page, limit) {
+    async findAll(actor, restaurantId, page, limit, search) {
         return {
             message: 'Categories fetched successfully',
-            data: await this.categoriesService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10')),
+            data: await this.categoriesService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10'), search),
         };
     }
     async findOne(actor, restaurantId, id) {
@@ -87,6 +87,12 @@ __decorate([
     (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
+    (0, swagger_1.ApiQuery)({
+        name: 'search',
+        required: false,
+        type: String,
+        description: 'Search category by name or description',
+    }),
     (0, swagger_1.ApiOperation)({
         summary: 'List all categories for a restaurant',
         description: 'Returns all categories ordered by `sortOrder` then name. ' +
@@ -99,8 +105,9 @@ __decorate([
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('page')),
     __param(3, (0, common_1.Query)('limit')),
+    __param(4, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], CategoriesController.prototype, "findAll", null);
 __decorate([

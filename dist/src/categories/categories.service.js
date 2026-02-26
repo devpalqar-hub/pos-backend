@@ -40,13 +40,29 @@ let CategoriesService = class CategoriesService {
             include: { _count: { select: { items: true } } },
         });
     }
-    async findAll(actor, restaurantId, page = 1, limit = 10) {
+    async findAll(actor, restaurantId, page = 1, limit = 10, search) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuCategory,
             page,
             limit,
-            where: { restaurantId },
+            where: {
+                restaurantId,
+                ...(search && {
+                    OR: [
+                        {
+                            name: {
+                                contains: search,
+                            },
+                        },
+                        {
+                            description: {
+                                contains: search,
+                            },
+                        },
+                    ],
+                }),
+            },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
             include: { _count: { select: { items: true } } },
         });

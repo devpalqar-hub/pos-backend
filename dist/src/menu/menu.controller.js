@@ -34,12 +34,12 @@ let MenuController = class MenuController {
             data: await this.menuService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId, categoryId, page, limit) {
+    async findAll(actor, restaurantId, categoryId, page, limit, search, sortBy) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
         const data = categoryId
-            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum)
-            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum);
+            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum, search, sortBy)
+            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum, search, sortBy);
         return {
             message: 'Menu items fetched successfully',
             data,
@@ -106,6 +106,18 @@ __decorate([
         required: false,
         description: 'Filter by category UUID',
     }),
+    (0, swagger_1.ApiQuery)({
+        name: 'search',
+        required: false,
+        type: String,
+        description: 'Search menu item by name or description',
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'sortBy',
+        required: false,
+        type: String,
+        description: 'Sort menu items (newest | oldest | price_asc | price_desc | name_asc | name_desc)',
+    }),
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiOperation)({
@@ -121,8 +133,10 @@ __decorate([
     __param(2, (0, common_1.Query)('categoryId')),
     __param(3, (0, common_1.Query)('page')),
     __param(4, (0, common_1.Query)('limit')),
+    __param(5, (0, common_1.Query)('search')),
+    __param(6, (0, common_1.Query)('sortBy')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], MenuController.prototype, "findAll", null);
 __decorate([

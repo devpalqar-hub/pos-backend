@@ -58,18 +58,52 @@ let MenuService = MenuService_1 = class MenuService {
             include: ITEM_INCLUDE,
         });
     }
-    async findAll(actor, restaurantId, page = 1, limit = 10) {
+    resolveSort(sortBy) {
+        switch (sortBy) {
+            case 'newest':
+                return [{ createdAt: 'desc' }];
+            case 'oldest':
+                return [{ createdAt: 'asc' }];
+            case 'price_asc':
+                return [{ price: 'asc' }];
+            case 'price_desc':
+                return [{ price: 'desc' }];
+            case 'name_asc':
+                return [{ name: 'asc' }];
+            case 'name_desc':
+                return [{ name: 'desc' }];
+            default:
+                return [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }];
+        }
+    }
+    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuItem,
             page,
             limit,
-            where: { restaurantId },
+            where: {
+                restaurantId,
+                ...(search && {
+                    OR: [
+                        {
+                            name: {
+                                contains: search
+                            },
+                        },
+                        {
+                            description: {
+                                contains: search
+                            },
+                        },
+                    ],
+                }),
+            },
             include: ITEM_INCLUDE,
-            orderBy: [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
+            orderBy: this.resolveSort(sortBy),
         });
     }
-    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10) {
+    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const category = await this.prisma.menuCategory.findFirst({
             where: { id: categoryId, restaurantId },
@@ -81,9 +115,29 @@ let MenuService = MenuService_1 = class MenuService {
             prismaModel: this.prisma.menuItem,
             page,
             limit,
-            where: { restaurantId, categoryId, isActive: true },
+            where: {
+                restaurantId,
+                categoryId,
+                isActive: true,
+                ...(search && {
+                    OR: [
+                        {
+                            name: {
+                                contains: search,
+                            },
+                        },
+                        {
+                            description: {
+                                contains: search,
+                            },
+                        },
+                    ],
+                }),
+            },
             include: ITEM_INCLUDE,
-            orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+            orderBy: sortBy
+                ? this.resolveSort(sortBy)
+                : [{ sortOrder: 'asc' }, { name: 'asc' }],
         });
     }
     async findOne(actor, restaurantId, id) {

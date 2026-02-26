@@ -56,13 +56,62 @@ let LoyalityPointsService = class LoyalityPointsService {
             include: this.defaultInclude,
         });
     }
-    async findAll(actor, restaurantId, page = 1, limit = 10) {
+    resolveType(type) {
+        switch (type) {
+            case 'menu':
+                return {
+                    menuItems: {
+                        some: {},
+                    },
+                };
+            case 'category':
+                return {
+                    categories: {
+                        some: {},
+                    },
+                };
+            case 'time':
+                return {
+                    OR: [
+                        { startTime: { not: null } },
+                        { endTime: { not: null } },
+                    ],
+                };
+            case 'date':
+                return {
+                    AND: [
+                        { startDate: { not: null } },
+                        { endDate: { not: null } },
+                    ],
+                };
+            case 'day':
+                return {
+                    days: {
+                        some: {},
+                    },
+                };
+            default:
+                return {};
+        }
+    }
+    async findAll(actor, restaurantId, page = 1, limit = 10, search, status, type) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.loyalityPoint,
             page,
             limit,
-            where: { restaurantId },
+            where: {
+                restaurantId,
+                ...(search && {
+                    name: {
+                        contains: search,
+                    },
+                }),
+                ...(status !== undefined && {
+                    isActive: status === 'true',
+                }),
+                ...this.resolveType(type),
+            },
             orderBy: [{ createdAt: 'desc' }],
             include: this.defaultInclude,
         });

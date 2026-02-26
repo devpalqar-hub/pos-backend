@@ -33,10 +33,10 @@ let LoyalityPointsController = class LoyalityPointsController {
             data: await this.loyalityPointsService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId, page, limit) {
+    async findAll(actor, restaurantId, page, limit, search, status, type) {
         return {
             message: 'Loyalty point rules fetched successfully',
-            data: await this.loyalityPointsService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10')),
+            data: await this.loyalityPointsService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10'), search, status, type),
         };
     }
     async findOne(actor, restaurantId, id) {
@@ -87,6 +87,24 @@ __decorate([
     (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
+    (0, swagger_1.ApiQuery)({
+        name: 'search',
+        required: false,
+        type: String,
+        description: 'Search loyalty program by name',
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'status',
+        required: false,
+        type: Boolean,
+        description: 'Filter by status (true = active, false = inactive)',
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'type',
+        required: false,
+        type: String,
+        description: 'menu | category | time | date | day',
+    }),
     (0, swagger_1.ApiOperation)({
         summary: 'List all loyalty point rules for a restaurant',
         description: 'Returns all loyalty point rules ordered by creation date (newest first), with pagination.',
@@ -98,8 +116,11 @@ __decorate([
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('page')),
     __param(3, (0, common_1.Query)('limit')),
+    __param(4, (0, common_1.Query)('search')),
+    __param(5, (0, common_1.Query)('status')),
+    __param(6, (0, common_1.Query)('type')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], LoyalityPointsController.prototype, "findAll", null);
 __decorate([

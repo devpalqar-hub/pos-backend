@@ -79,6 +79,26 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({
+        name: 'search',
+        required: false,
+        type: String,
+        description: 'Search loyalty program by name',
+    })
+
+    @ApiQuery({
+        name: 'status',
+        required: false,
+        type: Boolean,
+        description: 'Filter by status (true = active, false = inactive)',
+    })
+
+    @ApiQuery({
+        name: 'type',
+        required: false,
+        type: String,
+        description: 'menu | category | time | date | day',
+    })
     @ApiOperation({
         summary: 'List all loyalty point rules for a restaurant',
         description:
@@ -92,6 +112,9 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('status') status?: string,
+        @Query('type') type?: string,
     ) {
         return {
             message: 'Loyalty point rules fetched successfully',
@@ -100,6 +123,9 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
                 restaurantId,
                 parseInt(page ?? '1'),
                 parseInt(limit ?? '10'),
+                search,
+                status,
+                type,
             ),
         };
     }

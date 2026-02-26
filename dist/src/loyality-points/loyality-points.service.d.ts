@@ -26,34 +26,35 @@ export declare class LoyalityPointsService {
         }[];
     } & {
         id: string;
+        isGroup: boolean;
         name: string;
-        isActive: boolean;
-        restaurantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startTime: string | null;
-        endTime: string | null;
+        points: import("@prisma/client/runtime/library").Decimal;
         startDate: Date | null;
         endDate: Date | null;
-        isGroup: boolean;
-        points: import("@prisma/client/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
         maxUsagePerCustomer: number | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
     }>;
-    findAll(actor: User, restaurantId: string, page?: number, limit?: number): Promise<{
+    private resolveType;
+    findAll(actor: User, restaurantId: string, page?: number, limit?: number, search?: string, status?: string, type?: string): Promise<{
         data: {
             id: string;
+            isGroup: boolean;
             name: string;
-            isActive: boolean;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            startTime: string | null;
-            endTime: string | null;
+            points: import("@prisma/client/runtime/library").Decimal;
             startDate: Date | null;
             endDate: Date | null;
-            isGroup: boolean;
-            points: import("@prisma/client/runtime/library").Decimal;
+            startTime: string | null;
+            endTime: string | null;
             maxUsagePerCustomer: number | null;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
         }[];
         meta: {
             total: number;
@@ -84,18 +85,18 @@ export declare class LoyalityPointsService {
         }[];
     } & {
         id: string;
+        isGroup: boolean;
         name: string;
-        isActive: boolean;
-        restaurantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startTime: string | null;
-        endTime: string | null;
+        points: import("@prisma/client/runtime/library").Decimal;
         startDate: Date | null;
         endDate: Date | null;
-        isGroup: boolean;
-        points: import("@prisma/client/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
         maxUsagePerCustomer: number | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateLoyalityPointDto): Promise<{
         restaurant: {
@@ -117,18 +118,18 @@ export declare class LoyalityPointsService {
         }[];
     } & {
         id: string;
+        isGroup: boolean;
         name: string;
-        isActive: boolean;
-        restaurantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        startTime: string | null;
-        endTime: string | null;
+        points: import("@prisma/client/runtime/library").Decimal;
         startDate: Date | null;
         endDate: Date | null;
-        isGroup: boolean;
-        points: import("@prisma/client/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
         maxUsagePerCustomer: number | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

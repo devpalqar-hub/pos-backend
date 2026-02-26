@@ -64,14 +64,80 @@ export class LoyalityPointsService {
 
     // ─── List (paginated) ────────────────────────────────────────────────────
 
-    async findAll(actor: User, restaurantId: string, page = 1, limit = 10) {
+    private resolveType(type?: string) {
+        switch (type) {
+            case 'menu':
+                return {
+                    menuItems: {
+                        some: {},
+                    },
+                };
+
+            case 'category':
+                return {
+                    categories: {
+                        some: {},
+                    },
+                };
+
+            case 'time':
+                return {
+                    OR: [
+                        { startTime: { not: null } },
+                        { endTime: { not: null } },
+                    ],
+                };
+
+            case 'date':
+                return {
+                    AND: [
+                        { startDate: { not: null } },
+                        { endDate: { not: null } },
+                    ],
+                };
+
+            case 'day':
+                return {
+                    days: {
+                        some: {},
+                    },
+                };
+
+            default:
+                return {};
+        }
+    }
+
+    async findAll(
+        actor: User,
+        restaurantId: string,
+        page = 1,
+        limit = 10,
+        search?: string,
+        status?: string,
+        type?: string,
+    ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
         return paginate({
             prismaModel: this.prisma.loyalityPoint,
             page,
             limit,
-            where: { restaurantId },
+            where: {
+                restaurantId,
+
+                ...(search && {
+                    name: {
+                        contains: search,
+                    },
+                }),
+
+                ...(status !== undefined && {
+                    isActive: status === 'true',
+                }),
+
+                ...this.resolveType(type),
+            },
             orderBy: [{ createdAt: 'desc' }],
             include: this.defaultInclude,
         });

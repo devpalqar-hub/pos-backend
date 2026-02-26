@@ -626,3 +626,6 @@ model LoyalityPointRedemption {
   @@index([customerId])
   @@map("loyality_point_redemptions")
 }
+
+
+

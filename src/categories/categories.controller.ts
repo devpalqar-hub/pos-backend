@@ -73,6 +73,12 @@ Creates a new category for the specified restaurant. Category names are **unique
   @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search category by name or description',
+  })
   @ApiOperation({
     summary: 'List all categories for a restaurant',
     description:
@@ -87,10 +93,11 @@ Creates a new category for the specified restaurant. Category names are **unique
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ) {
     return {
       message: 'Categories fetched successfully',
-      data: await this.categoriesService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10')),
+      data: await this.categoriesService.findAll(actor, restaurantId, parseInt(page ?? '1'), parseInt(limit ?? '10'), search,),
     };
   }
 
