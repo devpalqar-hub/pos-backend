@@ -28,36 +28,36 @@ export declare class PriceRulesService {
     } & {
         id: string;
         name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
-        priority: number;
-        isActive: boolean;
-        createdById: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
         menuItemId: string;
     }>;
     findAllByMenuItem(actor: User, restaurantId: string, menuItemId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean): Promise<{
         data: {
             id: string;
             name: string;
+            isActive: boolean;
+            createdById: string | null;
+            restaurantId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            priority: number;
             ruleType: import(".prisma/client").$Enums.PriceRuleType;
             specialPrice: import("@prisma/client/runtime/library").Decimal;
             startTime: string | null;
             endTime: string | null;
             startDate: Date | null;
             endDate: Date | null;
-            priority: number;
-            isActive: boolean;
-            createdById: string | null;
-            createdAt: Date;
-            updatedAt: Date;
-            restaurantId: string;
             menuItemId: string;
         }[];
         meta: {
@@ -69,22 +69,22 @@ export declare class PriceRulesService {
             hasPrevPage: boolean;
         };
     }>;
-    findAllByRestaurant(actor: User, restaurantId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean): Promise<{
+    findAllByRestaurant(actor: User, restaurantId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean, menuItemId?: string): Promise<{
         data: {
             id: string;
             name: string;
+            isActive: boolean;
+            createdById: string | null;
+            restaurantId: string;
+            createdAt: Date;
+            updatedAt: Date;
+            priority: number;
             ruleType: import(".prisma/client").$Enums.PriceRuleType;
             specialPrice: import("@prisma/client/runtime/library").Decimal;
             startTime: string | null;
             endTime: string | null;
             startDate: Date | null;
             endDate: Date | null;
-            priority: number;
-            isActive: boolean;
-            createdById: string | null;
-            createdAt: Date;
-            updatedAt: Date;
-            restaurantId: string;
             menuItemId: string;
         }[];
         meta: {
@@ -113,18 +113,18 @@ export declare class PriceRulesService {
     } & {
         id: string;
         name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
-        priority: number;
-        isActive: boolean;
-        createdById: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
         menuItemId: string;
     }>;
     update(actor: User, restaurantId: string, menuItemId: string, id: string, dto: UpdatePriceRuleDto): Promise<{
@@ -144,18 +144,18 @@ export declare class PriceRulesService {
     } & {
         id: string;
         name: string;
+        isActive: boolean;
+        createdById: string | null;
+        restaurantId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
         endDate: Date | null;
-        priority: number;
-        isActive: boolean;
-        createdById: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
         menuItemId: string;
     }>;
     remove(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{

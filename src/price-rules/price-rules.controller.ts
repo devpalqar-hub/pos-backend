@@ -57,42 +57,6 @@ export class PriceRulesController {
     return this.priceRulesService.create(actor, restaurantId, menuItemId, dto);
   }
 
-  // ─── List all for a menu item ─────────────────────────────────────────────
-
-  @Get()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
-  @ApiOperation({ summary: 'List all price rules for a menu item' })
-  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
-  @ApiParam({ name: 'menuItemId', description: 'Menu item UUID' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
-  @ApiQuery({ name: 'ruleType', required: false, type: String, enum: ['RECURRING_WEEKLY', 'LIMITED_TIME'], description: 'Filter by rule type' })
-  @ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' })
-  @ApiResponse({ status: 200, description: 'List of price rules' })
-  findAll(
-    @CurrentUser() actor: User,
-    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-    @Param('menuItemId', ParseUUIDPipe) menuItemId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('ruleType') ruleType?: string,
-    @Query('isActive') isActive?: string,
-  ) {
-    const pageNum = parseInt(page ?? '1');
-    const limitNum = parseInt(limit ?? '10');
-    const isActiveValue = isActive !== undefined ? isActive === 'true' : undefined;
-
-    return this.priceRulesService.findAllByMenuItem(
-      actor,
-      restaurantId,
-      menuItemId,
-      pageNum,
-      limitNum,
-      ruleType as any,
-      isActiveValue,
-    );
-  }
-
   // ─── Effective price ──────────────────────────────────────────────────────
 
   @Get('effective-price')
