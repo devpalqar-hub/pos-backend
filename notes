@@ -31,3 +31,16 @@ adding loyality points setup
 
 Need to do Loyality Points Logic 
 You are a Senior Backend Developer. You need to add loyality point logic to this project. 
+create a table to store customer details (name, phone with name optional)
+create a module to crud on customer table (create, get(with paginate method), get by id, update delete)
+
+
+create a table LoyalityPoints - its purpose is to give loyality points to customers when they buy food on specific date. that loyality points need to add on user wallet (wallet can be fetched using fetching customertable using their phone number.)
+
+add fields on loyality points table- 
+startDate,endDate, WeekDays (make it enum), startTIme, EndTime, Category (many to many with cateogry table), Menu(many to many with menu table)
+one field to save count of how many times a user can use that loyality point instance.
+every field should be optional
+create module with crud api of loality points. 
+
+never make any edits on the existing code. add this updates on the project.

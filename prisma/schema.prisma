@@ -176,8 +176,10 @@ model Restaurant {
   priceRules   PriceRule[]
   tableGroups  TableGroup[]
   tables       Table[]
-  sessions     OrderSession[]
-  bills        Bill[]
+  sessions       OrderSession[]
+  bills          Bill[]
+  customers      Customer[]
+  loyalityPoints LoyalityPoint[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -213,8 +215,9 @@ model MenuCategory {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  items      MenuItem[]
+  restaurant     Restaurant              @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items          MenuItem[]
+  loyalityPoints LoyalityPointCategory[]
 
   @@unique([restaurantId, name])
   @@index([restaurantId])
@@ -248,11 +251,12 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  category   MenuCategory @relation(fields: [categoryId], references: [id])
-  priceRules PriceRule[]
-  orderItems OrderItem[]
-  billItems  BillItem[]
+  restaurant     Restaurant              @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category       MenuCategory            @relation(fields: [categoryId], references: [id])
+  priceRules     PriceRule[]
+  orderItems     OrderItem[]
+  billItems      BillItem[]
+  loyalityPoints LoyalityPointMenuItem[]
 
   @@index([restaurantId])
   @@index([categoryId])
@@ -539,3 +543,110 @@ model OtpToken {
   @@index([email])
   @@map("otp_tokens")
 }
+
+// ─── Customer ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id           String   @id @default(uuid())
+  restaurantId String
+  phone        String   @db.VarChar(30)
+  name         String?  @db.VarChar(255)
+  wallet       Decimal  @default(0) @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant              Restaurant               @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  loyalityPointRedemptions LoyalityPointRedemption[]
+
+  @@unique([restaurantId, phone])
+  @@index([restaurantId])
+  @@index([phone])
+  @@map("customers")
+}
+
+// ─── Loyality Points ─────────────────────────────────────────────────────────
+
+model LoyalityPoint {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String   @db.VarChar(255)
+  points       Decimal  @default(0) @db.Decimal(10, 2) // Points awarded per qualifying purchase
+
+  // ── Date range (optional) ─────────────────────────────────────────────────
+  startDate DateTime?
+  endDate   DateTime?
+
+  // ── Time window (optional, 24-hr HH:MM) ──────────────────────────────────
+  startTime String? @db.VarChar(10) // e.g. "09:00"
+  endTime   String? @db.VarChar(10) // e.g. "22:00"
+
+  // ── Max redemptions per customer (optional) ───────────────────────────────
+  maxUsagePerCustomer Int? // null = unlimited
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant  Restaurant              @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  weekDays    LoyalityPointDay[]
+  categories  LoyalityPointCategory[]
+  menuItems   LoyalityPointMenuItem[]
+  redemptions LoyalityPointRedemption[]
+
+  @@index([restaurantId])
+  @@map("loyality_points")
+}
+
+model LoyalityPointDay {
+  id              String    @id @default(uuid())
+  loyalityPointId String
+  day             DayOfWeek
+
+  loyalityPoint LoyalityPoint @relation(fields: [loyalityPointId], references: [id], onDelete: Cascade)
+
+  @@unique([loyalityPointId, day])
+  @@map("loyality_point_days")
+}
+
+model LoyalityPointCategory {
+  id              String @id @default(uuid())
+  loyalityPointId String
+  categoryId      String
+
+  loyalityPoint LoyalityPoint @relation(fields: [loyalityPointId], references: [id], onDelete: Cascade)
+  category      MenuCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([loyalityPointId, categoryId])
+  @@map("loyality_point_categories")
+}
+
+model LoyalityPointMenuItem {
+  id              String @id @default(uuid())
+  loyalityPointId String
+  menuItemId      String
+
+  loyalityPoint LoyalityPoint @relation(fields: [loyalityPointId], references: [id], onDelete: Cascade)
+  menuItem      MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([loyalityPointId, menuItemId])
+  @@map("loyality_point_menu_items")
+}
+
+model LoyalityPointRedemption {
+  id              String @id @default(uuid())
+  loyalityPointId String
+  customerId      String
+
+  pointsAwarded Decimal  @db.Decimal(10, 2)
+  redeemedAt    DateTime @default(now())
+
+  loyalityPoint LoyalityPoint @relation(fields: [loyalityPointId], references: [id], onDelete: Cascade)
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([loyalityPointId])
+  @@index([customerId])
+  @@map("loyality_point_redemptions")
+}
+
+

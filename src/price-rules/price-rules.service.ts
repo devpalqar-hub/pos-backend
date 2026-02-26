@@ -195,12 +195,28 @@ export class PriceRulesService {
 
   // ─── List all by restaurant ───────────────────────────────────────────────
 
-  async findAllByRestaurant(actor: User, restaurantId: string) {
+  async findAllByRestaurant(
+    actor: User,
+    restaurantId: string,
+    page: number = 1,
+    limit: number = 10,
+    ruleType?: PriceRuleType,
+    isActive?: boolean,
+  ) {
     await this.assertAccess(actor, restaurantId);
     await this.assertRestaurantExists(restaurantId);
 
-    return this.prisma.priceRule.findMany({
-      where: { restaurantId },
+    const where: any = {
+      restaurantId,
+      ...(ruleType !== undefined && { ruleType }),
+      ...(isActive !== undefined && { isActive }),
+    };
+
+    return paginate({
+      prismaModel: this.prisma.priceRule,
+      page,
+      limit,
+      where,
       orderBy: [{ menuItemId: 'asc' }, { priority: 'desc' }],
       include: RULE_INCLUDE,
     });

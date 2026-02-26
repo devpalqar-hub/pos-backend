@@ -22,6 +22,8 @@ const menu_module_1 = require("./menu/menu.module");
 const price_rules_module_1 = require("./price-rules/price-rules.module");
 const tables_module_1 = require("./tables/tables.module");
 const orders_module_1 = require("./orders/orders.module");
+const customers_module_1 = require("./customers/customers.module");
+const loyality_points_module_1 = require("./loyality-points/loyality-points.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
@@ -45,6 +47,8 @@ exports.AppModule = AppModule = __decorate([
             price_rules_module_1.PriceRulesModule,
             tables_module_1.TablesModule,
             orders_module_1.OrdersModule,
+            customers_module_1.CustomersModule,
+            loyality_points_module_1.LoyalityPointsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [
