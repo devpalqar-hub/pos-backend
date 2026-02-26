@@ -49,7 +49,7 @@ export class RestaurantPriceRulesController {
         @Query('ruleType') ruleType?: string,
         @Query('isActive') isActive?: string,
         @Query('menuItemId') menuItemId?: string,
-        @Query('name') name?: string,
+        @Query('search') name?: string,
     ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
