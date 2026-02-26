@@ -27,18 +27,18 @@ export declare class LoyalityPointsController {
             }[];
         } & {
             id: string;
-            isGroup: boolean;
             name: string;
-            points: import("@prisma/client/runtime/library").Decimal;
-            startDate: Date | null;
-            endDate: Date | null;
-            startTime: string | null;
-            endTime: string | null;
-            maxUsagePerCustomer: number | null;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            startTime: string | null;
+            endTime: string | null;
+            startDate: Date | null;
+            endDate: Date | null;
+            isGroup: boolean;
+            points: import("@prisma/client/runtime/library").Decimal;
+            maxUsagePerCustomer: number | null;
         };
     }>;
     findAll(actor: User, restaurantId: string, page?: string, limit?: string, search?: string, status?: string, type?: string): Promise<{
@@ -46,18 +46,18 @@ export declare class LoyalityPointsController {
         data: {
             data: {
                 id: string;
-                isGroup: boolean;
                 name: string;
-                points: import("@prisma/client/runtime/library").Decimal;
-                startDate: Date | null;
-                endDate: Date | null;
-                startTime: string | null;
-                endTime: string | null;
-                maxUsagePerCustomer: number | null;
                 isActive: boolean;
+                restaurantId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                restaurantId: string;
+                startTime: string | null;
+                endTime: string | null;
+                startDate: Date | null;
+                endDate: Date | null;
+                isGroup: boolean;
+                points: import("@prisma/client/runtime/library").Decimal;
+                maxUsagePerCustomer: number | null;
             }[];
             meta: {
                 total: number;
@@ -91,18 +91,18 @@ export declare class LoyalityPointsController {
             }[];
         } & {
             id: string;
-            isGroup: boolean;
             name: string;
-            points: import("@prisma/client/runtime/library").Decimal;
-            startDate: Date | null;
-            endDate: Date | null;
-            startTime: string | null;
-            endTime: string | null;
-            maxUsagePerCustomer: number | null;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            startTime: string | null;
+            endTime: string | null;
+            startDate: Date | null;
+            endDate: Date | null;
+            isGroup: boolean;
+            points: import("@prisma/client/runtime/library").Decimal;
+            maxUsagePerCustomer: number | null;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateLoyalityPointDto): Promise<{
@@ -127,18 +127,18 @@ export declare class LoyalityPointsController {
             }[];
         } & {
             id: string;
-            isGroup: boolean;
             name: string;
-            points: import("@prisma/client/runtime/library").Decimal;
-            startDate: Date | null;
-            endDate: Date | null;
-            startTime: string | null;
-            endTime: string | null;
-            maxUsagePerCustomer: number | null;
             isActive: boolean;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            startTime: string | null;
+            endTime: string | null;
+            startDate: Date | null;
+            endDate: Date | null;
+            isGroup: boolean;
+            points: import("@prisma/client/runtime/library").Decimal;
+            maxUsagePerCustomer: number | null;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

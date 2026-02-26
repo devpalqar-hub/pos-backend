@@ -14,27 +14,27 @@ export declare class CategoriesService {
     } & {
         id: string;
         name: string;
-        description: string | null;
-        imageUrl: string | null;
         isActive: boolean;
-        sortOrder: number;
         createdById: string | null;
+        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        restaurantId: string;
+        description: string | null;
+        imageUrl: string | null;
+        sortOrder: number;
     }>;
     findAll(actor: User, restaurantId: string, page?: number, limit?: number, search?: string): Promise<{
         data: {
             id: string;
             name: string;
-            description: string | null;
-            imageUrl: string | null;
             isActive: boolean;
-            sortOrder: number;
             createdById: string | null;
+            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            restaurantId: string;
+            description: string | null;
+            imageUrl: string | null;
+            sortOrder: number;
         }[];
         meta: {
             total: number;
@@ -63,14 +63,14 @@ export declare class CategoriesService {
     } & {
         id: string;
         name: string;
-        description: string | null;
-        imageUrl: string | null;
         isActive: boolean;
-        sortOrder: number;
         createdById: string | null;
+        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        restaurantId: string;
+        description: string | null;
+        imageUrl: string | null;
+        sortOrder: number;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateCategoryDto): Promise<{
         _count: {
@@ -79,14 +79,14 @@ export declare class CategoriesService {
     } & {
         id: string;
         name: string;
-        description: string | null;
-        imageUrl: string | null;
         isActive: boolean;
-        sortOrder: number;
         createdById: string | null;
+        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        restaurantId: string;
+        description: string | null;
+        imageUrl: string | null;
+        sortOrder: number;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

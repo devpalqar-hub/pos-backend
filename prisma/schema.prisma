@@ -41,6 +41,13 @@ enum PriceRuleType {
   LIMITED_TIME // Active only within a specific calendar date range
 }
 
+enum ExpenseType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
 enum TableStatus {
   AVAILABLE
   OCCUPIED
@@ -180,6 +187,7 @@ model Restaurant {
   bills          Bill[]
   customers      Customer[]
   loyalityPoints LoyalityPoint[]
+  expenses       Expense[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -625,6 +633,28 @@ model LoyalityPointRedemption {
   @@index([loyalityPointId])
   @@index([customerId])
   @@map("loyality_point_redemptions")
+}
+
+// ─── Expenses ─────────────────────────────────────────────────────────────────
+
+model Expense {
+  id           String      @id @default(uuid())
+  restaurantId String
+  expenseName  String      @db.VarChar(255)
+  expenseType  ExpenseType
+  amount       Decimal     @db.Decimal(10, 2)
+  description  String?     @db.Text
+  date         DateTime    @default(now())
+  createdById  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([expenseType])
+  @@map("expenses")
 }
 
 
