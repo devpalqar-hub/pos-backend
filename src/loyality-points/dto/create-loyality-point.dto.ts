@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-    IsArray,
     IsDateString,
-    IsEnum,
     IsInt,
     IsNotEmpty,
     IsNumber,
@@ -11,7 +9,6 @@ import {
     MaxLength,
     Min,
 } from 'class-validator';
-import { DayOfWeek } from '@prisma/client';
 
 export class CreateLoyalityPointDto {
     @ApiProperty({
@@ -67,35 +64,6 @@ export class CreateLoyalityPointDto {
     @IsString()
     @MaxLength(10)
     endTime?: string;
-
-    @ApiPropertyOptional({
-        description: 'Days of week when this rule is active',
-        example: ['MONDAY', 'FRIDAY'],
-        enum: DayOfWeek,
-        isArray: true,
-    })
-    @IsOptional()
-    @IsArray()
-    @IsEnum(DayOfWeek, { each: true })
-    weekDays?: DayOfWeek[];
-
-    @ApiPropertyOptional({
-        description: 'Category IDs (many-to-many)',
-        example: ['uuid-1', 'uuid-2'],
-    })
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    categoryIds?: string[];
-
-    @ApiPropertyOptional({
-        description: 'Menu item IDs (many-to-many)',
-        example: ['uuid-1', 'uuid-2'],
-    })
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    menuItemIds?: string[];
 
     @ApiPropertyOptional({
         description:

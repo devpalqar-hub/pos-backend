@@ -16,19 +16,7 @@ export class LoyalityPointsService {
     // ─── Shared include for reads ─────────────────────────────────────────────
 
     private readonly defaultInclude = {
-        weekDays: { select: { id: true, day: true } },
-        categories: {
-            select: {
-                id: true,
-                category: { select: { id: true, name: true } },
-            },
-        },
-        menuItems: {
-            select: {
-                id: true,
-                menuItem: { select: { id: true, name: true } },
-            },
-        },
+        restaurant: { select: { id: true, name: true } },
     };
 
     // ─── Create ───────────────────────────────────────────────────────────────
@@ -50,27 +38,6 @@ export class LoyalityPointsService {
                 startTime: dto.startTime ?? null,
                 endTime: dto.endTime ?? null,
                 maxUsagePerCustomer: dto.maxUsagePerCustomer ?? null,
-
-                // Many-to-many: weekDays
-                weekDays: dto.weekDays?.length
-                    ? {
-                        create: dto.weekDays.map((day) => ({ day })),
-                    }
-                    : undefined,
-
-                // Many-to-many: categories
-                categories: dto.categoryIds?.length
-                    ? {
-                        create: dto.categoryIds.map((categoryId) => ({ categoryId })),
-                    }
-                    : undefined,
-
-                // Many-to-many: menu items
-                menuItems: dto.menuItemIds?.length
-                    ? {
-                        create: dto.menuItemIds.map((menuItemId) => ({ menuItemId })),
-                    }
-                    : undefined,
             },
             include: this.defaultInclude,
         });
@@ -98,16 +65,7 @@ export class LoyalityPointsService {
 
         const record = await this.prisma.loyalityPoint.findFirst({
             where: { id, restaurantId },
-            include: {
-                ...this.defaultInclude,
-                redemptions: {
-                    orderBy: { redeemedAt: 'desc' },
-                    take: 20,
-                    include: {
-                        customer: { select: { id: true, name: true, phone: true } },
-                    },
-                },
-            },
+            include: this.defaultInclude,
         });
 
         if (!record) {
@@ -138,70 +96,25 @@ export class LoyalityPointsService {
             );
         }
 
-        // Use a transaction to replace junction rows atomically
-        return this.prisma.$transaction(async (tx) => {
-            // Replace weekDays if provided
-            if (dto.weekDays !== undefined) {
-                await tx.loyalityPointDay.deleteMany({
-                    where: { loyalityPointId: id },
-                });
-                if (dto.weekDays.length) {
-                    await tx.loyalityPointDay.createMany({
-                        data: dto.weekDays.map((day) => ({ loyalityPointId: id, day })),
-                    });
-                }
-            }
-
-            // Replace categories if provided
-            if (dto.categoryIds !== undefined) {
-                await tx.loyalityPointCategory.deleteMany({
-                    where: { loyalityPointId: id },
-                });
-                if (dto.categoryIds.length) {
-                    await tx.loyalityPointCategory.createMany({
-                        data: dto.categoryIds.map((categoryId) => ({
-                            loyalityPointId: id,
-                            categoryId,
-                        })),
-                    });
-                }
-            }
-
-            // Replace menu items if provided
-            if (dto.menuItemIds !== undefined) {
-                await tx.loyalityPointMenuItem.deleteMany({
-                    where: { loyalityPointId: id },
-                });
-                if (dto.menuItemIds.length) {
-                    await tx.loyalityPointMenuItem.createMany({
-                        data: dto.menuItemIds.map((menuItemId) => ({
-                            loyalityPointId: id,
-                            menuItemId,
-                        })),
-                    });
-                }
-            }
-
-            return tx.loyalityPoint.update({
-                where: { id },
-                data: {
-                    ...(dto.name !== undefined && { name: dto.name }),
-                    ...(dto.points !== undefined && { points: dto.points }),
-                    ...(dto.startDate !== undefined && {
-                        startDate: dto.startDate ? new Date(dto.startDate) : null,
-                    }),
-                    ...(dto.endDate !== undefined && {
-                        endDate: dto.endDate ? new Date(dto.endDate) : null,
-                    }),
-                    ...(dto.startTime !== undefined && { startTime: dto.startTime }),
-                    ...(dto.endTime !== undefined && { endTime: dto.endTime }),
-                    ...(dto.maxUsagePerCustomer !== undefined && {
-                        maxUsagePerCustomer: dto.maxUsagePerCustomer,
-                    }),
-                    ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-                },
-                include: this.defaultInclude,
-            });
+        return this.prisma.loyalityPoint.update({
+            where: { id },
+            data: {
+                ...(dto.name !== undefined && { name: dto.name }),
+                ...(dto.points !== undefined && { points: dto.points }),
+                ...(dto.startDate !== undefined && {
+                    startDate: dto.startDate ? new Date(dto.startDate) : null,
+                }),
+                ...(dto.endDate !== undefined && {
+                    endDate: dto.endDate ? new Date(dto.endDate) : null,
+                }),
+                ...(dto.startTime !== undefined && { startTime: dto.startTime }),
+                ...(dto.endTime !== undefined && { endTime: dto.endTime }),
+                ...(dto.maxUsagePerCustomer !== undefined && {
+                    maxUsagePerCustomer: dto.maxUsagePerCustomer,
+                }),
+                ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+            },
+            include: this.defaultInclude,
         });
     }
 

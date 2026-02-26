@@ -180,7 +180,7 @@ export class PriceRulesService {
       ...(ruleType !== undefined && { ruleType }),
       ...(isActive !== undefined && { isActive }),
       ...(menuItemId !== undefined && { menuItemId }),
-      ...(name !== undefined && { name: { contains: name, mode: 'insensitive' } }),
+      ...(name !== undefined && { name: { contains: name } }),
     };
 
     return paginate({

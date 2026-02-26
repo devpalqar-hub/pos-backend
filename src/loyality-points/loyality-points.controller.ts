@@ -50,9 +50,6 @@ export class LoyalityPointsController {
 Creates a new loyalty point rule for the specified restaurant.  
 All time/date/day fields are optional. When omitted the rule applies unconditionally.
 
-- **weekDays**: array of DayOfWeek enum values (MONDAY–SUNDAY)
-- **categoryIds**: array of MenuCategory UUIDs
-- **menuItemIds**: array of MenuItem UUIDs
 - **maxUsagePerCustomer**: max redemptions per customer (null = unlimited)
 
 **Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
@@ -115,7 +112,7 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
     @ApiOperation({
         summary: 'Get a loyalty point rule by ID',
         description:
-            'Returns the loyalty point rule details including linked categories, menu items, weekdays, and recent redemptions.',
+            'Returns the loyalty point rule details.',
     })
     @ApiResponse({ status: 200, description: 'Loyalty point rule found.' })
     @ApiResponse({ status: 404, description: 'Rule or restaurant not found.' })
@@ -143,7 +140,7 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
     @ApiOperation({
         summary: 'Update a loyalty point rule',
         description:
-            'Updates loyalty point rule details. When weekDays / categoryIds / menuItemIds are provided, they **replace** the existing set entirely.',
+            'Updates loyalty point rule details.',
     })
     @ApiResponse({ status: 200, description: 'Loyalty point rule updated.' })
     @ApiResponse({ status: 404, description: 'Rule not found.' })
