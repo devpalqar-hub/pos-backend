@@ -56,7 +56,7 @@ let CustomersService = class CustomersService {
         const customer = await this.prisma.customer.findFirst({
             where: { id, restaurantId },
             include: {
-                loyalityPointRedemptions: {
+                LoyalityPointRedemption: {
                     orderBy: { redeemedAt: 'desc' },
                     take: 20,
                     include: { loyalityPoint: { select: { id: true, name: true } } },
@@ -73,7 +73,7 @@ let CustomersService = class CustomersService {
         const customer = await this.prisma.customer.findUnique({
             where: { restaurantId_phone: { restaurantId, phone } },
             include: {
-                loyalityPointRedemptions: {
+                LoyalityPointRedemption: {
                     orderBy: { redeemedAt: 'desc' },
                     take: 20,
                     include: { loyalityPoint: { select: { id: true, name: true } } },

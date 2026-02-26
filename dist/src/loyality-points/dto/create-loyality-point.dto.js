@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateLoyalityPointDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
-const client_1 = require("@prisma/client");
 class CreateLoyalityPointDto {
 }
 exports.CreateLoyalityPointDto = CreateLoyalityPointDto;
@@ -76,38 +75,6 @@ __decorate([
     (0, class_validator_1.MaxLength)(10),
     __metadata("design:type", String)
 ], CreateLoyalityPointDto.prototype, "endTime", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)({
-        description: 'Days of week when this rule is active',
-        example: ['MONDAY', 'FRIDAY'],
-        enum: client_1.DayOfWeek,
-        isArray: true,
-    }),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsEnum)(client_1.DayOfWeek, { each: true }),
-    __metadata("design:type", Array)
-], CreateLoyalityPointDto.prototype, "weekDays", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)({
-        description: 'Category IDs (many-to-many)',
-        example: ['uuid-1', 'uuid-2'],
-    }),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
-    __metadata("design:type", Array)
-], CreateLoyalityPointDto.prototype, "categoryIds", void 0);
-__decorate([
-    (0, swagger_1.ApiPropertyOptional)({
-        description: 'Menu item IDs (many-to-many)',
-        example: ['uuid-1', 'uuid-2'],
-    }),
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
-    __metadata("design:type", Array)
-], CreateLoyalityPointDto.prototype, "menuItemIds", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({
         description: 'Max number of times a single customer can redeem this loyalty point rule. Null = unlimited.',

@@ -7,24 +7,24 @@ export declare class CustomersService {
     constructor(prisma: PrismaService);
     create(actor: User, restaurantId: string, dto: CreateCustomerDto): Promise<{
         id: string;
+        phone: string;
         name: string | null;
+        wallet: import("@prisma/client/runtime/library").Decimal;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        phone: string;
-        wallet: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
     }>;
     findAll(actor: User, restaurantId: string, page?: number, limit?: number, search?: string): Promise<{
         data: {
             id: string;
+            phone: string;
             name: string | null;
+            wallet: import("@prisma/client/runtime/library").Decimal;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            phone: string;
-            wallet: import("@prisma/client/runtime/library").Decimal;
+            restaurantId: string;
         }[];
         meta: {
             total: number;
@@ -36,7 +36,7 @@ export declare class CustomersService {
         };
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
-        loyalityPointRedemptions: ({
+        LoyalityPointRedemption: ({
             loyalityPoint: {
                 id: string;
                 name: string;
@@ -50,16 +50,16 @@ export declare class CustomersService {
         })[];
     } & {
         id: string;
+        phone: string;
         name: string | null;
+        wallet: import("@prisma/client/runtime/library").Decimal;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        phone: string;
-        wallet: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
     }>;
     findByPhone(actor: User, restaurantId: string, phone: string): Promise<{
-        loyalityPointRedemptions: ({
+        LoyalityPointRedemption: ({
             loyalityPoint: {
                 id: string;
                 name: string;
@@ -73,23 +73,23 @@ export declare class CustomersService {
         })[];
     } & {
         id: string;
+        phone: string;
         name: string | null;
+        wallet: import("@prisma/client/runtime/library").Decimal;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        phone: string;
-        wallet: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateCustomerDto): Promise<{
         id: string;
+        phone: string;
         name: string | null;
+        wallet: import("@prisma/client/runtime/library").Decimal;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        phone: string;
-        wallet: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

@@ -25,11 +25,11 @@ let RestaurantPriceRulesController = class RestaurantPriceRulesController {
     constructor(priceRulesService) {
         this.priceRulesService = priceRulesService;
     }
-    getAllByRestaurantId(actor, restaurantId, page, limit, ruleType, isActive, menuItemId) {
+    getAllByRestaurantId(actor, restaurantId, page, limit, ruleType, isActive, menuItemId, name) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
         const isActiveValue = isActive !== undefined ? isActive === 'true' : undefined;
-        return this.priceRulesService.findAllByRestaurant(actor, restaurantId, pageNum, limitNum, ruleType, isActiveValue, menuItemId);
+        return this.priceRulesService.findAllByRestaurant(actor, restaurantId, pageNum, limitNum, ruleType, isActiveValue, menuItemId, name);
     }
 };
 exports.RestaurantPriceRulesController = RestaurantPriceRulesController;
@@ -43,6 +43,7 @@ __decorate([
     (0, swagger_1.ApiQuery)({ name: 'ruleType', required: false, type: String, enum: ['RECURRING_WEEKLY', 'LIMITED_TIME'], description: 'Filter by rule type' }),
     (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' }),
     (0, swagger_1.ApiQuery)({ name: 'menuItemId', required: false, type: String, description: 'Filter by menu item UUID' }),
+    (0, swagger_1.ApiQuery)({ name: 'search', required: false, type: String, description: 'Search by price rule name (case-insensitive)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'List of all price rules for the restaurant' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Restaurant not found' }),
@@ -53,8 +54,9 @@ __decorate([
     __param(4, (0, common_1.Query)('ruleType')),
     __param(5, (0, common_1.Query)('isActive')),
     __param(6, (0, common_1.Query)('menuItemId')),
+    __param(7, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], RestaurantPriceRulesController.prototype, "getAllByRestaurantId", null);
 exports.RestaurantPriceRulesController = RestaurantPriceRulesController = __decorate([

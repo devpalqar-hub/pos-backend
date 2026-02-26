@@ -30,12 +30,6 @@ let PriceRulesController = class PriceRulesController {
     create(actor, restaurantId, menuItemId, dto) {
         return this.priceRulesService.create(actor, restaurantId, menuItemId, dto);
     }
-    findAll(actor, restaurantId, menuItemId, page, limit, ruleType, isActive) {
-        const pageNum = parseInt(page ?? '1');
-        const limitNum = parseInt(limit ?? '10');
-        const isActiveValue = isActive !== undefined ? isActive === 'true' : undefined;
-        return this.priceRulesService.findAllByMenuItem(actor, restaurantId, menuItemId, pageNum, limitNum, ruleType, isActiveValue);
-    }
     getEffectivePrice(actor, restaurantId, menuItemId, atTime) {
         return this.priceRulesService.getEffectivePrice(actor, restaurantId, menuItemId, atTime ? new Date(atTime) : undefined);
     }
@@ -69,28 +63,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, create_price_rule_dto_1.CreatePriceRuleDto]),
     __metadata("design:returntype", void 0)
 ], PriceRulesController.prototype, "create", null);
-__decorate([
-    (0, common_1.Get)(),
-    (0, roles_decorator_1.Roles)(client_1.UserRole.SUPER_ADMIN, client_1.UserRole.OWNER, client_1.UserRole.RESTAURANT_ADMIN),
-    (0, swagger_1.ApiOperation)({ summary: 'List all price rules for a menu item' }),
-    (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
-    (0, swagger_1.ApiParam)({ name: 'menuItemId', description: 'Menu item UUID' }),
-    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
-    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
-    (0, swagger_1.ApiQuery)({ name: 'ruleType', required: false, type: String, enum: ['RECURRING_WEEKLY', 'LIMITED_TIME'], description: 'Filter by rule type' }),
-    (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of price rules' }),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
-    __param(2, (0, common_1.Param)('menuItemId', common_1.ParseUUIDPipe)),
-    __param(3, (0, common_1.Query)('page')),
-    __param(4, (0, common_1.Query)('limit')),
-    __param(5, (0, common_1.Query)('ruleType')),
-    __param(6, (0, common_1.Query)('isActive')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
-    __metadata("design:returntype", void 0)
-], PriceRulesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('effective-price'),
     (0, roles_decorator_1.Roles)(client_1.UserRole.SUPER_ADMIN, client_1.UserRole.OWNER, client_1.UserRole.RESTAURANT_ADMIN),

@@ -3,7 +3,7 @@ import { User } from '@prisma/client';
 export declare class RestaurantPriceRulesController {
     private readonly priceRulesService;
     constructor(priceRulesService: PriceRulesService);
-    getAllByRestaurantId(actor: User, restaurantId: string, page?: string, limit?: string, ruleType?: string, isActive?: string, menuItemId?: string): Promise<{
+    getAllByRestaurantId(actor: User, restaurantId: string, page?: string, limit?: string, ruleType?: string, isActive?: string, menuItemId?: string, name?: string): Promise<{
         data: {
             id: string;
             name: string;

@@ -67,9 +67,6 @@ __decorate([
 Creates a new loyalty point rule for the specified restaurant.  
 All time/date/day fields are optional. When omitted the rule applies unconditionally.
 
-- **weekDays**: array of DayOfWeek enum values (MONDAY–SUNDAY)
-- **categoryIds**: array of MenuCategory UUIDs
-- **menuItemIds**: array of MenuItem UUIDs
 - **maxUsagePerCustomer**: max redemptions per customer (null = unlimited)
 
 **Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
@@ -111,7 +108,7 @@ __decorate([
     (0, swagger_1.ApiParam)({ name: 'id', description: 'Loyalty point rule UUID' }),
     (0, swagger_1.ApiOperation)({
         summary: 'Get a loyalty point rule by ID',
-        description: 'Returns the loyalty point rule details including linked categories, menu items, weekdays, and recent redemptions.',
+        description: 'Returns the loyalty point rule details.',
     }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Loyalty point rule found.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Rule or restaurant not found.' }),
@@ -129,7 +126,7 @@ __decorate([
     (0, swagger_1.ApiParam)({ name: 'id', description: 'Loyalty point rule UUID' }),
     (0, swagger_1.ApiOperation)({
         summary: 'Update a loyalty point rule',
-        description: 'Updates loyalty point rule details. When weekDays / categoryIds / menuItemIds are provided, they **replace** the existing set entirely.',
+        description: 'Updates loyalty point rule details.',
     }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Loyalty point rule updated.' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Rule not found.' }),

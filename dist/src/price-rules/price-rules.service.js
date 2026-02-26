@@ -120,26 +120,7 @@ let PriceRulesService = PriceRulesService_1 = class PriceRulesService {
         });
         return rule;
     }
-    async findAllByMenuItem(actor, restaurantId, menuItemId, page = 1, limit = 10, ruleType, isActive) {
-        await this.assertAccess(actor, restaurantId);
-        await this.assertRestaurantExists(restaurantId);
-        await this.assertMenuItemExists(restaurantId, menuItemId);
-        const where = {
-            restaurantId,
-            menuItemId,
-            ...(ruleType !== undefined && { ruleType }),
-            ...(isActive !== undefined && { isActive }),
-        };
-        return (0, pagination_util_1.paginate)({
-            prismaModel: this.prisma.priceRule,
-            page,
-            limit,
-            where,
-            orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
-            include: RULE_INCLUDE,
-        });
-    }
-    async findAllByRestaurant(actor, restaurantId, page = 1, limit = 10, ruleType, isActive, menuItemId) {
+    async findAllByRestaurant(actor, restaurantId, page = 1, limit = 10, ruleType, isActive, menuItemId, name) {
         await this.assertAccess(actor, restaurantId);
         await this.assertRestaurantExists(restaurantId);
         const where = {
@@ -147,6 +128,7 @@ let PriceRulesService = PriceRulesService_1 = class PriceRulesService {
             ...(ruleType !== undefined && { ruleType }),
             ...(isActive !== undefined && { isActive }),
             ...(menuItemId !== undefined && { menuItemId }),
+            ...(name !== undefined && { name: { contains: name } }),
         };
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.priceRule,

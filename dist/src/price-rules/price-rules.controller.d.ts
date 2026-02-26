@@ -36,33 +36,6 @@ export declare class PriceRulesController {
         endDate: Date | null;
         menuItemId: string;
     }>;
-    findAll(actor: User, restaurantId: string, menuItemId: string, page?: string, limit?: string, ruleType?: string, isActive?: string): Promise<{
-        data: {
-            id: string;
-            name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            priority: number;
-            ruleType: import(".prisma/client").$Enums.PriceRuleType;
-            specialPrice: import("@prisma/client/runtime/library").Decimal;
-            startTime: string | null;
-            endTime: string | null;
-            startDate: Date | null;
-            endDate: Date | null;
-            menuItemId: string;
-        }[];
-        meta: {
-            total: number;
-            page: number;
-            limit: number;
-            totalPages: number;
-            hasNextPage: boolean;
-            hasPrevPage: boolean;
-        };
-    }>;
     getEffectivePrice(actor: User, restaurantId: string, menuItemId: string, atTime?: string): Promise<{
         menuItemId: string;
         basePrice: import("@prisma/client/runtime/library").Decimal;

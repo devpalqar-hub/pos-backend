@@ -42,34 +42,7 @@ export declare class PriceRulesService {
         endDate: Date | null;
         menuItemId: string;
     }>;
-    findAllByMenuItem(actor: User, restaurantId: string, menuItemId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean): Promise<{
-        data: {
-            id: string;
-            name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
-            priority: number;
-            ruleType: import(".prisma/client").$Enums.PriceRuleType;
-            specialPrice: import("@prisma/client/runtime/library").Decimal;
-            startTime: string | null;
-            endTime: string | null;
-            startDate: Date | null;
-            endDate: Date | null;
-            menuItemId: string;
-        }[];
-        meta: {
-            total: number;
-            page: number;
-            limit: number;
-            totalPages: number;
-            hasNextPage: boolean;
-            hasPrevPage: boolean;
-        };
-    }>;
-    findAllByRestaurant(actor: User, restaurantId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean, menuItemId?: string): Promise<{
+    findAllByRestaurant(actor: User, restaurantId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean, menuItemId?: string, name?: string): Promise<{
         data: {
             id: string;
             name: string;
