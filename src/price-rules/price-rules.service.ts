@@ -170,6 +170,7 @@ export class PriceRulesService {
     ruleType?: PriceRuleType,
     isActive?: boolean,
     menuItemId?: string,
+    name?: string,
   ) {
     await this.assertAccess(actor, restaurantId);
     await this.assertRestaurantExists(restaurantId);
@@ -179,6 +180,7 @@ export class PriceRulesService {
       ...(ruleType !== undefined && { ruleType }),
       ...(isActive !== undefined && { isActive }),
       ...(menuItemId !== undefined && { menuItemId }),
+      ...(name !== undefined && { name: { contains: name, mode: 'insensitive' } }),
     };
 
     return paginate({

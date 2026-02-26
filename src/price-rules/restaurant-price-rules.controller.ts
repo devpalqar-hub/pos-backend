@@ -37,6 +37,7 @@ export class RestaurantPriceRulesController {
     @ApiQuery({ name: 'ruleType', required: false, type: String, enum: ['RECURRING_WEEKLY', 'LIMITED_TIME'], description: 'Filter by rule type' })
     @ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' })
     @ApiQuery({ name: 'menuItemId', required: false, type: String, description: 'Filter by menu item UUID' })
+    @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by price rule name (case-insensitive)' })
     @ApiResponse({ status: 200, description: 'List of all price rules for the restaurant' })
     @ApiResponse({ status: 403, description: 'Forbidden' })
     @ApiResponse({ status: 404, description: 'Restaurant not found' })
@@ -48,6 +49,7 @@ export class RestaurantPriceRulesController {
         @Query('ruleType') ruleType?: string,
         @Query('isActive') isActive?: string,
         @Query('menuItemId') menuItemId?: string,
+        @Query('name') name?: string,
     ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
@@ -61,6 +63,7 @@ export class RestaurantPriceRulesController {
             ruleType as any,
             isActiveValue,
             menuItemId,
+            name,
         );
     }
 }
