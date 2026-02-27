@@ -93,6 +93,12 @@ Creates a new item in the restaurant menu.
     type: String,
     description: 'Sort menu items (newest | oldest | price_asc | price_desc | name_asc | name_desc)',
   })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    description: 'ISO date (YYYY-MM-DD or full ISO string) to evaluate price rules',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiOperation({
@@ -112,9 +118,30 @@ Creates a new item in the restaurant menu.
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
+    @Query('date') date?: string,
   ) {
     const pageNum = parseInt(page ?? '1');
     const limitNum = parseInt(limit ?? '10');
+    const parsedDate = date ? new Date(date) : undefined;
+
+    console.log(parsedDate, "parsed Date");
+
+    const weekdayMap = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ];
+
+    if (parsedDate) {
+      const weekday = weekdayMap[parsedDate.getUTCDay()];
+      console.log("Weekday (UTC):", weekday);
+    }
+
+
     const data = categoryId
       ? await this.menuService.findByCategory(
         actor,
@@ -123,7 +150,8 @@ Creates a new item in the restaurant menu.
         pageNum,
         limitNum,
         search,
-        sortBy
+        sortBy,
+        parsedDate
       )
       : await this.menuService.findAll(
         actor,
@@ -131,7 +159,8 @@ Creates a new item in the restaurant menu.
         pageNum,
         limitNum,
         search,
-        sortBy
+        sortBy,
+        parsedDate
       );
     return {
       message: 'Menu items fetched successfully',

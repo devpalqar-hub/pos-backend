@@ -21,56 +21,27 @@ export declare class MenuController {
         } & {
             id: string;
             name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
+            sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
-    findAll(actor: User, restaurantId: string, categoryId?: string, page?: string, limit?: string, search?: string, sortBy?: string): Promise<{
+    findAll(actor: User, restaurantId: string, categoryId?: string, page?: string, limit?: string, search?: string, sortBy?: string, date?: string): Promise<{
         message: string;
-        data: {
-            data: {
-                id: string;
-                name: string;
-                isActive: boolean;
-                createdById: string | null;
-                restaurantId: string;
-                createdAt: Date;
-                updatedAt: Date;
-                description: string | null;
-                imageUrl: string | null;
-                sortOrder: number;
-                categoryId: string;
-                price: import("@prisma/client/runtime/library").Decimal;
-                discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
-                itemType: import(".prisma/client").$Enums.ItemType;
-                stockCount: number | null;
-                isAvailable: boolean;
-                isOutOfStock: boolean;
-                outOfStockAt: Date | null;
-            }[];
-            meta: {
-                total: number;
-                page: number;
-                limit: number;
-                totalPages: number;
-                hasNextPage: boolean;
-                hasPrevPage: boolean;
-            };
-        };
+        data: any;
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
@@ -87,22 +58,22 @@ export declare class MenuController {
         } & {
             id: string;
             name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
+            sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateMenuItemDto): Promise<{
@@ -120,22 +91,22 @@ export declare class MenuController {
         } & {
             id: string;
             name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
+            sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
     manageStock(actor: User, restaurantId: string, id: string, dto: StockActionDto): Promise<{
@@ -153,22 +124,22 @@ export declare class MenuController {
         } & {
             id: string;
             name: string;
-            isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
-            createdAt: Date;
-            updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
+            sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

@@ -76,9 +76,74 @@ let MenuService = MenuService_1 = class MenuService {
                 return [{ category: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }];
         }
     }
-    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy) {
+    applyDatePricing(paginatedResult, date) {
+        const targetDate = new Date(date);
+        const targetDayEnum = this.getDayEnum(targetDate);
+        const currentTime = this.formatTime(targetDate);
+        paginatedResult.data = paginatedResult.data.map((item) => {
+            const applicableRules = item.priceRules
+                .filter((rule) => this.isRuleApplicable(rule, targetDate, targetDayEnum, currentTime))
+                .sort((a, b) => b.priority - a.priority);
+            if (applicableRules.length > 0) {
+                const winningRule = applicableRules[0];
+                return {
+                    ...item,
+                    appliedRule: winningRule.name,
+                    effectivePrice: winningRule.specialPrice,
+                };
+            }
+            return {
+                ...item,
+                appliedRule: null,
+                effectivePrice: item.discountedPrice ?? item.price,
+            };
+        });
+        return paginatedResult;
+    }
+    isRuleApplicable(rule, targetDate, targetDayEnum, currentTime) {
+        if (!rule.isActive)
+            return false;
+        if (rule.ruleType === client_1.PriceRuleType.LIMITED_TIME) {
+            if (rule.startDate && targetDate < rule.startDate)
+                return false;
+            if (rule.endDate && targetDate > rule.endDate)
+                return false;
+        }
+        if (rule.ruleType === client_1.PriceRuleType.RECURRING_WEEKLY) {
+            const matchesDay = rule.days.some((d) => d.day === targetDayEnum);
+            if (!matchesDay)
+                return false;
+        }
+        if (rule.startTime && rule.endTime) {
+            if (currentTime < rule.startTime)
+                return false;
+            if (currentTime > rule.endTime)
+                return false;
+        }
+        console.log("---- RULE CHECK ----");
+        console.log("Target:", targetDate.toISOString());
+        console.log("Start :", rule.startDate?.toISOString());
+        console.log("End   :", rule.endDate?.toISOString());
+        return true;
+    }
+    getDayEnum(date) {
+        const weekdayMap = [
+            'SUNDAY',
+            'MONDAY',
+            'TUESDAY',
+            'WEDNESDAY',
+            'THURSDAY',
+            'FRIDAY',
+            'SATURDAY',
+        ];
+        return weekdayMap[date.getUTCDay()];
+    }
+    formatTime(date) {
+        return date.toISOString().slice(11, 16);
+    }
+    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy, date) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
-        return (0, pagination_util_1.paginate)({
+        const result = await (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuItem,
             page,
             limit,
@@ -99,11 +164,23 @@ let MenuService = MenuService_1 = class MenuService {
                     ],
                 }),
             },
-            include: ITEM_INCLUDE,
+            include: {
+                ...ITEM_INCLUDE,
+                priceRules: {
+                    include: {
+                        days: true,
+                    },
+                },
+            },
             orderBy: this.resolveSort(sortBy),
         });
+        const evaluationDate = date ?? new Date();
+        console.log("Server Evaluation Date (ISO):", evaluationDate.toISOString());
+        console.log("Server Evaluation Weekday (UTC):", this.getDayEnum(evaluationDate));
+        console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
+        return this.applyDatePricing(result, evaluationDate);
     }
-    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy) {
+    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy, date) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const category = await this.prisma.menuCategory.findFirst({
             where: { id: categoryId, restaurantId },
@@ -111,7 +188,7 @@ let MenuService = MenuService_1 = class MenuService {
         if (!category) {
             throw new common_1.NotFoundException(`Category ${categoryId} not found in restaurant ${restaurantId}`);
         }
-        return (0, pagination_util_1.paginate)({
+        const result = await (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuItem,
             page,
             limit,
@@ -134,11 +211,23 @@ let MenuService = MenuService_1 = class MenuService {
                     ],
                 }),
             },
-            include: ITEM_INCLUDE,
+            include: {
+                ...ITEM_INCLUDE,
+                priceRules: {
+                    include: {
+                        days: true,
+                    },
+                },
+            },
             orderBy: sortBy
                 ? this.resolveSort(sortBy)
                 : [{ sortOrder: 'asc' }, { name: 'asc' }],
         });
+        const evaluationDate = date ?? new Date();
+        console.log("Server Evaluation Date (ISO):", evaluationDate.toISOString());
+        console.log("Server Evaluation Weekday (UTC):", this.getDayEnum(evaluationDate));
+        console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
+        return this.applyDatePricing(result, evaluationDate);
     }
     async findOne(actor, restaurantId, id) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
