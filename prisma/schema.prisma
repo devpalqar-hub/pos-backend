@@ -99,6 +99,17 @@ enum PaymentMethod {
   OTHER
 }
 
+enum LeaveType {
+  PAID
+  UNPAID
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+  PAID
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -188,6 +199,8 @@ model Restaurant {
   customers      Customer[]
   loyalityPoints LoyalityPoint[]
   expenses       Expense[]
+  payrolls       Payroll[]
+  staffs         Staff[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -657,5 +670,118 @@ model Expense {
   @@map("expenses")
 }
 
+// ─── Payroll ──────────────────────────────────────────────────────────────────
 
+model Staff {
+  id             String  @id @default(uuid())
+  name           String  @db.VarChar(255)
+  email          String  @unique @db.VarChar(255)
+  phone          String? @db.VarChar(30)
+  jobRole        String? @db.VarChar(255)
+  monthlySalary  Decimal @db.Decimal(10, 2)
+  paidLeaveDays  Int     @default(0) // Allowed paid leave days per month
+  dailyWorkHours Decimal @db.Decimal(4, 2) // Expected daily work hours (e.g. 8.00)
 
+  restaurantId String
+
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  restaurant  Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  workingDays StaffWorkingDay[]
+  leaves      StaffLeave[]
+  overtimes   StaffOvertime[]
+  payrolls    Payroll[]
+
+  @@map("staff_profiles")
+}
+
+model StaffWorkingDay {
+  id      String    @id @default(uuid())
+  staffId String
+  day     DayOfWeek
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, day])
+  @@map("staff_working_days")
+}
+
+model StaffLeave {
+  id        String    @id @default(uuid())
+  staffId   String
+  date      DateTime  @db.Date
+  leaveType LeaveType @default(PAID)
+  reason    String?   @db.VarChar(500)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+  @@index([staffId])
+  @@map("staff_leaves")
+}
+
+model StaffOvertime {
+  id         String   @id @default(uuid())
+  staffId    String
+  date       DateTime @db.Date
+  hours      Decimal  @db.Decimal(4, 2)
+  wageAmount Decimal  @db.Decimal(10, 2) // Total overtime wage for this entry
+  notes      String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@map("staff_overtimes")
+}
+
+model Payroll {
+  id           String @id @default(uuid())
+  restaurantId String
+  staffId      String
+  month        Int // 1–12
+  year         Int
+
+  // Salary breakdown
+  monthlySalary    Decimal @db.Decimal(10, 2) // Snapshot of monthly salary
+  totalWorkingDays Int // Total working days in the month for this staff
+  perDaySalary     Decimal @db.Decimal(10, 2) // monthlySalary / totalWorkingDays
+
+  // Leave details
+  paidLeaveDays   Int @default(0)
+  unpaidLeaveDays Int @default(0)
+
+  // Additions
+  overtimeAmount Decimal @default(0) @db.Decimal(10, 2)
+  bonusAmount    Decimal @default(0) @db.Decimal(10, 2)
+
+  // Deductions
+  deductionAmount Decimal @default(0) @db.Decimal(10, 2)
+  deductionNotes  String? @db.VarChar(500)
+
+  // Totals
+  totalDeductions Decimal @default(0) @db.Decimal(10, 2) // unpaidLeaveDays * perDaySalary + deductionAmount
+  totalAdditions  Decimal @default(0) @db.Decimal(10, 2) // overtimeAmount + bonusAmount
+  finalSalary     Decimal @db.Decimal(10, 2)
+
+  status      PayrollStatus @default(DRAFT)
+  processedAt DateTime?
+  notes       String?       @db.Text
+  createdById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  staff      Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, month, year])
+  @@index([restaurantId])
+  @@index([staffId])
+  @@map("payrolls")
+}
