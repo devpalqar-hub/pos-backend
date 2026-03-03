@@ -14,6 +14,7 @@ import {
     BulkMarkLeaveDto,
     AddOvertimeDto,
     ProcessPayrollDto,
+    GetStaffAttendanceDto,
 } from './dto';
 import { User, UserRole, DayOfWeek, LeaveType } from '@prisma/client';
 
@@ -614,6 +615,127 @@ export class PayrollService {
                 staff: { include: STAFF_INCLUDE },
             },
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  STAFF ATTENDANCE (LEAVES & OVERTIMES)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async getStaffAttendance(
+        actor: User,
+        restaurantId: string,
+        dto: GetStaffAttendanceDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        const page = parseInt(dto.page ?? '1');
+        const limit = parseInt(dto.limit ?? '10');
+        const skip = (page - 1) * limit;
+        const filter = dto.filter ?? 'all';
+        const search = dto.search;
+        const staffId = dto.staffId;
+
+        // Build a common staff filter
+        const staffWhere: any = {
+            restaurantId,
+            isActive: true,
+            ...(staffId && { id: staffId }),
+            ...(search && {
+                OR: [
+                    { name: { contains: search } },
+                    { email: { contains: search } },
+                ],
+            }),
+        };
+
+        // Get matching staff IDs
+        const matchingStaff = await this.prisma.staff.findMany({
+            where: staffWhere,
+            select: { id: true, name: true, email: true, jobRole: true },
+        });
+        const staffIds = matchingStaff.map((s) => s.id);
+        const staffMap = new Map(matchingStaff.map((s) => [s.id, s]));
+
+        if (staffIds.length === 0) {
+            return {
+                data: [],
+                meta: { total: 0, page, limit, totalPages: 0, hasNextPage: false, hasPrevPage: false },
+            };
+        }
+
+        // Fetch leaves
+        let leaves: any[] = [];
+        let leaveCount = 0;
+        if (filter === 'leave' || filter === 'all') {
+            leaves = await this.prisma.staffLeave.findMany({
+                where: { staffId: { in: staffIds } },
+                orderBy: { date: 'desc' },
+            });
+            leaveCount = leaves.length;
+        }
+
+        // Fetch overtimes
+        let overtimes: any[] = [];
+        let overtimeCount = 0;
+        if (filter === 'overtime' || filter === 'all') {
+            overtimes = await this.prisma.staffOvertime.findMany({
+                where: { staffId: { in: staffIds } },
+                orderBy: { date: 'desc' },
+            });
+            overtimeCount = overtimes.length;
+        }
+
+        // Normalize into a unified list
+        const combined: any[] = [
+            ...leaves.map((l) => ({
+                id: l.id,
+                type: 'leave' as const,
+                staffId: l.staffId,
+                staff: staffMap.get(l.staffId),
+                date: l.date,
+                leaveType: l.leaveType,
+                reason: l.reason,
+                hours: null,
+                wageAmount: null,
+                notes: null,
+                createdAt: l.createdAt,
+            })),
+            ...overtimes.map((o) => ({
+                id: o.id,
+                type: 'overtime' as const,
+                staffId: o.staffId,
+                staff: staffMap.get(o.staffId),
+                date: o.date,
+                leaveType: null,
+                reason: null,
+                hours: o.hours,
+                wageAmount: o.wageAmount,
+                notes: o.notes,
+                createdAt: o.createdAt,
+            })),
+        ];
+
+        // Sort by date descending
+        combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const total = combined.length;
+        const paginated = combined.slice(skip, skip + limit);
+
+        return {
+            data: paginated,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+                hasNextPage: page * limit < total,
+                hasPrevPage: page > 1,
+            },
+            summary: {
+                totalLeaves: leaveCount,
+                totalOvertimes: overtimeCount,
+            },
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -28,6 +28,7 @@ import {
     BulkMarkLeaveDto,
     AddOvertimeDto,
     ProcessPayrollDto,
+    GetStaffAttendanceDto,
 } from './dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -42,6 +43,38 @@ import { User, UserRole } from '@prisma/client';
 export class PayrollController {
     constructor(private readonly payrollService: PayrollService) { }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  STAFF ATTENDANCE (LEAVES & OVERTIMES)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ─── Get Staff Attendance (Leaves & Overtimes) ─────────────────────────────
+
+    @Get('staff/attendance')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by staff name or email' })
+    @ApiQuery({ name: 'staffId', required: false, type: String, description: 'Filter by staff profile UUID' })
+    @ApiQuery({ name: 'filter', required: false, enum: ['leave', 'overtime', 'all'], description: 'Filter type (default: all)' })
+    @ApiOperation({
+        summary: 'List leaves and overtimes of all staff',
+        description:
+            'Returns a paginated list of leave and overtime records for all staff in the restaurant. ' +
+            'Use the filter query param to show only leaves, only overtimes, or all. ' +
+            'Supports search by staff name/email and filtering by staffId.',
+    })
+    @ApiResponse({ status: 200, description: 'Attendance records returned.' })
+    async getStaffAttendance(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query() query: GetStaffAttendanceDto,
+    ) {
+        return {
+            message: 'Staff attendance fetched successfully',
+            data: await this.payrollService.getStaffAttendance(actor, restaurantId, query),
+        };
+    }
+attendance
     // ═══════════════════════════════════════════════════════════════════════════
     //  STAFF PROFILE MANAGEMENT
     // ═══════════════════════════════════════════════════════════════════════════
