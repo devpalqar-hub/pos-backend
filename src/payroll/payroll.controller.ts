@@ -28,7 +28,6 @@ import {
     BulkMarkLeaveDto,
     AddOvertimeDto,
     ProcessPayrollDto,
-    GetStaffAttendanceDto,
 } from './dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -67,14 +66,26 @@ export class PayrollController {
     async getStaffAttendance(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query() query: GetStaffAttendanceDto,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('staffId') staffId?: string,
+        @Query('filter') filter?: 'leave' | 'overtime' | 'all',
     ) {
         return {
             message: 'Staff attendance fetched successfully',
-            data: await this.payrollService.getStaffAttendance(actor, restaurantId, query),
+            data: await this.payrollService.getStaffAttendance(
+                actor,
+                restaurantId,
+                parseInt(page ?? '1'),
+                parseInt(limit ?? '10'),
+                search,
+                staffId,
+                filter ?? 'all',
+            ),
         };
     }
-attendance
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  STAFF PROFILE MANAGEMENT
     // ═══════════════════════════════════════════════════════════════════════════

@@ -14,7 +14,6 @@ import {
     BulkMarkLeaveDto,
     AddOvertimeDto,
     ProcessPayrollDto,
-    GetStaffAttendanceDto,
 } from './dto';
 import { User, UserRole, DayOfWeek, LeaveType } from '@prisma/client';
 
@@ -624,16 +623,15 @@ export class PayrollService {
     async getStaffAttendance(
         actor: User,
         restaurantId: string,
-        dto: GetStaffAttendanceDto,
+        page = 1,
+        limit = 10,
+        search?: string,
+        staffId?: string,
+        filter: 'leave' | 'overtime' | 'all' = 'all',
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
-        const page = parseInt(dto.page ?? '1');
-        const limit = parseInt(dto.limit ?? '10');
         const skip = (page - 1) * limit;
-        const filter = dto.filter ?? 'all';
-        const search = dto.search;
-        const staffId = dto.staffId;
 
         // Build a common staff filter
         const staffWhere: any = {
