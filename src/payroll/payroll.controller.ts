@@ -33,7 +33,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User, UserRole } from '@prisma/client';
+import { User, UserRole, LeaveType } from '@prisma/client';
 
 @ApiTags('Payroll')
 @ApiBearerAuth()
@@ -55,12 +55,14 @@ export class PayrollController {
     @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by staff name or email' })
     @ApiQuery({ name: 'staffId', required: false, type: String, description: 'Filter by staff profile UUID' })
     @ApiQuery({ name: 'filter', required: false, enum: ['leave', 'overtime', 'all'], description: 'Filter type (default: all)' })
+    @ApiQuery({ name: 'month', required: false, type: Number, description: 'Filter by month (1–12)' })
+    @ApiQuery({ name: 'year', required: false, type: Number, description: 'Filter by year' })
     @ApiOperation({
         summary: 'List leaves and overtimes of all staff',
         description:
             'Returns a paginated list of leave and overtime records for all staff in the restaurant. ' +
             'Use the filter query param to show only leaves, only overtimes, or all. ' +
-            'Supports search by staff name/email and filtering by staffId.',
+            'Supports search by staff name/email and filtering by staffId, month, and year.',
     })
     @ApiResponse({ status: 200, description: 'Attendance records returned.' })
     async getStaffAttendance(
@@ -71,6 +73,8 @@ export class PayrollController {
         @Query('search') search?: string,
         @Query('staffId') staffId?: string,
         @Query('filter') filter?: 'leave' | 'overtime' | 'all',
+        @Query('month') month?: string,
+        @Query('year') year?: string,
     ) {
         return {
             message: 'Staff attendance fetched successfully',
@@ -82,6 +86,8 @@ export class PayrollController {
                 search,
                 staffId,
                 filter ?? 'all',
+                month ? parseInt(month) : undefined,
+                year ? parseInt(year) : undefined,
             ),
         };
     }
@@ -277,11 +283,12 @@ export class PayrollController {
     @ApiParam({ name: 'staffProfileId', description: 'Staff Profile UUID' })
     @ApiQuery({ name: 'month', required: false, type: Number, description: 'Filter by month (1–12)' })
     @ApiQuery({ name: 'year', required: false, type: Number, description: 'Filter by year' })
+    @ApiQuery({ name: 'leaveType', required: false, enum: LeaveType, description: 'Filter by leave type (PAID or UNPAID)' })
     @ApiOperation({
         summary: 'Get leaves for a staff member',
         description:
             'Returns all leaves with a summary of paid and unpaid leaves. ' +
-            'Optionally filter by month and year.',
+            'Optionally filter by month, year, and leave type.',
     })
     @ApiResponse({ status: 200, description: 'Leaves returned.' })
     async getLeaves(
@@ -290,6 +297,7 @@ export class PayrollController {
         @Param('staffProfileId', ParseUUIDPipe) staffProfileId: string,
         @Query('month') month?: string,
         @Query('year') year?: string,
+        @Query('leaveType') leaveType?: LeaveType,
     ) {
         return {
             message: 'Leaves fetched successfully',
@@ -299,6 +307,7 @@ export class PayrollController {
                 staffProfileId,
                 month ? parseInt(month) : undefined,
                 year ? parseInt(year) : undefined,
+                leaveType,
             ),
         };
     }

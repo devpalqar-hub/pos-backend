@@ -213,11 +213,26 @@ export class PayrollService {
                 dto.date,
             );
 
+        // Validate paid leave allowance
+        if (leaveType === LeaveType.PAID) {
+            await this.assertPaidLeaveAllowance(
+                staffProfileId,
+                profile.paidLeaveDays,
+                dto.date,
+            );
+        }
+
+        // Calculate leave cost for UNPAID leaves
+        const leaveCost = leaveType === LeaveType.UNPAID
+            ? this.calculateDailyWage(profile.monthlySalary, dto.date)
+            : 0;
+
         return this.prisma.staffLeave.create({
             data: {
                 staffId: staffProfileId,
                 date: dto.date,
                 leaveType,
+                leaveCost,
                 reason: dto.reason ?? null,
             },
         });
@@ -250,11 +265,26 @@ export class PayrollService {
                     date,
                 );
 
+            // Validate paid leave allowance
+            if (leaveType === LeaveType.PAID) {
+                await this.assertPaidLeaveAllowance(
+                    staffProfileId,
+                    profile.paidLeaveDays,
+                    date,
+                );
+            }
+
+            // Calculate leave cost for UNPAID leaves
+            const leaveCost = leaveType === LeaveType.UNPAID
+                ? this.calculateDailyWage(profile.monthlySalary, date)
+                : 0;
+
             const leave = await this.prisma.staffLeave.create({
                 data: {
                     staffId: staffProfileId,
                     date,
                     leaveType,
+                    leaveCost,
                     reason: dto.reason ?? null,
                 },
             });
@@ -270,6 +300,7 @@ export class PayrollService {
         staffProfileId: string,
         month?: number,
         year?: number,
+        leaveType?: LeaveType,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         await this.getActiveProfile(restaurantId, staffProfileId);
@@ -280,6 +311,10 @@ export class PayrollService {
             const startDate = new Date(year, month - 1, 1);
             const endDate = new Date(year, month, 0, 23, 59, 59);
             where.date = { gte: startDate, lte: endDate };
+        }
+
+        if (leaveType) {
+            where.leaveType = leaveType;
         }
 
         const leaves = await this.prisma.staffLeave.findMany({
@@ -628,6 +663,8 @@ export class PayrollService {
         search?: string,
         staffId?: string,
         filter: 'leave' | 'overtime' | 'all' = 'all',
+        month?: number,
+        year?: number,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
@@ -661,12 +698,32 @@ export class PayrollService {
             };
         }
 
+        // Build date range filter for month/year
+        const dateFilter: any = {};
+        if (month && year) {
+            dateFilter.date = {
+                gte: new Date(year, month - 1, 1),
+                lt: new Date(year, month, 1),
+            };
+        } else if (year) {
+            dateFilter.date = {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+            };
+        } else if (month) {
+            const currentYear = new Date().getFullYear();
+            dateFilter.date = {
+                gte: new Date(currentYear, month - 1, 1),
+                lt: new Date(currentYear, month, 1),
+            };
+        }
+
         // Fetch leaves
         let leaves: any[] = [];
         let leaveCount = 0;
         if (filter === 'leave' || filter === 'all') {
             leaves = await this.prisma.staffLeave.findMany({
-                where: { staffId: { in: staffIds } },
+                where: { staffId: { in: staffIds }, ...dateFilter },
                 orderBy: { date: 'desc' },
             });
             leaveCount = leaves.length;
@@ -677,7 +734,7 @@ export class PayrollService {
         let overtimeCount = 0;
         if (filter === 'overtime' || filter === 'all') {
             overtimes = await this.prisma.staffOvertime.findMany({
-                where: { staffId: { in: staffIds } },
+                where: { staffId: { in: staffIds }, ...dateFilter },
                 orderBy: { date: 'desc' },
             });
             overtimeCount = overtimes.length;
@@ -777,6 +834,47 @@ export class PayrollService {
      * Determines whether a leave should be PAID or UNPAID
      * based on the monthly paid leave allowance already consumed.
      */
+    /**
+     * Calculates the daily wage by dividing the monthly salary
+     * by the number of days in the month of the given date.
+     */
+    private calculateDailyWage(monthlySalary: any, date: Date): number {
+        const year = date.getFullYear();
+        const month = date.getMonth(); // 0-indexed
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        return parseFloat((Number(monthlySalary) / daysInMonth).toFixed(2));
+    }
+
+    /**
+     * Throws if the staff has already exhausted their paid leave allowance
+     * for the month of the given date.
+     */
+    private async assertPaidLeaveAllowance(
+        staffProfileId: string,
+        allowedPaidLeaves: number,
+        date: Date,
+    ): Promise<void> {
+        const month = date.getMonth(); // 0-indexed
+        const year = date.getFullYear();
+        const startDate = new Date(year, month, 1);
+        const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+        const paidLeavesThisMonth = await this.prisma.staffLeave.count({
+            where: {
+                staffId: staffProfileId,
+                leaveType: LeaveType.PAID,
+                date: { gte: startDate, lte: endDate },
+            },
+        });
+
+        if (paidLeavesThisMonth >= allowedPaidLeaves) {
+            const monthName = date.toLocaleString('default', { month: 'long' });
+            throw new BadRequestException(
+                `All Paid Leaves have been taken for month - ${monthName}.`,
+            );
+        }
+    }
+
     private async determineLeaveType(
         staffProfileId: string,
         allowedPaidLeaves: number,

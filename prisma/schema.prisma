@@ -714,6 +714,7 @@ model StaffLeave {
   staffId   String
   date      DateTime  @db.Date
   leaveType LeaveType @default(PAID)
+  leaveCost Decimal   @default(0) @db.Decimal(10, 2) // Daily wage deduction for UNPAID leaves
   reason    String?   @db.VarChar(500)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
