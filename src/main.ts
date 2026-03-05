@@ -5,7 +5,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // ─── Global Validation Pipe ────────────────────────────────────────────────
   app.useGlobalPipes(
@@ -24,7 +24,7 @@ async function bootstrap() {
   app.enableCors({
     origin: '*',
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-DoorDash-Signature'],
   });
 
   // ─── Global prefix ─────────────────────────────────────────────────────────
@@ -83,6 +83,8 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
     .addTag('Billing', 'Biller view — generate bills, record full / partial payments')
     .addTag('Marketing — Settings', 'Per-restaurant SMTP / Twilio SMS / WhatsApp Business API credentials')
     .addTag('Marketing — Campaigns', 'Create, schedule, trigger and analyse email / SMS / WhatsApp campaigns')
+    .addTag('DoorDash Integration', 'Per-restaurant DoorDash API credentials, item mappings and webhook logs')
+    .addTag('DoorDash — Webhook (Public)', 'Public webhook endpoint registered in the DoorDash Developer Portal')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

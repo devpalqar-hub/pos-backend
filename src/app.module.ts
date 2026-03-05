@@ -18,6 +18,7 @@ import { LoyalityPointsModule } from './loyality-points/loyality-points.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { MarketingModule } from './marketing/marketing.module';
+import { DoorDashModule } from './doordash/doordash.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -50,6 +51,7 @@ import { S3Module } from './s3/s3.module';
     ExpensesModule,
     PayrollModule,
     MarketingModule,
+    DoorDashModule,
   ],
   controllers: [AppController],
   providers: [
