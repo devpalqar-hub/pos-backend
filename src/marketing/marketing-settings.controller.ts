@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -27,7 +28,7 @@ import { User, UserRole } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/marketing/settings')
 export class MarketingSettingsController {
-  constructor(private readonly marketingService: MarketingService) {}
+  constructor(private readonly marketingService: MarketingService) { }
 
   // ─── Get Settings ─────────────────────────────────────────────────────────
 

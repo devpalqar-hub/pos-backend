@@ -84,7 +84,7 @@ Each rule has a \`condition\` and a \`value\`:
 
 ### Scheduling
 - Set \`scheduledAt\` to a future ISO-8601 datetime to auto-schedule the campaign.
-- Leave blank to save as DRAFT and manually trigger later via the \`/trigger\` endpoint.
+- Leave blank to **send immediately** to all matching customers on the selected channels.
 
 **Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
     `,
@@ -170,7 +170,7 @@ Each rule has a \`condition\` and a \`value\`:
     summary: 'Update a campaign',
     description:
       'Update content, rules, channels, or schedule. ' +
-      'Only DRAFT, SCHEDULED, or PAUSED campaigns can be edited.',
+      'Only SCHEDULED or PAUSED campaigns can be edited.',
   })
   @ApiResponse({ status: 200, description: 'Campaign updated.' })
   @ApiResponse({ status: 400, description: 'Campaign status does not allow editing.' })

@@ -1,9 +1,11 @@
 // src/common/guards/roles.guard.ts
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+  private readonly logger = new Logger(RolesGuard.name);
+
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -16,6 +18,10 @@ export class RolesGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
 
-    return requiredRoles.includes(user.role);
+    this.logger.debug(
+      `User role: "${user?.role}" | Required: ${JSON.stringify(requiredRoles)} | Match: ${requiredRoles.includes(user?.role)}`,
+    );
+
+    return requiredRoles.includes(user?.role);
   }
 }

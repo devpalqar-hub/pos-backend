@@ -7,6 +7,7 @@ export declare class CustomersService {
     constructor(prisma: PrismaService);
     create(actor: User, restaurantId: string, dto: CreateCustomerDto): Promise<{
         id: string;
+        email: string | null;
         name: string | null;
         isActive: boolean;
         restaurantId: string;
@@ -18,6 +19,7 @@ export declare class CustomersService {
     findAll(actor: User, restaurantId: string, page?: number, limit?: number, search?: string): Promise<{
         data: {
             id: string;
+            email: string | null;
             name: string | null;
             isActive: boolean;
             restaurantId: string;
@@ -50,6 +52,7 @@ export declare class CustomersService {
         })[];
     } & {
         id: string;
+        email: string | null;
         name: string | null;
         isActive: boolean;
         restaurantId: string;
@@ -73,6 +76,7 @@ export declare class CustomersService {
         })[];
     } & {
         id: string;
+        email: string | null;
         name: string | null;
         isActive: boolean;
         restaurantId: string;
@@ -83,6 +87,7 @@ export declare class CustomersService {
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateCustomerDto): Promise<{
         id: string;
+        email: string | null;
         name: string | null;
         isActive: boolean;
         restaurantId: string;

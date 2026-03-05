@@ -5,21 +5,21 @@ export declare class RestaurantPriceRulesController {
     constructor(priceRulesService: PriceRulesService);
     getAllByRestaurantId(actor: User, restaurantId: string, page?: string, limit?: string, ruleType?: string, isActive?: string, menuItemId?: string, name?: string): Promise<{
         data: {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            menuItemId: string;
+            startDate: Date | null;
+            endDate: Date | null;
+            startTime: string | null;
+            endTime: string | null;
             priority: number;
             ruleType: import(".prisma/client").$Enums.PriceRuleType;
             specialPrice: import("@prisma/client/runtime/library").Decimal;
-            startTime: string | null;
-            endTime: string | null;
-            startDate: Date | null;
-            endDate: Date | null;
-            menuItemId: string;
         }[];
         meta: {
             total: number;

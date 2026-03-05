@@ -142,7 +142,7 @@ export class MarketingService {
         imageUrl: dto.imageUrl ?? null,
         ruleOperator: (dto.ruleOperator as unknown as RuleGroupOperator) ?? RuleGroupOperator.AND,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
-        status: dto.scheduledAt ? CampaignStatus.SCHEDULED : CampaignStatus.DRAFT,
+        status: dto.scheduledAt ? CampaignStatus.SCHEDULED : CampaignStatus.RUNNING,
         rules: {
           create: (dto.rules ?? []).map((r) => ({
             condition: r.condition as unknown as RuleConditionType,
@@ -160,6 +160,13 @@ export class MarketingService {
         channels: true,
       },
     });
+
+    // If no scheduledAt, execute immediately (async, fire-and-forget)
+    if (!dto.scheduledAt) {
+      this.executeCampaign(campaign.id).catch((err) =>
+        this.logger.error(`Campaign ${campaign.id} execution failed: ${err.message}`, err.stack),
+      );
+    }
 
     return campaign;
   }
@@ -239,12 +246,11 @@ export class MarketingService {
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
 
     if (
-      campaign.status !== CampaignStatus.DRAFT &&
       campaign.status !== CampaignStatus.PAUSED &&
       campaign.status !== CampaignStatus.SCHEDULED
     ) {
       throw new BadRequestException(
-        `Only DRAFT, PAUSED or SCHEDULED campaigns can be edited. Current status: ${campaign.status}`,
+        `Only PAUSED or SCHEDULED campaigns can be edited. Current status: ${campaign.status}`,
       );
     }
 
@@ -291,7 +297,7 @@ export class MarketingService {
           }),
           ...(dto.scheduledAt !== undefined && {
             scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
-            status: dto.scheduledAt ? CampaignStatus.SCHEDULED : CampaignStatus.DRAFT,
+            status: CampaignStatus.SCHEDULED,
           }),
         },
         include: { rules: true, channels: true },

@@ -857,8 +857,8 @@ model Campaign {
   ruleOperator RuleGroupOperator @default(AND)
 
   // Schedule / lifecycle
-  status      CampaignStatus @default(DRAFT)
-  scheduledAt DateTime? // null = send immediately on trigger
+  status      CampaignStatus @default(SCHEDULED)
+  scheduledAt DateTime? // null = send immediately on creation
   startedAt   DateTime?
   completedAt DateTime?
 

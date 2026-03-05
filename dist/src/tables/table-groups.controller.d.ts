@@ -10,8 +10,8 @@ export declare class TableGroupsController {
             tables: number;
         };
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
@@ -23,8 +23,8 @@ export declare class TableGroupsController {
     }>;
     findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
         data: {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -44,19 +44,19 @@ export declare class TableGroupsController {
         };
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
+        _count: {
+            tables: number;
+        };
         tables: {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdAt: Date;
             seatCount: number;
         }[];
-        _count: {
-            tables: number;
-        };
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;
@@ -71,8 +71,8 @@ export declare class TableGroupsController {
             tables: number;
         };
     } & {
-        id: string;
         name: string;
+        id: string;
         isActive: boolean;
         createdById: string | null;
         restaurantId: string;

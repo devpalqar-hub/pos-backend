@@ -6,7 +6,7 @@ const swagger_1 = require("@nestjs/swagger");
 const platform_socket_io_1 = require("@nestjs/platform-socket.io");
 const app_module_1 = require("./app.module");
 async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, { rawBody: true });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
@@ -17,7 +17,7 @@ async function bootstrap() {
     app.enableCors({
         origin: '*',
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-DoorDash-Signature'],
     });
     app.setGlobalPrefix('api/v1');
     const config = new swagger_1.DocumentBuilder()
@@ -67,6 +67,8 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
         .addTag('Billing', 'Biller view — generate bills, record full / partial payments')
         .addTag('Marketing — Settings', 'Per-restaurant SMTP / Twilio SMS / WhatsApp Business API credentials')
         .addTag('Marketing — Campaigns', 'Create, schedule, trigger and analyse email / SMS / WhatsApp campaigns')
+        .addTag('DoorDash Integration', 'Per-restaurant DoorDash API credentials, item mappings and webhook logs')
+        .addTag('DoorDash — Webhook (Public)', 'Public webhook endpoint registered in the DoorDash Developer Portal')
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api/docs', app, document, {

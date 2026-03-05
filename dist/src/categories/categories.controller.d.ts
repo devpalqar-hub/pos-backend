@@ -12,8 +12,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -28,8 +28,8 @@ export declare class CategoriesController {
         message: string;
         data: {
             data: {
-                id: string;
                 name: string;
+                id: string;
                 isActive: boolean;
                 createdById: string | null;
                 restaurantId: string;
@@ -52,23 +52,23 @@ export declare class CategoriesController {
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
         data: {
+            _count: {
+                items: number;
+            };
             items: {
-                id: string;
                 name: string;
-                imageUrl: string | null;
+                id: string;
                 price: import("@prisma/client/runtime/library").Decimal;
                 discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+                imageUrl: string | null;
                 itemType: import(".prisma/client").$Enums.ItemType;
                 stockCount: number | null;
                 isAvailable: boolean;
                 isOutOfStock: boolean;
             }[];
-            _count: {
-                items: number;
-            };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -86,8 +86,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
