@@ -30,7 +30,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '@prisma/client';
 
 @ApiTags('Loyality Points')
-@ApiBearerAuth()
+@ApiBearerAuth('Bearer')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/loyality-points')
 export class LoyalityPointsController {

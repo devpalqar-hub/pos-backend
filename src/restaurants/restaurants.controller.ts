@@ -30,7 +30,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '@prisma/client'
 @ApiTags('Restaurants')
-@ApiBearerAuth()
+@ApiBearerAuth('Bearer')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants')
 export class RestaurantsController {

@@ -36,7 +36,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole, LeaveType } from '@prisma/client';
 
 @ApiTags('Payroll')
-@ApiBearerAuth()
+@ApiBearerAuth('Bearer')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/payroll')
 export class PayrollController {

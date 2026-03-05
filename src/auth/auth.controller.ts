@@ -90,7 +90,7 @@ export class AuthController {
     })
     @ApiResponse({ status: 400, description: 'Invalid or expired OTP.' })
     @ApiResponse({ status: 404, description: 'No account found with that email.' })
-    @ApiBearerAuth()
+    @ApiBearerAuth('Bearer')
     async verifyOtp(@Body() dto: VerifyOtpDto) {
         return this.authService.verifyOtp(dto);
     }
