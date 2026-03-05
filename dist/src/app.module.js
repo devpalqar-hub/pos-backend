@@ -26,6 +26,7 @@ const customers_module_1 = require("./customers/customers.module");
 const loyality_points_module_1 = require("./loyality-points/loyality-points.module");
 const expenses_module_1 = require("./expenses/expenses.module");
 const payroll_module_1 = require("./payroll/payroll.module");
+const marketing_module_1 = require("./marketing/marketing.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
@@ -53,6 +54,7 @@ exports.AppModule = AppModule = __decorate([
             loyality_points_module_1.LoyalityPointsModule,
             expenses_module_1.ExpensesModule,
             payroll_module_1.PayrollModule,
+            marketing_module_1.MarketingModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

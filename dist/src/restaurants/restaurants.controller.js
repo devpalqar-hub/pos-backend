@@ -294,7 +294,7 @@ __decorate([
 ], RestaurantsController.prototype, "getWorkingHours", null);
 exports.RestaurantsController = RestaurantsController = __decorate([
     (0, swagger_1.ApiTags)('Restaurants'),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('Bearer'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, common_1.Controller)('restaurants'),
     __metadata("design:paramtypes", [restaurants_service_1.RestaurantsService])

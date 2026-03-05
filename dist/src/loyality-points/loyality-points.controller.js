@@ -180,7 +180,7 @@ __decorate([
 ], LoyalityPointsController.prototype, "remove", null);
 exports.LoyalityPointsController = LoyalityPointsController = __decorate([
     (0, swagger_1.ApiTags)('Loyality Points'),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('Bearer'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, common_1.Controller)('restaurants/:restaurantId/loyality-points'),
     __metadata("design:paramtypes", [loyality_points_service_1.LoyalityPointsService])
