@@ -43,6 +43,16 @@ export class ProcessPayrollDto {
     bonusAmount?: number;
 
     @ApiPropertyOptional({
+        description: 'Overtime bonus amount',
+        example: 2000.0,
+    })
+    @IsOptional()
+    @IsNumber({ maxDecimalPlaces: 2 })
+    @Min(0)
+    @Type(() => Number)
+    overtimeBonus?: number;
+
+    @ApiPropertyOptional({
         description: 'Deduction amount (advances, penalties, etc.)',
         example: 500.0,
     })

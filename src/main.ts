@@ -81,6 +81,8 @@ All endpoints (except \`/auth/send-otp\` and \`/auth/verify-otp\`) require a **B
     .addTag('Orders', 'Session-based ordering — open sessions, add batches, item status flow')
     .addTag('Kitchen', 'Chef view — active batches with item-level status management')
     .addTag('Billing', 'Biller view — generate bills, record full / partial payments')
+    .addTag('Marketing — Settings', 'Per-restaurant SMTP / Twilio SMS / WhatsApp Business API credentials')
+    .addTag('Marketing — Campaigns', 'Create, schedule, trigger and analyse email / SMS / WhatsApp campaigns')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

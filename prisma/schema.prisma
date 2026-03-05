@@ -110,6 +110,45 @@ enum PayrollStatus {
   PAID
 }
 
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum MarketingChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum RecipientDeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  OPTED_OUT
+}
+
+enum RuleConditionType {
+  ALL_CUSTOMERS
+  MIN_ORDERS
+  MAX_ORDERS
+  MIN_SPEND
+  MAX_SPEND
+  LAST_ORDER_WITHIN_DAYS
+  ORDER_CHANNEL
+  MIN_LOYALTY_POINTS
+}
+
+enum RuleGroupOperator {
+  AND
+  OR
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -201,6 +240,8 @@ model Restaurant {
   expenses       Expense[]
   payrolls       Payroll[]
   staffs         Staff[]
+  marketingSettings MarketingSettings?
+  campaigns         Campaign[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -572,6 +613,7 @@ model Customer {
   restaurantId String
   phone        String   @db.VarChar(30)
   name         String?  @db.VarChar(255)
+  email        String?  @db.VarChar(255)
   wallet       Decimal  @default(0) @db.Decimal(10, 2)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -579,6 +621,7 @@ model Customer {
 
   restaurant              Restaurant                @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   LoyalityPointRedemption LoyalityPointRedemption[]
+  campaignRecipients      CampaignRecipient[]
 
   @@unique([restaurantId, phone])
   @@index([restaurantId])
@@ -678,9 +721,10 @@ model Staff {
   email          String  @unique @db.VarChar(255)
   phone          String? @db.VarChar(30)
   jobRole        String? @db.VarChar(255)
-  monthlySalary  Decimal @db.Decimal(10, 2)
-  paidLeaveDays  Int     @default(0) // Allowed paid leave days per month
-  dailyWorkHours Decimal @db.Decimal(4, 2) // Expected daily work hours (e.g. 8.00)
+  monthlySalary   Decimal @db.Decimal(10, 2)
+  paidLeaveDays   Int     @default(0) // Allowed paid leave days per month
+  dailyWorkHours  Decimal @db.Decimal(4, 2) // Expected daily work hours (e.g. 8.00)
+  noOfWorkingDays Int     @default(0) // Number of working days per month
 
   restaurantId String
 
@@ -740,6 +784,134 @@ model StaffOvertime {
 
   @@index([staffId])
   @@map("staff_overtimes")
+}
+
+// ─── Marketing ───────────────────────────────────────────────────────────────
+
+model MarketingSettings {
+  id           String  @id @default(uuid())
+  restaurantId String  @unique
+
+  // SMTP Email
+  smtpHost      String? @db.VarChar(255)
+  smtpPort      Int?
+  smtpUser      String? @db.VarChar(255)
+  smtpPassword  String? @db.VarChar(500) // Store encrypted in production
+  smtpFromEmail String? @db.VarChar(255)
+  smtpFromName  String? @db.VarChar(255)
+  smtpSecure    Boolean @default(true)
+
+  // Twilio SMS
+  twilioAccountSid String? @db.VarChar(255)
+  twilioAuthToken  String? @db.VarChar(500) // Store encrypted in production
+  twilioFromNumber String? @db.VarChar(30)
+
+  // WhatsApp Business (Meta Cloud API)
+  waBaId          String? @db.VarChar(255) // Business Account ID
+  waPhoneNumberId String? @db.VarChar(255) // Phone Number ID
+  waAccessToken   String? @db.Text // Bearer token — store encrypted in production
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("marketing_settings")
+}
+
+model Campaign {
+  id           String  @id @default(uuid())
+  restaurantId String
+  createdById  String?
+
+  name        String  @db.VarChar(255)
+  description String? @db.Text
+
+  // Content — supports {{name}} and {{restaurant}} placeholders
+  subject     String? @db.VarChar(500) // Email subject line
+  textContent String? @db.Text // SMS / WhatsApp / plain-text fallback
+  htmlContent String? @db.LongText // Full HTML email body
+  imageUrl    String? @db.VarChar(1000) // Promotional image URL
+
+  // Targeting rule logic
+  ruleOperator RuleGroupOperator @default(AND)
+
+  // Schedule / lifecycle
+  status      CampaignStatus @default(DRAFT)
+  scheduledAt DateTime? // null = send immediately on trigger
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Denormalised analytics counters
+  totalRecipients Int @default(0)
+  sentCount       Int @default(0)
+  deliveredCount  Int @default(0)
+  failedCount     Int @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rules      CampaignRule[]
+  channels   CampaignChannelStat[]
+  recipients CampaignRecipient[]
+
+  @@index([restaurantId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model CampaignRule {
+  id         String            @id @default(uuid())
+  campaignId String
+  condition  RuleConditionType
+  value      String?           @db.VarChar(255) // e.g. "5" for MIN_ORDERS, "DINE_IN" for ORDER_CHANNEL
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_rules")
+}
+
+model CampaignChannelStat {
+  id         String           @id @default(uuid())
+  campaignId String
+  channel    MarketingChannel
+
+  sentCount      Int @default(0)
+  deliveredCount Int @default(0)
+  failedCount    Int @default(0)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, channel])
+  @@map("campaign_channel_stats")
+}
+
+model CampaignRecipient {
+  id         String                  @id @default(uuid())
+  campaignId String
+  customerId String
+  channel    MarketingChannel
+
+  phone String? @db.VarChar(30)
+  email String? @db.VarChar(255)
+
+  status      RecipientDeliveryStatus @default(PENDING)
+  errorMsg    String?                 @db.VarChar(500)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@map("campaign_recipients")
 }
 
 model Payroll {

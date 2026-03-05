@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `staff_profiles` ADD COLUMN `noOfWorkingDays` INTEGER NOT NULL DEFAULT 0;

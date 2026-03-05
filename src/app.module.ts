@@ -17,6 +17,7 @@ import { CustomersModule } from './customers/customers.module';
 import { LoyalityPointsModule } from './loyality-points/loyality-points.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { MarketingModule } from './marketing/marketing.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -48,6 +49,7 @@ import { S3Module } from './s3/s3.module';
     LoyalityPointsModule,
     ExpensesModule,
     PayrollModule,
+    MarketingModule,
   ],
   controllers: [AppController],
   providers: [
