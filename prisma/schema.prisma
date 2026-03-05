@@ -678,9 +678,10 @@ model Staff {
   email          String  @unique @db.VarChar(255)
   phone          String? @db.VarChar(30)
   jobRole        String? @db.VarChar(255)
-  monthlySalary  Decimal @db.Decimal(10, 2)
-  paidLeaveDays  Int     @default(0) // Allowed paid leave days per month
-  dailyWorkHours Decimal @db.Decimal(4, 2) // Expected daily work hours (e.g. 8.00)
+  monthlySalary   Decimal @db.Decimal(10, 2)
+  paidLeaveDays   Int     @default(0) // Allowed paid leave days per month
+  dailyWorkHours  Decimal @db.Decimal(4, 2) // Expected daily work hours (e.g. 8.00)
+  noOfWorkingDays Int     @default(0) // Number of working days per month
 
   restaurantId String
 

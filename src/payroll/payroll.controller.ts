@@ -26,7 +26,9 @@ import {
     UpdateStaffProfileDto,
     MarkLeaveDto,
     BulkMarkLeaveDto,
+    UpdateLeaveDto,
     AddOvertimeDto,
+    UpdateOvertimeDto,
     ProcessPayrollDto,
 } from './dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -312,6 +314,34 @@ export class PayrollController {
         };
     }
 
+    // ─── Update Leave ──────────────────────────────────────────────────────────
+
+    @Patch('staff/:staffProfileId/leaves/:leaveId')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'staffProfileId', description: 'Staff Profile UUID' })
+    @ApiParam({ name: 'leaveId', description: 'Leave UUID' })
+    @ApiOperation({
+        summary: 'Update a leave entry',
+        description:
+            'Updates leave date, type, or reason. Recalculates leave cost when type or date changes.',
+    })
+    @ApiResponse({ status: 200, description: 'Leave updated.' })
+    @ApiResponse({ status: 404, description: 'Leave not found.' })
+    @ApiResponse({ status: 409, description: 'Leave already exists for the new date.' })
+    async updateLeave(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('staffProfileId', ParseUUIDPipe) staffProfileId: string,
+        @Param('leaveId', ParseUUIDPipe) leaveId: string,
+        @Body() dto: UpdateLeaveDto,
+    ) {
+        return {
+            message: 'Leave updated successfully',
+            data: await this.payrollService.updateLeave(actor, restaurantId, staffProfileId, leaveId, dto),
+        };
+    }
+
     // ─── Remove Leave ─────────────────────────────────────────────────────────
 
     @Delete('staff/:staffProfileId/leaves/:leaveId')
@@ -394,6 +424,33 @@ export class PayrollController {
                 month ? parseInt(month) : undefined,
                 year ? parseInt(year) : undefined,
             ),
+        };
+    }
+
+    // ─── Update Overtime ─────────────────────────────────────────────────────
+
+    @Patch('staff/:staffProfileId/overtimes/:overtimeId')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'staffProfileId', description: 'Staff Profile UUID' })
+    @ApiParam({ name: 'overtimeId', description: 'Overtime UUID' })
+    @ApiOperation({
+        summary: 'Update an overtime entry',
+        description:
+            'Updates overtime date, hours, wage amount, or notes.',
+    })
+    @ApiResponse({ status: 200, description: 'Overtime updated.' })
+    @ApiResponse({ status: 404, description: 'Overtime not found.' })
+    async updateOvertime(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('staffProfileId', ParseUUIDPipe) staffProfileId: string,
+        @Param('overtimeId', ParseUUIDPipe) overtimeId: string,
+        @Body() dto: UpdateOvertimeDto,
+    ) {
+        return {
+            message: 'Overtime updated successfully',
+            data: await this.payrollService.updateOvertime(actor, restaurantId, staffProfileId, overtimeId, dto),
         };
     }
 

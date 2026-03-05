@@ -81,6 +81,15 @@ export class CreateStaffProfileDto {
     dailyWorkHours: number;
 
     @ApiProperty({
+        description: 'Number of working days per month',
+        example: 26,
+    })
+    @IsNumber()
+    @Min(1)
+    @Type(() => Number)
+    noOfWorkingDays: number;
+
+    @ApiProperty({
         description: 'Working days of the week',
         enum: DayOfWeek,
         isArray: true,

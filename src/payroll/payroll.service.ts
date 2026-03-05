@@ -12,7 +12,9 @@ import {
     UpdateStaffProfileDto,
     MarkLeaveDto,
     BulkMarkLeaveDto,
+    UpdateLeaveDto,
     AddOvertimeDto,
+    UpdateOvertimeDto,
     ProcessPayrollDto,
 } from './dto';
 import { User, UserRole, DayOfWeek, LeaveType } from '@prisma/client';
@@ -53,6 +55,7 @@ export class PayrollService {
                 monthlySalary: dto.monthlySalary,
                 paidLeaveDays: dto.paidLeaveDays,
                 dailyWorkHours: dto.dailyWorkHours,
+                noOfWorkingDays: dto.noOfWorkingDays,
                 createdById: actor.id,
                 workingDays: {
                     create: dto.workingDays.map((day) => ({ day })),
@@ -224,7 +227,7 @@ export class PayrollService {
 
         // Calculate leave cost for UNPAID leaves
         const leaveCost = leaveType === LeaveType.UNPAID
-            ? this.calculateDailyWage(profile.monthlySalary, dto.date)
+            ? this.calculateDailyWage(profile.monthlySalary, profile.noOfWorkingDays)
             : 0;
 
         return this.prisma.staffLeave.create({
@@ -276,7 +279,7 @@ export class PayrollService {
 
             // Calculate leave cost for UNPAID leaves
             const leaveCost = leaveType === LeaveType.UNPAID
-                ? this.calculateDailyWage(profile.monthlySalary, date)
+                ? this.calculateDailyWage(profile.monthlySalary, profile.noOfWorkingDays)
                 : 0;
 
             const leave = await this.prisma.staffLeave.create({
@@ -333,6 +336,60 @@ export class PayrollService {
                 unpaidLeaves: unpaidCount,
             },
         };
+    }
+
+    async updateLeave(
+        actor: User,
+        restaurantId: string,
+        staffProfileId: string,
+        leaveId: string,
+        dto: UpdateLeaveDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+
+        const profile = await this.getActiveProfile(restaurantId, staffProfileId);
+
+        const leave = await this.prisma.staffLeave.findFirst({
+            where: { id: leaveId, staffId: staffProfileId },
+        });
+        if (!leave) {
+            throw new NotFoundException(`Leave ${leaveId} not found`);
+        }
+
+        // If date is changing, check for conflict on the new date
+        if (dto.date) {
+            const existing = await this.prisma.staffLeave.findFirst({
+                where: {
+                    staffId: staffProfileId,
+                    date: dto.date,
+                    id: { not: leaveId },
+                },
+            });
+            if (existing) {
+                throw new ConflictException(
+                    `Leave already exists for ${dto.date.toISOString().split('T')[0]}`,
+                );
+            }
+        }
+
+        // Determine the effective leave type and date for cost calculation
+        const effectiveLeaveType = dto.leaveType ?? leave.leaveType;
+        const effectiveDate = dto.date ?? leave.date;
+
+        // Recalculate leave cost if type or date changed
+        const leaveCost = effectiveLeaveType === LeaveType.UNPAID
+            ? this.calculateDailyWage(profile.monthlySalary, profile.noOfWorkingDays)
+            : 0;
+
+        return this.prisma.staffLeave.update({
+            where: { id: leaveId },
+            data: {
+                ...(dto.date !== undefined && { date: dto.date }),
+                ...(dto.leaveType !== undefined && { leaveType: dto.leaveType }),
+                ...(dto.reason !== undefined && { reason: dto.reason }),
+                leaveCost,
+            },
+        });
     }
 
     async removeLeave(
@@ -414,6 +471,34 @@ export class PayrollService {
                 totalWage,
             },
         };
+    }
+
+    async updateOvertime(
+        actor: User,
+        restaurantId: string,
+        staffProfileId: string,
+        overtimeId: string,
+        dto: UpdateOvertimeDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+        await this.getActiveProfile(restaurantId, staffProfileId);
+
+        const overtime = await this.prisma.staffOvertime.findFirst({
+            where: { id: overtimeId, staffId: staffProfileId },
+        });
+        if (!overtime) {
+            throw new NotFoundException(`Overtime ${overtimeId} not found`);
+        }
+
+        return this.prisma.staffOvertime.update({
+            where: { id: overtimeId },
+            data: {
+                ...(dto.date !== undefined && { date: dto.date }),
+                ...(dto.hours !== undefined && { hours: dto.hours }),
+                ...(dto.wageAmount !== undefined && { wageAmount: dto.wageAmount }),
+                ...(dto.notes !== undefined && { notes: dto.notes }),
+            },
+        });
     }
 
     async removeOvertime(
@@ -836,13 +921,13 @@ export class PayrollService {
      */
     /**
      * Calculates the daily wage by dividing the monthly salary
-     * by the number of days in the month of the given date.
+     * by the staff's configured number of working days.
      */
-    private calculateDailyWage(monthlySalary: any, date: Date): number {
-        const year = date.getFullYear();
-        const month = date.getMonth(); // 0-indexed
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        return parseFloat((Number(monthlySalary) / daysInMonth).toFixed(2));
+    private calculateDailyWage(monthlySalary: any, noOfWorkingDays: number): number {
+        if (noOfWorkingDays <= 0) {
+            return 0;
+        }
+        return parseFloat((Number(monthlySalary) / noOfWorkingDays).toFixed(2));
     }
 
     /**
