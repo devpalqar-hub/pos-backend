@@ -45,10 +45,10 @@ export declare class CustomersService {
             };
         } & {
             id: string;
+            pointsAwarded: import("@prisma/client/runtime/library").Decimal;
             redeemedAt: Date;
             loyalityPointId: string;
             customerId: string;
-            pointsAwarded: import("@prisma/client/runtime/library").Decimal;
         })[];
     } & {
         id: string;
@@ -69,10 +69,10 @@ export declare class CustomersService {
             };
         } & {
             id: string;
+            pointsAwarded: import("@prisma/client/runtime/library").Decimal;
             redeemedAt: Date;
             loyalityPointId: string;
             customerId: string;
-            pointsAwarded: import("@prisma/client/runtime/library").Decimal;
         })[];
     } & {
         id: string;

@@ -12,8 +12,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -28,8 +28,8 @@ export declare class CategoriesController {
         message: string;
         data: {
             data: {
-                name: string;
                 id: string;
+                name: string;
                 isActive: boolean;
                 createdById: string | null;
                 restaurantId: string;
@@ -52,23 +52,23 @@ export declare class CategoriesController {
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
         data: {
-            _count: {
-                items: number;
-            };
             items: {
-                name: string;
                 id: string;
+                name: string;
+                imageUrl: string | null;
                 price: import("@prisma/client/runtime/library").Decimal;
                 discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
-                imageUrl: string | null;
                 itemType: import(".prisma/client").$Enums.ItemType;
                 stockCount: number | null;
                 isAvailable: boolean;
                 isOutOfStock: boolean;
             }[];
+            _count: {
+                items: number;
+            };
         } & {
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
@@ -86,8 +86,8 @@ export declare class CategoriesController {
                 items: number;
             };
         } & {
-            name: string;
             id: string;
+            name: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;

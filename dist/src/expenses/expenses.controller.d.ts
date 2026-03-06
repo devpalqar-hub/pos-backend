@@ -15,10 +15,10 @@ export declare class ExpensesController {
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            date: Date;
             expenseName: string;
             expenseType: import(".prisma/client").$Enums.ExpenseType;
             amount: import("@prisma/client/runtime/library").Decimal;
+            date: Date;
         };
     }>;
     findAll(actor: User, restaurantId: string, page?: string, limit?: string, expenseType?: ExpenseType, search?: string, startDate?: string, endDate?: string): Promise<{
@@ -32,10 +32,10 @@ export declare class ExpensesController {
                 createdAt: Date;
                 updatedAt: Date;
                 description: string | null;
-                date: Date;
                 expenseName: string;
                 expenseType: import(".prisma/client").$Enums.ExpenseType;
                 amount: import("@prisma/client/runtime/library").Decimal;
+                date: Date;
             }[];
             meta: {
                 total: number;
@@ -57,10 +57,10 @@ export declare class ExpensesController {
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            date: Date;
             expenseName: string;
             expenseType: import(".prisma/client").$Enums.ExpenseType;
             amount: import("@prisma/client/runtime/library").Decimal;
+            date: Date;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateExpenseDto): Promise<{
@@ -73,10 +73,10 @@ export declare class ExpensesController {
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            date: Date;
             expenseName: string;
             expenseType: import(".prisma/client").$Enums.ExpenseType;
             amount: import("@prisma/client/runtime/library").Decimal;
+            date: Date;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

@@ -13,10 +13,10 @@ export declare class ExpensesService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        date: Date;
-        amount: import("@prisma/client/runtime/library").Decimal;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        date: Date;
     }>;
     findAll(actor: User, restaurantId: string, page?: number, limit?: number, expenseType?: ExpenseType, search?: string, startDate?: Date, endDate?: Date): Promise<{
         data: {
@@ -27,10 +27,10 @@ export declare class ExpensesService {
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            date: Date;
-            amount: import("@prisma/client/runtime/library").Decimal;
             expenseName: string;
             expenseType: import(".prisma/client").$Enums.ExpenseType;
+            amount: import("@prisma/client/runtime/library").Decimal;
+            date: Date;
         }[];
         meta: {
             total: number;
@@ -49,10 +49,10 @@ export declare class ExpensesService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        date: Date;
-        amount: import("@prisma/client/runtime/library").Decimal;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        date: Date;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateExpenseDto): Promise<{
         id: string;
@@ -62,10 +62,10 @@ export declare class ExpensesService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        date: Date;
-        amount: import("@prisma/client/runtime/library").Decimal;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        date: Date;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

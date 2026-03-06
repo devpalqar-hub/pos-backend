@@ -8,9 +8,9 @@ export declare class CustomersController {
     create(actor: User, restaurantId: string, dto: CreateCustomerDto): Promise<{
         message: string;
         data: {
-            name: string | null;
             id: string;
             email: string | null;
+            name: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
@@ -23,9 +23,9 @@ export declare class CustomersController {
         message: string;
         data: {
             data: {
-                name: string | null;
                 id: string;
                 email: string | null;
+                name: string | null;
                 isActive: boolean;
                 restaurantId: string;
                 createdAt: Date;
@@ -48,20 +48,20 @@ export declare class CustomersController {
         data: {
             LoyalityPointRedemption: ({
                 loyalityPoint: {
-                    name: string;
                     id: string;
+                    name: string;
                 };
             } & {
                 id: string;
-                customerId: string;
-                loyalityPointId: string;
-                redeemedAt: Date;
                 pointsAwarded: import("@prisma/client/runtime/library").Decimal;
+                redeemedAt: Date;
+                loyalityPointId: string;
+                customerId: string;
             })[];
         } & {
-            name: string | null;
             id: string;
             email: string | null;
+            name: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
@@ -75,20 +75,20 @@ export declare class CustomersController {
         data: {
             LoyalityPointRedemption: ({
                 loyalityPoint: {
-                    name: string;
                     id: string;
+                    name: string;
                 };
             } & {
                 id: string;
-                customerId: string;
-                loyalityPointId: string;
-                redeemedAt: Date;
                 pointsAwarded: import("@prisma/client/runtime/library").Decimal;
+                redeemedAt: Date;
+                loyalityPointId: string;
+                customerId: string;
             })[];
         } & {
-            name: string | null;
             id: string;
             email: string | null;
+            name: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
@@ -100,9 +100,9 @@ export declare class CustomersController {
     update(actor: User, restaurantId: string, id: string, dto: UpdateCustomerDto): Promise<{
         message: string;
         data: {
-            name: string | null;
             id: string;
             email: string | null;
+            name: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
