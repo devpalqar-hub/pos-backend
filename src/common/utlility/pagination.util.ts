@@ -8,6 +8,7 @@ interface PaginationParams<T> {
     };
     page?: number;
     limit?: number;
+    fetchAll?: boolean;
     where?: Prisma.Enumerable<any>;
     include?: Prisma.Enumerable<any>;
     orderBy?: Prisma.Enumerable<any>;
@@ -20,10 +21,30 @@ export async function paginate<T>({
     prismaModel,
     page = 1,
     limit = 10,
+    fetchAll = false,
     where,
     include,
     orderBy,
 }: PaginationParams<T>) {
+    if (fetchAll) {
+        const [data, total] = await Promise.all([
+            prismaModel.findMany({ where, include, orderBy }),
+            prismaModel.count({ where }),
+        ]);
+
+        return {
+            data,
+            meta: {
+                total,
+                page: 1,
+                limit: total,
+                totalPages: 1,
+                hasNextPage: false,
+                hasPrevPage: false,
+            },
+        };
+    }
+
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([

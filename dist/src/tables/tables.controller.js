@@ -30,13 +30,14 @@ let TablesController = class TablesController {
     create(actor, restaurantId, dto) {
         return this.tablesService.createTable(actor, restaurantId, dto);
     }
-    findAll(actor, restaurantId, groupId, page, limit) {
+    findAll(actor, restaurantId, groupId, page, limit, fetchAll) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
+        const shouldFetchAll = fetchAll === 'true';
         if (groupId === 'ungrouped') {
-            return this.tablesService.findUngroupedTables(actor, restaurantId, pageNum, limitNum);
+            return this.tablesService.findUngroupedTables(actor, restaurantId, pageNum, limitNum, shouldFetchAll);
         }
-        return this.tablesService.findAllTables(actor, restaurantId, groupId, pageNum, limitNum);
+        return this.tablesService.findAllTables(actor, restaurantId, groupId, pageNum, limitNum, shouldFetchAll);
     }
     findOne(actor, restaurantId, id) {
         return this.tablesService.findOneTable(actor, restaurantId, id);
@@ -82,14 +83,16 @@ __decorate([
     }),
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
+    (0, swagger_1.ApiQuery)({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'List of tables' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('groupId')),
     __param(3, (0, common_1.Query)('page')),
     __param(4, (0, common_1.Query)('limit')),
+    __param(5, (0, common_1.Query)('fetchAll')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TablesController.prototype, "findAll", null);
 __decorate([

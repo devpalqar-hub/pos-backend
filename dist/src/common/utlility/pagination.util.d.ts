@@ -6,11 +6,12 @@ interface PaginationParams<T> {
     };
     page?: number;
     limit?: number;
+    fetchAll?: boolean;
     where?: Prisma.Enumerable<any>;
     include?: Prisma.Enumerable<any>;
     orderBy?: Prisma.Enumerable<any>;
 }
-export declare function paginate<T>({ prismaModel, page, limit, where, include, orderBy, }: PaginationParams<T>): Promise<{
+export declare function paginate<T>({ prismaModel, page, limit, fetchAll, where, include, orderBy, }: PaginationParams<T>): Promise<{
     data: T[];
     meta: {
         total: number;

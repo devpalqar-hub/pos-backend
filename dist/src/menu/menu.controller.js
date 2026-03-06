@@ -34,9 +34,10 @@ let MenuController = class MenuController {
             data: await this.menuService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId, categoryId, page, limit, search, sortBy, date) {
+    async findAll(actor, restaurantId, categoryId, page, limit, search, sortBy, date, fetchAll) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
+        const shouldFetchAll = fetchAll === 'true';
         const parsedDate = date ? new Date(date) : undefined;
         console.log(parsedDate, "parsed Date");
         const weekdayMap = [
@@ -53,8 +54,8 @@ let MenuController = class MenuController {
             console.log("Weekday (UTC):", weekday);
         }
         const data = categoryId
-            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum, search, sortBy, parsedDate)
-            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum, search, sortBy, parsedDate);
+            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll)
+            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll);
         return {
             message: 'Menu items fetched successfully',
             data,
@@ -141,6 +142,7 @@ __decorate([
     }),
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
+    (0, swagger_1.ApiQuery)({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' }),
     (0, swagger_1.ApiOperation)({
         summary: 'List menu items for a restaurant',
         description: 'Returns all menu items ordered by category, then sortOrder, then name. ' +
@@ -157,8 +159,9 @@ __decorate([
     __param(5, (0, common_1.Query)('search')),
     __param(6, (0, common_1.Query)('sortBy')),
     __param(7, (0, common_1.Query)('date')),
+    __param(8, (0, common_1.Query)('fetchAll')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], MenuController.prototype, "findAll", null);
 __decorate([

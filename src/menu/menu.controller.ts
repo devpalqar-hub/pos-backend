@@ -101,6 +101,7 @@ Creates a new item in the restaurant menu.
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiQuery({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' })
   @ApiOperation({
     summary: 'List menu items for a restaurant',
     description:
@@ -119,9 +120,11 @@ Creates a new item in the restaurant menu.
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
     @Query('date') date?: string,
+    @Query('fetchAll') fetchAll?: string,
   ) {
     const pageNum = parseInt(page ?? '1');
     const limitNum = parseInt(limit ?? '10');
+    const shouldFetchAll = fetchAll === 'true';
     const parsedDate = date ? new Date(date) : undefined;
 
     console.log(parsedDate, "parsed Date");
@@ -151,7 +154,8 @@ Creates a new item in the restaurant menu.
         limitNum,
         search,
         sortBy,
-        parsedDate
+        parsedDate,
+        shouldFetchAll,
       )
       : await this.menuService.findAll(
         actor,
@@ -160,7 +164,8 @@ Creates a new item in the restaurant menu.
         limitNum,
         search,
         sortBy,
-        parsedDate
+        parsedDate,
+        shouldFetchAll,
       );
     return {
       message: 'Menu items fetched successfully',

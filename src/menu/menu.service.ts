@@ -191,13 +191,15 @@ export class MenuService {
     page = 1, limit = 10,
     search?: string,
     sortBy?: string,
-    date?: Date,) {
+    date?: Date,
+    fetchAll = false,) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
     const result = await paginate({
       prismaModel: this.prisma.menuItem,
       page,
       limit,
+      fetchAll,
       where: {
         restaurantId,
         ...(search && {
@@ -242,7 +244,8 @@ export class MenuService {
     limit = 10,
     search?: string,
     sortBy?: string,
-    date?: Date,) {
+    date?: Date,
+    fetchAll = false,) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
     const category = await this.prisma.menuCategory.findFirst({
@@ -258,6 +261,7 @@ export class MenuService {
       prismaModel: this.prisma.menuItem,
       page,
       limit,
+      fetchAll,
       where: {
         restaurantId,
         categoryId,

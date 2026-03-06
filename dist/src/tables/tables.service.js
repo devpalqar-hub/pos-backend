@@ -76,12 +76,13 @@ let TablesService = class TablesService {
             include: GROUP_INCLUDE,
         });
     }
-    async findAllGroups(actor, restaurantId, page = 1, limit = 10) {
+    async findAllGroups(actor, restaurantId, page = 1, limit = 10, fetchAll = false) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.tableGroup,
             page,
             limit,
+            fetchAll,
             where: { restaurantId },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
             include: GROUP_LIST_INCLUDE,
@@ -182,7 +183,7 @@ let TablesService = class TablesService {
             include: TABLE_INCLUDE,
         });
     }
-    async findAllTables(actor, restaurantId, groupId, page = 1, limit = 10) {
+    async findAllTables(actor, restaurantId, groupId, page = 1, limit = 10, fetchAll = false) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         if (groupId) {
             const group = await this.prisma.tableGroup.findFirst({
@@ -196,6 +197,7 @@ let TablesService = class TablesService {
             prismaModel: this.prisma.table,
             page,
             limit,
+            fetchAll,
             where: {
                 restaurantId,
                 ...(groupId !== undefined ? { groupId } : {}),
@@ -204,12 +206,13 @@ let TablesService = class TablesService {
             include: TABLE_INCLUDE,
         });
     }
-    async findUngroupedTables(actor, restaurantId, page = 1, limit = 10) {
+    async findUngroupedTables(actor, restaurantId, page = 1, limit = 10, fetchAll = false) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         return (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.table,
             page,
             limit,
+            fetchAll,
             where: { restaurantId, groupId: null },
             orderBy: { name: 'asc' },
             include: TABLE_INCLUDE,

@@ -21,7 +21,7 @@ export declare class TableGroupsController {
         sortOrder: number;
         color: string | null;
     }>;
-    findAll(actor: User, restaurantId: string, page?: string, limit?: string): Promise<{
+    findAll(actor: User, restaurantId: string, page?: string, limit?: string, fetchAll?: string): Promise<{
         data: {
             id: string;
             name: string;

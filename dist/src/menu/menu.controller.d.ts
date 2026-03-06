@@ -29,7 +29,6 @@ export declare class MenuController {
             description: string | null;
             imageUrl: string | null;
             sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             itemType: import(".prisma/client").$Enums.ItemType;
@@ -37,9 +36,10 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            categoryId: string;
         };
     }>;
-    findAll(actor: User, restaurantId: string, categoryId?: string, page?: string, limit?: string, search?: string, sortBy?: string, date?: string): Promise<{
+    findAll(actor: User, restaurantId: string, categoryId?: string, page?: string, limit?: string, search?: string, sortBy?: string, date?: string, fetchAll?: string): Promise<{
         message: string;
         data: any;
     }>;
@@ -66,7 +66,6 @@ export declare class MenuController {
             description: string | null;
             imageUrl: string | null;
             sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             itemType: import(".prisma/client").$Enums.ItemType;
@@ -74,6 +73,7 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            categoryId: string;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateMenuItemDto): Promise<{
@@ -99,7 +99,6 @@ export declare class MenuController {
             description: string | null;
             imageUrl: string | null;
             sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             itemType: import(".prisma/client").$Enums.ItemType;
@@ -107,6 +106,7 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            categoryId: string;
         };
     }>;
     manageStock(actor: User, restaurantId: string, id: string, dto: StockActionDto): Promise<{
@@ -132,7 +132,6 @@ export declare class MenuController {
             description: string | null;
             imageUrl: string | null;
             sortOrder: number;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             itemType: import(".prisma/client").$Enums.ItemType;
@@ -140,6 +139,7 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            categoryId: string;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

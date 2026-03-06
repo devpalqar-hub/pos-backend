@@ -24,7 +24,7 @@ export declare class TablesService {
         sortOrder: number;
         color: string | null;
     }>;
-    findAllGroups(actor: User, restaurantId: string, page?: number, limit?: number): Promise<{
+    findAllGroups(actor: User, restaurantId: string, page?: number, limit?: number, fetchAll?: boolean): Promise<{
         data: {
             id: string;
             name: string;
@@ -106,7 +106,7 @@ export declare class TablesService {
         seatCount: number;
         groupId: string | null;
     }>;
-    findAllTables(actor: User, restaurantId: string, groupId?: string, page?: number, limit?: number): Promise<{
+    findAllTables(actor: User, restaurantId: string, groupId?: string, page?: number, limit?: number, fetchAll?: boolean): Promise<{
         data: {
             id: string;
             name: string;
@@ -128,7 +128,7 @@ export declare class TablesService {
             hasPrevPage: boolean;
         };
     }>;
-    findUngroupedTables(actor: User, restaurantId: string, page?: number, limit?: number): Promise<{
+    findUngroupedTables(actor: User, restaurantId: string, page?: number, limit?: number, fetchAll?: boolean): Promise<{
         data: {
             id: string;
             name: string;

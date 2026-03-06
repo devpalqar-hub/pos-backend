@@ -23,7 +23,7 @@ export declare class TablesController {
         seatCount: number;
         groupId: string | null;
     }>;
-    findAll(actor: User, restaurantId: string, groupId?: string, page?: string, limit?: string): Promise<{
+    findAll(actor: User, restaurantId: string, groupId?: string, page?: string, limit?: string, fetchAll?: string): Promise<{
         data: {
             id: string;
             name: string;

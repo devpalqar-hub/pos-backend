@@ -70,16 +70,19 @@ export class TableGroupsController {
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' })
     @ApiResponse({ status: 200, description: 'List of table groups' })
     findAll(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
+        @Query('fetchAll') fetchAll?: string,
     ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
-        return this.tablesService.findAllGroups(actor, restaurantId, pageNum, limitNum);
+        const shouldFetchAll = fetchAll === 'true';
+        return this.tablesService.findAllGroups(actor, restaurantId, pageNum, limitNum, shouldFetchAll);
     }
 
     // ─── Get one ──────────────────────────────────────────────────────────────

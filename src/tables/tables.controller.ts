@@ -77,6 +77,7 @@ export class TablesController {
     })
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' })
     @ApiResponse({ status: 200, description: 'List of tables' })
     findAll(
         @CurrentUser() actor: User,
@@ -84,13 +85,15 @@ export class TablesController {
         @Query('groupId') groupId?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
+        @Query('fetchAll') fetchAll?: string,
     ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
+        const shouldFetchAll = fetchAll === 'true';
         if (groupId === 'ungrouped') {
-            return this.tablesService.findUngroupedTables(actor, restaurantId, pageNum, limitNum);
+            return this.tablesService.findUngroupedTables(actor, restaurantId, pageNum, limitNum, shouldFetchAll);
         }
-        return this.tablesService.findAllTables(actor, restaurantId, groupId, pageNum, limitNum);
+        return this.tablesService.findAllTables(actor, restaurantId, groupId, pageNum, limitNum, shouldFetchAll);
     }
 
     // ─── Get one ──────────────────────────────────────────────────────────────

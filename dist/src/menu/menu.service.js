@@ -141,12 +141,13 @@ let MenuService = MenuService_1 = class MenuService {
     formatTime(date) {
         return date.toISOString().slice(11, 16);
     }
-    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy, date) {
+    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy, date, fetchAll = false) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const result = await (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuItem,
             page,
             limit,
+            fetchAll,
             where: {
                 restaurantId,
                 ...(search && {
@@ -180,7 +181,7 @@ let MenuService = MenuService_1 = class MenuService {
         console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
         return this.applyDatePricing(result, evaluationDate);
     }
-    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy, date) {
+    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy, date, fetchAll = false) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const category = await this.prisma.menuCategory.findFirst({
             where: { id: categoryId, restaurantId },
@@ -192,6 +193,7 @@ let MenuService = MenuService_1 = class MenuService {
             prismaModel: this.prisma.menuItem,
             page,
             limit,
+            fetchAll,
             where: {
                 restaurantId,
                 categoryId,
