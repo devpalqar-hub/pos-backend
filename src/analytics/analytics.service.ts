@@ -359,7 +359,15 @@ export class AnalyticsService {
             },
         });
 
-        // 3. Total unique members across all programs
+        // 3. Total amount redeemed across all programs
+        const totalAmountRedeemedAgg = await this.prisma.loyalityPointRedemption.aggregate({
+            _sum: { pointsAwarded: true },
+            where: { loyalityPoint: { restaurantId } },
+        });
+        const totalAmountRedeemed = parseFloat(
+            (totalAmountRedeemedAgg._sum.pointsAwarded ?? 0).toString(),
+        );
+
         const totalMembers = await this.prisma.customer.count({
             where: { restaurantId, isActive: true },
         });
@@ -392,15 +400,15 @@ export class AnalyticsService {
         const redemptionRate =
             totalMembers > 0
                 ? parseFloat(
-                      ((currentUniqueRedeemers / totalMembers) * 100).toFixed(1),
-                  )
+                    ((currentUniqueRedeemers / totalMembers) * 100).toFixed(1),
+                )
                 : 0;
 
         const previousRedemptionRate =
             totalMembers > 0
                 ? parseFloat(
-                      ((previousUniqueRedeemers / totalMembers) * 100).toFixed(1),
-                  )
+                    ((previousUniqueRedeemers / totalMembers) * 100).toFixed(1),
+                )
                 : 0;
 
         const redemptionRateChange = parseFloat(
@@ -412,7 +420,7 @@ export class AnalyticsService {
             newProgramsCount,
             redemptionRate,
             redemptionRateChange,
-            totalMembers,
+            totalAmountRedeemed,
         };
     }
 
