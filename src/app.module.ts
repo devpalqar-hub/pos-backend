@@ -19,6 +19,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { DoorDashModule } from './doordash/doordash.module';
+import { UberEatsModule } from './uber-eats/uber-eats.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -53,6 +54,7 @@ import { S3Module } from './s3/s3.module';
     PayrollModule,
     MarketingModule,
     DoorDashModule,
+    UberEatsModule,
     AnalyticsModule,
   ],
   controllers: [AppController],

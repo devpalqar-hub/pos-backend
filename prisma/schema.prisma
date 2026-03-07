@@ -56,10 +56,10 @@ enum TableStatus {
 }
 
 enum OrderChannel {
-  DINE_IN    // In-restaurant table service
+  DINE_IN // In-restaurant table service
   ONLINE_OWN // Own online ordering platform
-  UBER_EATS  // Uber Eats integration
-  DOORDASH   // DoorDash Merchant API
+  UBER_EATS // Uber Eats integration
+  DOORDASH // DoorDash Merchant API
 }
 
 enum SessionStatus {
@@ -166,6 +166,24 @@ enum DoorDashWebhookStatus {
   FAILED
 }
 
+enum UberEatsEventType {
+  ORDER_CREATED
+  ORDER_ACCEPTED
+  ORDER_DENIED
+  ORDER_CANCELLED
+  ORDER_READY_FOR_PICKUP
+  ORDER_PICKED_UP
+  ORDER_DELIVERED
+  UNKNOWN
+}
+
+enum UberEatsWebhookStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -244,23 +262,25 @@ model Restaurant {
   createdBy User?  @relation("RestaurantCreatedBy", fields: [createdById], references: [id])
   staff     User[] @relation("RestaurantStaff")
 
-  workingHours   WorkingHours[]
-  categories     MenuCategory[]
-  menuItems      MenuItem[]
-  priceRules     PriceRule[]
-  tableGroups    TableGroup[]
-  tables         Table[]
-  sessions       OrderSession[]
-  bills          Bill[]
-  customers      Customer[]
-  loyalityPoints LoyalityPoint[]
-  expenses       Expense[]
-  payrolls       Payroll[]
-  staffs         Staff[]
-  marketingSettings MarketingSettings?
-  campaigns         Campaign[]
-  doorDashSettings  DoorDashSettings?
+  workingHours        WorkingHours[]
+  categories          MenuCategory[]
+  menuItems           MenuItem[]
+  priceRules          PriceRule[]
+  tableGroups         TableGroup[]
+  tables              Table[]
+  sessions            OrderSession[]
+  bills               Bill[]
+  customers           Customer[]
+  loyalityPoints      LoyalityPoint[]
+  expenses            Expense[]
+  payrolls            Payroll[]
+  staffs              Staff[]
+  marketingSettings   MarketingSettings?
+  campaigns           Campaign[]
+  doorDashSettings    DoorDashSettings?
   doorDashWebhookLogs DoorDashWebhookLog[]
+  uberEatsSettings    UberEatsSettings?
+  uberEatsWebhookLogs UberEatsWebhookLog[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -332,13 +352,14 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  restaurant     Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  category       MenuCategory        @relation(fields: [categoryId], references: [id])
-  priceRules     PriceRule[]
-  orderItems     OrderItem[]
-  billItems      BillItem[]
-  loyalityPoints LoyalityPoint[]
+  restaurant       Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category         MenuCategory          @relation(fields: [categoryId], references: [id])
+  priceRules       PriceRule[]
+  orderItems       OrderItem[]
+  billItems        BillItem[]
+  loyalityPoints   LoyalityPoint[]
   doorDashMappings DoorDashItemMapping[]
+  uberEatsMappings UberEatsItemMapping[]
 
   @@index([restaurantId])
   @@index([categoryId])
@@ -736,11 +757,11 @@ model Expense {
 // ─── Payroll ──────────────────────────────────────────────────────────────────
 
 model Staff {
-  id             String  @id @default(uuid())
-  name           String  @db.VarChar(255)
-  email          String  @unique @db.VarChar(255)
-  phone          String? @db.VarChar(30)
-  jobRole        String? @db.VarChar(255)
+  id              String  @id @default(uuid())
+  name            String  @db.VarChar(255)
+  email           String  @unique @db.VarChar(255)
+  phone           String? @db.VarChar(30)
+  jobRole         String? @db.VarChar(255)
   monthlySalary   Decimal @db.Decimal(10, 2)
   paidLeaveDays   Int     @default(0) // Allowed paid leave days per month
   dailyWorkHours  Decimal @db.Decimal(4, 2) // Expected daily work hours (e.g. 8.00)
@@ -809,8 +830,8 @@ model StaffOvertime {
 // ─── Marketing ───────────────────────────────────────────────────────────────
 
 model MarketingSettings {
-  id           String  @id @default(uuid())
-  restaurantId String  @unique
+  id           String @id @default(uuid())
+  restaurantId String @unique
 
   // SMTP Email
   smtpHost      String? @db.VarChar(255)
@@ -872,7 +893,7 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   rules      CampaignRule[]
   channels   CampaignChannelStat[]
   recipients CampaignRecipient[]
@@ -910,7 +931,7 @@ model CampaignChannelStat {
 }
 
 model CampaignRecipient {
-  id         String                  @id @default(uuid())
+  id         String           @id @default(uuid())
   campaignId String
   customerId String
   channel    MarketingChannel
@@ -986,12 +1007,12 @@ model DoorDashSettings {
   restaurantId String @unique
 
   // DoorDash Merchant credentials
-  developerId    String  @db.VarChar(255) // DoorDash Developer ID
-  keyId          String  @db.VarChar(255) // DoorDash API Key ID
-  signingSecret  String  @db.VarChar(500) // DoorDash API Signing Secret
+  developerId   String @db.VarChar(255) // DoorDash Developer ID
+  keyId         String @db.VarChar(255) // DoorDash API Key ID
+  signingSecret String @db.VarChar(500) // DoorDash API Signing Secret
 
   // Webhook shared secret (to verify incoming webhook payloads)
-  webhookSecret String  @db.VarChar(500)
+  webhookSecret String @db.VarChar(500)
 
   // The DoorDash Store ID for this restaurant
   storeId String? @db.VarChar(255)
@@ -1006,14 +1027,14 @@ model DoorDashSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   itemMappings DoorDashItemMapping[]
 
   @@map("doordash_settings")
 }
 
 model DoorDashItemMapping {
-  id               String  @id @default(uuid())
+  id                 String @id @default(uuid())
   doorDashSettingsId String
 
   // What DoorDash sends to identify the item
@@ -1037,20 +1058,95 @@ model DoorDashWebhookLog {
   id           String  @id @default(uuid())
   restaurantId String?
 
-  eventId        String?             @db.VarChar(255) // DoorDash event UUID
-  eventType      DoorDashEventType   @default(UNKNOWN)
-  status         DoorDashWebhookStatus @default(RECEIVED)
-  rawPayload     Json                // Full raw event body
-  errorMessage   String?             @db.Text
+  eventId      String?               @db.VarChar(255) // DoorDash event UUID
+  eventType    DoorDashEventType     @default(UNKNOWN)
+  status       DoorDashWebhookStatus @default(RECEIVED)
+  rawPayload   Json // Full raw event body
+  errorMessage String?               @db.Text
 
   // Resolved session — set when autoCreateOrders=true and order was created
   sessionId String?
 
-  receivedAt  DateTime @default(now())
+  receivedAt DateTime @default(now())
 
-  restaurant Restaurant?   @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId])
   @@index([eventType])
   @@map("doordash_webhook_logs")
+}
+
+// ─── Uber Eats Integration ────────────────────────────────────────────────────────
+
+model UberEatsSettings {
+  id           String @id @default(uuid())
+  restaurantId String @unique
+
+  // Uber Eats API credentials
+  clientId     String @db.VarChar(255) // Uber Eats OAuth Client ID
+  clientSecret String @db.VarChar(500) // Uber Eats OAuth Client Secret
+
+  // Webhook shared secret (to verify incoming webhook payloads)
+  webhookSecret String @db.VarChar(500)
+
+  // The Uber Eats Store / Restaurant ID
+  storeId String? @db.VarChar(255)
+
+  // Whether orders are auto-accepted (vs manual confirm)
+  autoAccept Boolean @default(true)
+
+  // Whether to auto-create orders as OrderSessions when a webhook arrives
+  autoCreateOrders Boolean @default(true)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant   Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  itemMappings UberEatsItemMapping[]
+
+  @@map("uber_eats_settings")
+}
+
+model UberEatsItemMapping {
+  id                 String @id @default(uuid())
+  uberEatsSettingsId String
+
+  // What Uber Eats sends to identify the item
+  uberEatsItemId   String? @db.VarChar(255) // Uber Eats item UUID
+  uberEatsItemName String? @db.VarChar(255) // Fallback: match by name
+
+  // The local menu item to map to
+  menuItemId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings UberEatsSettings @relation(fields: [uberEatsSettingsId], references: [id], onDelete: Cascade)
+  menuItem MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([uberEatsSettingsId, uberEatsItemId])
+  @@map("uber_eats_item_mappings")
+}
+
+model UberEatsWebhookLog {
+  id           String  @id @default(uuid())
+  restaurantId String?
+
+  eventId      String?               @db.VarChar(255) // Uber Eats event UUID
+  eventType    UberEatsEventType     @default(UNKNOWN)
+  status       UberEatsWebhookStatus @default(RECEIVED)
+  rawPayload   Json // Full raw event body
+  errorMessage String?               @db.Text
+
+  // Resolved session — set when autoCreateOrders=true and order was created
+  sessionId String?
+
+  receivedAt DateTime @default(now())
+
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId])
+  @@index([eventType])
+  @@map("uber_eats_webhook_logs")
 }
