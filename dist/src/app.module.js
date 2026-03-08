@@ -30,6 +30,7 @@ const marketing_module_1 = require("./marketing/marketing.module");
 const doordash_module_1 = require("./doordash/doordash.module");
 const uber_eats_module_1 = require("./uber-eats/uber-eats.module");
 const analytics_module_1 = require("./analytics/analytics.module");
+const trigger_campaigns_module_1 = require("./trigger-campaigns/trigger-campaigns.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
@@ -61,6 +62,7 @@ exports.AppModule = AppModule = __decorate([
             doordash_module_1.DoorDashModule,
             uber_eats_module_1.UberEatsModule,
             analytics_module_1.AnalyticsModule,
+            trigger_campaigns_module_1.TriggerCampaignsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

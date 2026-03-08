@@ -130,14 +130,14 @@ export declare class OrdersService {
                 status: import(".prisma/client").$Enums.OrderItemStatus;
                 notes: string | null;
                 quantity: number;
-                menuItemId: string;
-                cancelReason: string | null;
                 unitPrice: import("@prisma/client/runtime/library").Decimal;
                 totalPrice: import("@prisma/client/runtime/library").Decimal;
                 preparedAt: Date | null;
                 servedAt: Date | null;
                 cancelledAt: Date | null;
+                cancelReason: string | null;
                 batchId: string;
+                menuItemId: string;
             })[];
         } & {
             id: string;
@@ -154,9 +154,9 @@ export declare class OrdersService {
                 id: string;
                 name: string;
                 quantity: number;
-                menuItemId: string;
                 unitPrice: import("@prisma/client/runtime/library").Decimal;
                 totalPrice: import("@prisma/client/runtime/library").Decimal;
+                menuItemId: string;
                 billId: string;
             }[];
             generatedBy: {
@@ -274,14 +274,14 @@ export declare class OrdersService {
             status: import(".prisma/client").$Enums.OrderItemStatus;
             notes: string | null;
             quantity: number;
-            menuItemId: string;
-            cancelReason: string | null;
             unitPrice: import("@prisma/client/runtime/library").Decimal;
             totalPrice: import("@prisma/client/runtime/library").Decimal;
             preparedAt: Date | null;
             servedAt: Date | null;
             cancelledAt: Date | null;
+            cancelReason: string | null;
             batchId: string;
+            menuItemId: string;
         })[];
         session: {
             id: string;
@@ -357,14 +357,14 @@ export declare class OrdersService {
         status: import(".prisma/client").$Enums.OrderItemStatus;
         notes: string | null;
         quantity: number;
-        menuItemId: string;
-        cancelReason: string | null;
         unitPrice: import("@prisma/client/runtime/library").Decimal;
         totalPrice: import("@prisma/client/runtime/library").Decimal;
         preparedAt: Date | null;
         servedAt: Date | null;
         cancelledAt: Date | null;
+        cancelReason: string | null;
         batchId: string;
+        menuItemId: string;
     }>;
     private syncBatchStatus;
     getKitchenView(actor: User, restaurantId: string): Promise<({
@@ -385,14 +385,14 @@ export declare class OrdersService {
             status: import(".prisma/client").$Enums.OrderItemStatus;
             notes: string | null;
             quantity: number;
-            menuItemId: string;
-            cancelReason: string | null;
             unitPrice: import("@prisma/client/runtime/library").Decimal;
             totalPrice: import("@prisma/client/runtime/library").Decimal;
             preparedAt: Date | null;
             servedAt: Date | null;
             cancelledAt: Date | null;
+            cancelReason: string | null;
             batchId: string;
+            menuItemId: string;
         })[];
         session: {
             id: string;
@@ -463,9 +463,9 @@ export declare class OrdersService {
             id: string;
             name: string;
             quantity: number;
-            menuItemId: string;
             unitPrice: import("@prisma/client/runtime/library").Decimal;
             totalPrice: import("@prisma/client/runtime/library").Decimal;
+            menuItemId: string;
             billId: string;
         }[];
         generatedBy: {
@@ -509,9 +509,9 @@ export declare class OrdersService {
             id: string;
             name: string;
             quantity: number;
-            menuItemId: string;
             unitPrice: import("@prisma/client/runtime/library").Decimal;
             totalPrice: import("@prisma/client/runtime/library").Decimal;
+            menuItemId: string;
             billId: string;
         })[];
         session: {

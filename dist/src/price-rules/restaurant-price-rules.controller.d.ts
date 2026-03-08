@@ -16,10 +16,10 @@ export declare class RestaurantPriceRulesController {
             endDate: Date | null;
             startTime: string | null;
             endTime: string | null;
+            menuItemId: string;
             priority: number;
             ruleType: import(".prisma/client").$Enums.PriceRuleType;
             specialPrice: import("@prisma/client/runtime/library").Decimal;
-            menuItemId: string;
         }[];
         meta: {
             total: number;

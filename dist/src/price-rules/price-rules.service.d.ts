@@ -37,10 +37,10 @@ export declare class PriceRulesService {
         endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        menuItemId: string;
         priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
-        menuItemId: string;
     }>;
     findAllByRestaurant(actor: User, restaurantId: string, page?: number, limit?: number, ruleType?: PriceRuleType, isActive?: boolean, menuItemId?: string, name?: string): Promise<{
         data: {
@@ -55,10 +55,10 @@ export declare class PriceRulesService {
             endDate: Date | null;
             startTime: string | null;
             endTime: string | null;
+            menuItemId: string;
             priority: number;
             ruleType: import(".prisma/client").$Enums.PriceRuleType;
             specialPrice: import("@prisma/client/runtime/library").Decimal;
-            menuItemId: string;
         }[];
         meta: {
             total: number;
@@ -95,10 +95,10 @@ export declare class PriceRulesService {
         endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        menuItemId: string;
         priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
-        menuItemId: string;
     }>;
     update(actor: User, restaurantId: string, menuItemId: string, id: string, dto: UpdatePriceRuleDto): Promise<{
         restaurant: {
@@ -126,10 +126,10 @@ export declare class PriceRulesService {
         endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        menuItemId: string;
         priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
-        menuItemId: string;
     }>;
     remove(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
         id: string;

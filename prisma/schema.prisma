@@ -184,6 +184,21 @@ enum UberEatsWebhookStatus {
   FAILED
 }
 
+enum TriggerCampaignStatus {
+  ACTIVE
+  PAUSED
+  EXPIRED
+}
+
+enum TriggerRuleCondition {
+  VISITED_IN_DATE_RANGE // value JSON: {"startDate":"...","endDate":"..."}
+  VISITED_ON_DAY // value: DayOfWeek e.g. "MONDAY"
+  ORDERED_ITEMS // value JSON: ["menuItemId1","menuItemId2"]
+  HAS_PENDING_LOYALTY // value: min points threshold (null = any)
+  MIN_VISIT_COUNT // value: minimum visit count
+  MIN_SPEND_AMOUNT // value: minimum spend amount
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -281,6 +296,7 @@ model Restaurant {
   doorDashWebhookLogs DoorDashWebhookLog[]
   uberEatsSettings    UberEatsSettings?
   uberEatsWebhookLogs UberEatsWebhookLog[]
+  triggerCampaigns    TriggerCampaign[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -663,6 +679,8 @@ model Customer {
   restaurant              Restaurant                @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   LoyalityPointRedemption LoyalityPointRedemption[]
   campaignRecipients      CampaignRecipient[]
+  triggerCampaignLogs     TriggerCampaignLog[]
+  triggerCampaignTrackers TriggerCampaignTracker[]
 
   @@unique([restaurantId, phone])
   @@index([restaurantId])
@@ -1149,4 +1167,107 @@ model UberEatsWebhookLog {
   @@index([restaurantId])
   @@index([eventType])
   @@map("uber_eats_webhook_logs")
+}
+
+// ─── Trigger Campaigns (Automated Repeating Marketing) ──────────────────────
+//  This is the parent record — like defining "Send a promo to customers who visit on Mondays, repeat every 7 days, max 5 times."
+model TriggerCampaign {
+  id           String  @id @default(uuid())
+  restaurantId String
+  createdById  String?
+
+  name        String  @db.VarChar(255)
+  description String? @db.Text
+
+  // Campaign content — sent when trigger fires
+  subject     String? @db.VarChar(500)
+  textContent String? @db.Text
+  htmlContent String? @db.LongText
+  imageUrl    String? @db.VarChar(1000)
+
+  // Rule logic
+  ruleOperator RuleGroupOperator @default(AND)
+
+  // Repeat configuration
+  repeatDelayDays        Int  @default(1) // Min days between triggers for the same customer
+  maxTriggersPerCustomer Int? // null = unlimited
+
+  // Lifecycle
+  expiresAt DateTime? // Campaign auto-stops after this date
+  status    TriggerCampaignStatus @default(ACTIVE)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant               @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rules      TriggerCampaignRule[]
+  channels   TriggerCampaignChannel[]
+  logs       TriggerCampaignLog[]
+  trackers   TriggerCampaignTracker[]
+
+  @@index([restaurantId])
+  @@index([status])
+  @@map("trigger_campaigns")
+}
+
+model TriggerCampaignRule {
+  id                String               @id @default(uuid())
+  triggerCampaignId String
+  condition         TriggerRuleCondition
+  value             String?              @db.Text // JSON or simple string depending on condition
+
+  triggerCampaign TriggerCampaign @relation(fields: [triggerCampaignId], references: [id], onDelete: Cascade)
+
+  @@index([triggerCampaignId])
+  @@map("trigger_campaign_rules")
+}
+
+model TriggerCampaignChannel {
+  id                String           @id @default(uuid())
+  triggerCampaignId String
+  channel           MarketingChannel
+
+  triggerCampaign TriggerCampaign @relation(fields: [triggerCampaignId], references: [id], onDelete: Cascade)
+
+  @@unique([triggerCampaignId, channel])
+  @@map("trigger_campaign_channels")
+}
+
+model TriggerCampaignLog {
+  id                String           @id @default(uuid())
+  triggerCampaignId String
+  customerId        String
+  channel           MarketingChannel
+
+  status   RecipientDeliveryStatus @default(PENDING)
+  errorMsg String?                 @db.VarChar(500)
+  sentAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  triggerCampaign TriggerCampaign @relation(fields: [triggerCampaignId], references: [id], onDelete: Cascade)
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([triggerCampaignId])
+  @@index([customerId])
+  @@index([triggerCampaignId, customerId])
+  @@map("trigger_campaign_logs")
+}
+
+model TriggerCampaignTracker {
+  id                String @id @default(uuid())
+  triggerCampaignId String
+  customerId        String
+
+  triggerCount    Int       @default(0)
+  lastTriggeredAt DateTime?
+
+  triggerCampaign TriggerCampaign @relation(fields: [triggerCampaignId], references: [id], onDelete: Cascade)
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([triggerCampaignId, customerId])
+  @@index([triggerCampaignId])
+  @@index([customerId])
+  @@map("trigger_campaign_trackers")
 }

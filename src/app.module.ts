@@ -21,6 +21,7 @@ import { MarketingModule } from './marketing/marketing.module';
 import { DoorDashModule } from './doordash/doordash.module';
 import { UberEatsModule } from './uber-eats/uber-eats.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { TriggerCampaignsModule } from './trigger-campaigns/trigger-campaigns.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -56,6 +57,7 @@ import { S3Module } from './s3/s3.module';
     DoorDashModule,
     UberEatsModule,
     AnalyticsModule,
+    TriggerCampaignsModule,
   ],
   controllers: [AppController],
   providers: [

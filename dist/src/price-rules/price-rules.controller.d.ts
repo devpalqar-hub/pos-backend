@@ -31,10 +31,10 @@ export declare class PriceRulesController {
         endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        menuItemId: string;
         priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
-        menuItemId: string;
     }>;
     getEffectivePrice(actor: User, restaurantId: string, menuItemId: string, atTime?: string): Promise<{
         menuItemId: string;
@@ -78,10 +78,10 @@ export declare class PriceRulesController {
         endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        menuItemId: string;
         priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
-        menuItemId: string;
     }>;
     update(actor: User, restaurantId: string, menuItemId: string, id: string, dto: UpdatePriceRuleDto): Promise<{
         restaurant: {
@@ -109,10 +109,10 @@ export declare class PriceRulesController {
         endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        menuItemId: string;
         priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
-        menuItemId: string;
     }>;
     remove(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
         id: string;
