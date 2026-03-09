@@ -11,6 +11,7 @@ import {
     HttpStatus,
     UseGuards,
     Query,
+    ParseIntPipe,
 } from '@nestjs/common';
 import {
     ApiTags,
@@ -90,6 +91,43 @@ export class PayrollController {
                 filter ?? 'all',
                 month ? parseInt(month) : undefined,
                 year ? parseInt(year) : undefined,
+            ),
+        };
+    }
+
+    @Get('staff/attendance/calendar')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'month', required: true, type: Number, description: 'Month (1-12)' })
+    @ApiQuery({ name: 'year', required: true, type: Number, description: 'Year' })
+    @ApiQuery({
+        name: 'staffIds',
+        required: false,
+        type: String,
+        isArray: true,
+        description: 'Optional list of staff IDs',
+    })
+    @ApiOperation({
+        summary: 'List staff leaves and overtimes grouped by date',
+        description:
+            'Returns staff overtime and leave records grouped by date for a given month and year. ' +
+            'Optionally filter by multiple staffIds.',
+    })
+    @ApiResponse({ status: 200, description: 'Attendance calendar returned.' })
+    async getStaffAttendanceCalendar(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('month', ParseIntPipe) month: number,
+        @Query('year', ParseIntPipe) year: number,
+        @Query('staffIds') staffIds?: string[],
+    ) {
+        return {
+            message: 'Staff attendance calendar fetched successfully',
+            data: await this.payrollService.getStaffAttendanceCalendar(
+                actor,
+                restaurantId,
+                month,
+                year,
+                staffIds,
             ),
         };
     }

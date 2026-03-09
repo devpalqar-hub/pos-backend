@@ -878,6 +878,116 @@ export class PayrollService {
         };
     }
 
+    async getStaffAttendanceCalendar(
+        actor: User,
+        restaurantId: string,
+        month: number,
+        year: number,
+        staffIds?: string[],
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 1);
+
+        const staffFilter: any = {
+            restaurantId,
+            isActive: true,
+            ...(staffIds && staffIds.length > 0 && { id: { in: staffIds } }),
+        };
+
+        const staff = await this.prisma.staff.findMany({
+            where: staffFilter,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                jobRole: true,
+            },
+        });
+
+        if (staff.length === 0) {
+            return {};
+        }
+
+        const staffIdList = staff.map((s) => s.id);
+
+        const staffMap = new Map(staff.map((s) => [s.id, s]));
+
+        const [leaves, overtimes] = await Promise.all([
+            this.prisma.staffLeave.findMany({
+                where: {
+                    staffId: { in: staffIdList },
+                    date: {
+                        gte: startDate,
+                        lt: endDate,
+                    },
+                },
+                orderBy: { date: 'asc' },
+            }),
+
+            this.prisma.staffOvertime.findMany({
+                where: {
+                    staffId: { in: staffIdList },
+                    date: {
+                        gte: startDate,
+                        lt: endDate,
+                    },
+                },
+                orderBy: { date: 'asc' },
+            }),
+        ]);
+
+        const result: Record<
+            string,
+            { overtimes: any[]; leaves: any[] }
+        > = {};
+
+        const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+        // Process leaves
+        for (const leave of leaves) {
+            const dateKey = formatDate(leave.date);
+
+            if (!result[dateKey]) {
+                result[dateKey] = { overtimes: [], leaves: [] };
+            }
+
+            result[dateKey].leaves.push({
+                id: leave.id,
+                staffId: leave.staffId,
+                staff: staffMap.get(leave.staffId),
+                date: leave.date,
+                leaveType: leave.leaveType,
+                leaveCost: leave.leaveCost,
+                reason: leave.reason,
+                createdAt: leave.createdAt,
+            });
+        }
+
+        // Process overtimes
+        for (const overtime of overtimes) {
+            const dateKey = formatDate(overtime.date);
+
+            if (!result[dateKey]) {
+                result[dateKey] = { overtimes: [], leaves: [] };
+            }
+
+            result[dateKey].overtimes.push({
+                id: overtime.id,
+                staffId: overtime.staffId,
+                staff: staffMap.get(overtime.staffId),
+                date: overtime.date,
+                hours: overtime.hours,
+                wageAmount: overtime.wageAmount,
+                notes: overtime.notes,
+                createdAt: overtime.createdAt,
+            });
+        }
+
+        return result;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════════════════════════════════════

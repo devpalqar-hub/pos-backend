@@ -53,9 +53,32 @@ let MenuController = class MenuController {
             const weekday = weekdayMap[parsedDate.getUTCDay()];
             console.log("Weekday (UTC):", weekday);
         }
-        const data = categoryId
+        const rawResult = categoryId
             ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll)
             : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll);
+        const formatItem = (item) => ({
+            id: item.id,
+            restaurantId: item.restaurantId,
+            categoryId: item.categoryId,
+            name: item.name,
+            description: item.description,
+            price: item.price?.toString?.() ?? null,
+            discountedPrice: item.discountedPrice?.toString?.() ?? null,
+            imageUrl: item.imageUrl,
+            itemType: item.itemType,
+            stockCount: item.stockCount,
+            isAvailable: item.isAvailable,
+            isOutOfStock: item.isOutOfStock,
+            outOfStockAt: item.outOfStockAt,
+            isActive: item.isActive,
+            sortOrder: item.sortOrder,
+            category: item.category ? { id: item.category.id, name: item.category.name } : null,
+            effectivePrice: item.effectivePrice?.toString?.() ?? (item.discountedPrice?.toString?.() ?? item.price?.toString?.()),
+        });
+        const data = {
+            ...rawResult,
+            data: Array.isArray(rawResult.data) ? rawResult.data.map(formatItem) : [],
+        };
         return {
             message: 'Menu items fetched successfully',
             data,

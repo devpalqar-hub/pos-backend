@@ -10,32 +10,32 @@ export declare class MenuController {
         message: string;
         data: {
             restaurant: {
-                id: string;
                 name: string;
+                id: string;
                 currency: string;
             };
             category: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            sortOrder: number;
             categoryId: string;
         };
     }>;
@@ -47,32 +47,32 @@ export declare class MenuController {
         message: string;
         data: {
             restaurant: {
-                id: string;
                 name: string;
+                id: string;
                 currency: string;
             };
             category: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            sortOrder: number;
             categoryId: string;
         };
     }>;
@@ -80,32 +80,32 @@ export declare class MenuController {
         message: string;
         data: {
             restaurant: {
-                id: string;
                 name: string;
+                id: string;
                 currency: string;
             };
             category: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            sortOrder: number;
             categoryId: string;
         };
     }>;
@@ -113,32 +113,32 @@ export declare class MenuController {
         message: string;
         data: {
             restaurant: {
-                id: string;
                 name: string;
+                id: string;
                 currency: string;
             };
             category: {
-                id: string;
                 name: string;
+                id: string;
             };
         } & {
-            id: string;
             name: string;
+            id: string;
             isActive: boolean;
             createdById: string | null;
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            imageUrl: string | null;
-            sortOrder: number;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            sortOrder: number;
             categoryId: string;
         };
     }>;
