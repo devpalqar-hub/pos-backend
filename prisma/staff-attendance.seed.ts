@@ -2,7 +2,7 @@ import { PrismaClient, LeaveType } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-const RESTAURANT_ID = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
+const RESTAURANT_ID = "745f819b-3fed-4992-84e9-0db4e927681f"
 
 async function seedStaffAttendance() {
 
