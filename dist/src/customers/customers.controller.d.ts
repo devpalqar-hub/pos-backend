@@ -9,8 +9,8 @@ export declare class CustomersController {
         message: string;
         data: {
             id: string;
-            email: string | null;
             name: string | null;
+            email: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
@@ -24,8 +24,8 @@ export declare class CustomersController {
         data: {
             data: {
                 id: string;
-                email: string | null;
                 name: string | null;
+                email: string | null;
                 isActive: boolean;
                 restaurantId: string;
                 createdAt: Date;
@@ -53,15 +53,15 @@ export declare class CustomersController {
                 };
             } & {
                 id: string;
-                pointsAwarded: import("@prisma/client/runtime/library").Decimal;
                 redeemedAt: Date;
                 loyalityPointId: string;
                 customerId: string;
+                pointsAwarded: import("@prisma/client/runtime/library").Decimal;
             })[];
         } & {
             id: string;
-            email: string | null;
             name: string | null;
+            email: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
@@ -80,15 +80,15 @@ export declare class CustomersController {
                 };
             } & {
                 id: string;
-                pointsAwarded: import("@prisma/client/runtime/library").Decimal;
                 redeemedAt: Date;
                 loyalityPointId: string;
                 customerId: string;
+                pointsAwarded: import("@prisma/client/runtime/library").Decimal;
             })[];
         } & {
             id: string;
-            email: string | null;
             name: string | null;
+            email: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;
@@ -101,8 +101,8 @@ export declare class CustomersController {
         message: string;
         data: {
             id: string;
-            email: string | null;
             name: string | null;
+            email: string | null;
             isActive: boolean;
             restaurantId: string;
             createdAt: Date;

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
-import { User, UserRole } from '@prisma/client';
+import { BillStatus, Prisma, User, UserRole } from '@prisma/client';
 import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
 import { UpdateItemStatusDto, OrderItemStatus } from './dto/update-item-status.dto';
@@ -129,6 +129,18 @@ export class OrdersService {
                 'Only RESTAURANT_ADMIN, OWNER, or SUPER_ADMIN can perform this action',
             );
         }
+    }
+
+    private mapSessionStatusToOrderStatus(status: SessionStatus) {
+        const map = {
+            OPEN: 'New',
+            BILLED: 'Preparing',
+            PAID: 'Served',
+            CANCELLED: 'Cancelled',
+            VOID: 'Cancelled',
+        };
+
+        return map[status] ?? 'New';
     }
 
     // =========================================================================
@@ -1112,5 +1124,375 @@ export class OrdersService {
             orderBy: { createdAt: 'asc' },
             include: { processedBy: { select: { id: true, name: true } } },
         });
+    }
+
+    async getOrderAnalytics(
+        actor: User,
+        restaurantId: string,
+        filters: {
+            sessionStatus?: SessionStatus;
+            billStatus?: BillStatus;
+            startDate?: string;
+            endDate?: string;
+        },
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const { sessionStatus, billStatus, startDate, endDate } = filters;
+
+        const dateFilter =
+            startDate && endDate
+                ? {
+                    createdAt: {
+                        gte: new Date(startDate),
+                        lte: new Date(endDate),
+                    },
+                }
+                : {};
+
+        const sessionWhere: any = {
+            restaurantId,
+            ...dateFilter,
+        };
+
+        if (sessionStatus) {
+            sessionWhere.status = sessionStatus;
+        }
+
+        const billWhere: any = {
+            restaurantId,
+        };
+
+        if (billStatus) {
+            billWhere.status = billStatus;
+        }
+
+        if (startDate && endDate) {
+            billWhere.createdAt = {
+                gte: new Date(startDate),
+                lte: new Date(endDate),
+            };
+        }
+
+        // TOTAL ORDERS
+        const totalOrders = await this.prisma.orderSession.count({
+            where: sessionWhere,
+        });
+
+        // TOTAL REVENUE
+        const revenueAgg = await this.prisma.bill.aggregate({
+            where: billWhere,
+            _sum: {
+                totalAmount: true,
+            },
+        });
+
+        const totalRevenue = Number(revenueAgg._sum.totalAmount ?? 0);
+
+        const averageRevenue =
+            totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+        // CHANNEL ORDER COUNTS
+        const ordersByChannel = await this.prisma.orderSession.groupBy({
+            by: ['channel'],
+            where: sessionWhere,
+            _count: {
+                channel: true,
+            },
+        });
+
+        // CHANNEL REVENUE
+        const revenueByChannel = await this.prisma.bill.groupBy({
+            by: ['restaurantId'],
+            where: billWhere,
+            _sum: {
+                totalAmount: true,
+            },
+        });
+
+        // Map revenue by session channel
+        const sessions = await this.prisma.orderSession.findMany({
+            where: sessionWhere,
+            select: {
+                id: true,
+                channel: true,
+                bill: {
+                    select: {
+                        totalAmount: true,
+                        status: true,
+                    },
+                },
+            },
+        });
+
+        const insights: Record<string, { order: number; revenue: number }> = {};
+
+        for (const s of sessions) {
+            const channel = s.channel;
+
+            if (!insights[channel]) {
+                insights[channel] = { order: 0, revenue: 0 };
+            }
+
+            insights[channel].order += 1;
+
+            if (s.bill && (!billStatus || s.bill.status === billStatus)) {
+                insights[channel].revenue += Number(s.bill.totalAmount ?? 0);
+            }
+        }
+
+        return {
+            totalOrder: totalOrders,
+            totalRevenue,
+            averageRevenue,
+            insights,
+        };
+    }
+
+
+
+
+
+    async getOrdersWithAnalytics(
+        actor: User,
+        restaurantId: string,
+        filters: {
+            channel?: OrderChannel;
+            status?: SessionStatus;
+            startDate?: string;
+            endDate?: string;
+        },
+        page: number,
+        limit: number,
+        fetchAll = false,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const { channel, status, startDate, endDate } = filters;
+
+        const where: any = {
+            restaurantId,
+        };
+
+        if (channel) where.channel = channel;
+        if (status) where.status = status;
+
+        if (startDate && endDate) {
+            where.createdAt = {
+                gte: new Date(startDate),
+                lte: new Date(endDate),
+            };
+        }
+        type OrderSessionWithRelations = Prisma.OrderSessionGetPayload<{
+            include: {
+                table: true;
+                bill: true;
+            };
+        }>;
+
+
+        const paginated = await paginate({
+            prismaModel: this.prisma.orderSession,
+            page,
+            limit,
+            fetchAll,
+            where,
+            include: {
+                table: true,
+                bill: true,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        const sessions = paginated.data as OrderSessionWithRelations[];
+
+        // ANALYTICS
+        const totalOrders = await this.prisma.orderSession.count({ where });
+
+        const revenueAgg = await this.prisma.bill.aggregate({
+            where: {
+                restaurantId,
+                ...(startDate && endDate
+                    ? {
+                        createdAt: {
+                            gte: new Date(startDate),
+                            lte: new Date(endDate),
+                        },
+                    }
+                    : {}),
+            },
+            _sum: {
+                totalAmount: true,
+            },
+        });
+
+        const totalRevenue = Number(revenueAgg._sum.totalAmount ?? 0);
+
+        const completedSessions = sessions.filter((s) => s.closedAt);
+
+        const avgSpendTime =
+            completedSessions.reduce((acc, s) => {
+                const minutes =
+                    (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) /
+                    60000;
+                return acc + minutes;
+            }, 0) / (completedSessions.length || 1);
+
+        // Fetch table names for all sessions with a tableId
+        const tableIds = Array.from(
+            new Set(
+                sessions
+                    .map((s) => s.tableId)
+                    .filter((id): id is string => typeof id === 'string' && id !== null)
+            )
+        );
+        const tables = tableIds.length
+            ? await this.prisma.table.findMany({
+                where: { id: { in: tableIds } },
+                select: { id: true, name: true },
+            })
+            : [];
+        const tableMap = Object.fromEntries(tables.map((t) => [t.id, t.name]));
+
+        const orders = sessions.map((s) => ({
+            order_id: s.id,
+            timestamp: s.createdAt.toISOString(),
+
+            customer: {
+                name: s.customerName ?? 'Guest',
+                email: s.customerEmail ?? null,
+            },
+
+            channel: s.channel,
+
+            table_number: s.tableId ? tableMap[s.tableId] ?? null : null,
+
+            total_amount: Number(s.bill?.totalAmount ?? 0),
+
+            status: this.mapSessionStatusToOrderStatus(s.status as SessionStatus),
+        }));
+
+        return {
+            analytics: {
+                total_revenue: {
+                    value: totalRevenue,
+                    change_percentage: 0,
+                },
+
+                total_orders: {
+                    value: totalOrders,
+                    change_percentage: 0,
+                },
+
+                avg_spend_time: {
+                    value: Math.round(avgSpendTime),
+                },
+            },
+
+            orders,
+
+            meta: paginated.meta,
+        };
+    }
+
+    async getOrderDetails(
+        actor: User,
+        restaurantId: string,
+        sessionId: string,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+        console.log('Fetching details for session', sessionId);
+        const session = await this.prisma.orderSession.findFirst({
+            where: {
+                id: sessionId,
+                restaurantId,
+            },
+            include: {
+                table: true,
+                batches: {
+                    include: {
+                        items: {
+                            include: {
+                                menuItem: true,
+                            },
+                        },
+                    },
+                },
+                bill: true,
+            },
+        });
+
+        if (!session) {
+            throw new NotFoundException('Order not found');
+        }
+
+        const items = session.batches.flatMap(batch =>
+            batch.items.map(item => ({
+                name: item.menuItem.name,
+                description: item.notes ?? null,
+                image_url: item.menuItem.imageUrl ?? null,
+                quantity: item.quantity,
+                unit_price: Number(item.unitPrice),
+            })),
+        );
+
+        const startTime = session.createdAt;
+        const estimatedCheckout = session.closedAt ?? null;
+
+        const timeline = [
+            {
+                status: 'Received',
+                timestamp: session.createdAt,
+                is_completed: true,
+            },
+            {
+                status: 'Preparing',
+                timestamp: session.batches.length
+                    ? session.batches[0].createdAt
+                    : null,
+                is_completed: session.batches.length > 0,
+            },
+            {
+                status: 'Ready',
+                timestamp: session.closedAt ?? null,
+                is_completed: session.status === 'BILLED' || session.status === 'PAID',
+            },
+            {
+                status: 'Completed',
+                timestamp: session.bill?.paidAt ?? null,
+                is_completed: session.status === 'PAID',
+            },
+        ];
+
+        return {
+            order_header: {
+                order_id: session.id,
+                status_tag: session.status,
+                channel_name: session.channel,
+                total_amount: Number(session.bill?.totalAmount ?? 0),
+            },
+
+            customer_details: {
+                customer_name: session.customerName ?? 'Guest',
+                email: session.customerEmail ?? null,
+                table_number: session.table?.name ?? null,
+                start_time: startTime,
+                estimated_checkout: estimatedCheckout,
+            },
+
+            order_items: items,
+
+            order_status_timeline: timeline,
+
+            financial_summary: {
+                subtotal: Number(session.bill?.subtotal ?? 0),
+                tax_percentage: Number(session.bill?.taxRate ?? 0),
+                tax_amount: Number(session.bill?.taxAmount ?? 0),
+                delivery_fee: Number(session.deliveryFee ?? 0),
+                grand_total: Number(session.bill?.totalAmount ?? 0),
+            },
+        };
     }
 }

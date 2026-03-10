@@ -44,6 +44,9 @@ export declare class TableGroupsController {
         };
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
+        _count: {
+            tables: number;
+        };
         tables: {
             id: string;
             name: string;
@@ -51,9 +54,6 @@ export declare class TableGroupsController {
             createdAt: Date;
             seatCount: number;
         }[];
-        _count: {
-            tables: number;
-        };
     } & {
         id: string;
         name: string;

@@ -21,7 +21,7 @@ import {
     ApiExtraModels,
 } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
-import { CreateSessionDto } from './dto/create-session.dto';
+import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
 import { UpdateItemStatusDto } from './dto/update-item-status.dto';
 import { UpdateBatchStatusDto } from './dto/update-batch-status.dto';
@@ -32,7 +32,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User, UserRole } from '@prisma/client';
+import { BillStatus, User, UserRole } from '@prisma/client';
 
 // ─── All roles that interact with orders ──────────────────────────────────────
 const ALL_ORDER_ROLES = [
@@ -215,6 +215,76 @@ export class OrdersController {
         return this.ordersService.findAllBatches(actor, restaurantId, sessionId, pageNum, limitNum);
     }
 
+    @Get('restaurants/:restaurantId/orders/list/')
+    @Roles(...ALL_ORDER_ROLES)
+    @ApiOperation({ summary: 'List restaurant orders with analytics' })
+    @ApiParam({ name: 'restaurantId' })
+    @ApiQuery({ name: 'channel', enum: OrderChannel, required: false })
+    @ApiQuery({ name: 'status', enum: SessionStatus, required: false })
+    @ApiQuery({ name: 'page', required: false })
+    @ApiQuery({ name: 'limit', required: false })
+    @ApiQuery({ name: 'startDate', required: false })
+    @ApiQuery({ name: 'endDate', required: false })
+    getOrders(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('channel') channel?: OrderChannel,
+        @Query('status') status?: SessionStatus,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        return this.ordersService.getOrdersWithAnalytics(
+            actor,
+            restaurantId,
+            {
+                channel,
+                status,
+                startDate,
+                endDate,
+            },
+            parseInt(page ?? '1'),
+            parseInt(limit ?? '20'),
+        );
+    }
+
+    @Get('restaurants/:restaurantId/orders/get/:sessionId')
+    @Roles(...ALL_ORDER_ROLES)
+    @ApiOperation({ summary: 'Get single order details' })
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'sessionId', description: 'Order session UUID' })
+    getOrderDetails(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    ) {
+        return this.ordersService.getOrderDetails(actor, restaurantId, sessionId);
+    }
+
+    @Get('restaurants/:restaurantId/analytics/orders')
+    @Roles(...ALL_ORDER_ROLES)
+    @ApiOperation({ summary: 'Restaurant order analytics' })
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'sessionStatus', enum: SessionStatus, required: false })
+    @ApiQuery({ name: 'billStatus', enum: BillStatus, required: false })
+    @ApiQuery({ name: 'startDate', required: false })
+    @ApiQuery({ name: 'endDate', required: false })
+    getOrderAnalytics(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('sessionStatus') sessionStatus?: SessionStatus,
+        @Query('billStatus') billStatus?: BillStatus,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        return this.ordersService.getOrderAnalytics(actor, restaurantId, {
+            sessionStatus,
+            billStatus,
+            startDate,
+            endDate,
+        });
+    }
     /**
      * PATCH /orders/batches/:batchId/status
      * Manual batch status override (chef / waiter / admin).

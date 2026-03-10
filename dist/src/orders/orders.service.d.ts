@@ -1,6 +1,6 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
-import { CreateSessionDto } from './dto/create-session.dto';
+import { BillStatus, Prisma, User } from '@prisma/client';
+import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
 import { UpdateItemStatusDto } from './dto/update-item-status.dto';
 import { UpdateBatchStatusDto } from './dto/update-batch-status.dto';
@@ -15,11 +15,15 @@ export declare class OrdersService {
     constructor(prisma: PrismaService, gateway: OrdersGateway);
     private assertRestaurantAccess;
     private assertManageRole;
+    private mapSessionStatusToOrderStatus;
     private generateUniqueSessionNumber;
     private generateUniqueBatchNumber;
     private generateUniqueBillNumber;
     private getEffectivePriceForItem;
     createSession(actor: User, restaurantId: string, dto: CreateSessionDto): Promise<{
+        _count: {
+            batches: number;
+        };
         table: {
             id: string;
             name: string;
@@ -30,9 +34,6 @@ export declare class OrdersService {
             id: string;
             name: string;
             role: import(".prisma/client").$Enums.UserRole;
-        };
-        _count: {
-            batches: number;
         };
     } & {
         id: string;
@@ -49,12 +50,12 @@ export declare class OrdersService {
         externalOrderId: string | null;
         externalChannel: string | null;
         deliveryAddress: string | null;
-        deliveryFee: import("@prisma/client/runtime/library").Decimal | null;
+        deliveryFee: Prisma.Decimal | null;
         specialInstructions: string | null;
-        subtotal: import("@prisma/client/runtime/library").Decimal | null;
-        taxAmount: import("@prisma/client/runtime/library").Decimal | null;
-        discountAmount: import("@prisma/client/runtime/library").Decimal | null;
-        totalAmount: import("@prisma/client/runtime/library").Decimal | null;
+        subtotal: Prisma.Decimal | null;
+        taxAmount: Prisma.Decimal | null;
+        discountAmount: Prisma.Decimal | null;
+        totalAmount: Prisma.Decimal | null;
         closedAt: Date | null;
         tableId: string | null;
         openedById: string;
@@ -79,12 +80,12 @@ export declare class OrdersService {
             externalOrderId: string | null;
             externalChannel: string | null;
             deliveryAddress: string | null;
-            deliveryFee: import("@prisma/client/runtime/library").Decimal | null;
+            deliveryFee: Prisma.Decimal | null;
             specialInstructions: string | null;
-            subtotal: import("@prisma/client/runtime/library").Decimal | null;
-            taxAmount: import("@prisma/client/runtime/library").Decimal | null;
-            discountAmount: import("@prisma/client/runtime/library").Decimal | null;
-            totalAmount: import("@prisma/client/runtime/library").Decimal | null;
+            subtotal: Prisma.Decimal | null;
+            taxAmount: Prisma.Decimal | null;
+            discountAmount: Prisma.Decimal | null;
+            totalAmount: Prisma.Decimal | null;
             closedAt: Date | null;
             tableId: string | null;
             openedById: string;
@@ -103,8 +104,8 @@ export declare class OrdersService {
             id: string;
             name: string;
             status: import(".prisma/client").$Enums.TableStatus;
-            seatCount: number;
             groupId: string | null;
+            seatCount: number;
         } | null;
         openedBy: {
             id: string;
@@ -130,8 +131,8 @@ export declare class OrdersService {
                 status: import(".prisma/client").$Enums.OrderItemStatus;
                 notes: string | null;
                 quantity: number;
-                unitPrice: import("@prisma/client/runtime/library").Decimal;
-                totalPrice: import("@prisma/client/runtime/library").Decimal;
+                unitPrice: Prisma.Decimal;
+                totalPrice: Prisma.Decimal;
                 preparedAt: Date | null;
                 servedAt: Date | null;
                 cancelledAt: Date | null;
@@ -145,17 +146,17 @@ export declare class OrdersService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.BatchStatus;
+            batchNumber: string;
             notes: string | null;
             sessionId: string;
-            batchNumber: string;
         })[];
         bill: ({
             items: {
                 id: string;
                 name: string;
                 quantity: number;
-                unitPrice: import("@prisma/client/runtime/library").Decimal;
-                totalPrice: import("@prisma/client/runtime/library").Decimal;
+                unitPrice: Prisma.Decimal;
+                totalPrice: Prisma.Decimal;
                 menuItemId: string;
                 billId: string;
             }[];
@@ -167,10 +168,10 @@ export declare class OrdersService {
                 id: string;
                 createdAt: Date;
                 notes: string | null;
-                amount: import("@prisma/client/runtime/library").Decimal;
+                billId: string;
+                amount: Prisma.Decimal;
                 method: import(".prisma/client").$Enums.PaymentMethod;
                 reference: string | null;
-                billId: string;
                 processedById: string | null;
             }[];
         } & {
@@ -179,15 +180,15 @@ export declare class OrdersService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.BillStatus;
-            subtotal: import("@prisma/client/runtime/library").Decimal;
-            taxAmount: import("@prisma/client/runtime/library").Decimal;
-            discountAmount: import("@prisma/client/runtime/library").Decimal;
-            totalAmount: import("@prisma/client/runtime/library").Decimal;
-            billNumber: string;
-            taxRate: import("@prisma/client/runtime/library").Decimal;
+            subtotal: Prisma.Decimal;
+            taxAmount: Prisma.Decimal;
+            discountAmount: Prisma.Decimal;
+            totalAmount: Prisma.Decimal;
             notes: string | null;
-            paidAt: Date | null;
             sessionId: string;
+            billNumber: string;
+            taxRate: Prisma.Decimal;
+            paidAt: Date | null;
             generatedById: string | null;
         }) | null;
     } & {
@@ -205,17 +206,20 @@ export declare class OrdersService {
         externalOrderId: string | null;
         externalChannel: string | null;
         deliveryAddress: string | null;
-        deliveryFee: import("@prisma/client/runtime/library").Decimal | null;
+        deliveryFee: Prisma.Decimal | null;
         specialInstructions: string | null;
-        subtotal: import("@prisma/client/runtime/library").Decimal | null;
-        taxAmount: import("@prisma/client/runtime/library").Decimal | null;
-        discountAmount: import("@prisma/client/runtime/library").Decimal | null;
-        totalAmount: import("@prisma/client/runtime/library").Decimal | null;
+        subtotal: Prisma.Decimal | null;
+        taxAmount: Prisma.Decimal | null;
+        discountAmount: Prisma.Decimal | null;
+        totalAmount: Prisma.Decimal | null;
         closedAt: Date | null;
         tableId: string | null;
         openedById: string;
     }>;
     updateSessionStatus(actor: User, restaurantId: string, sessionId: string, dto: UpdateSessionStatusDto): Promise<{
+        _count: {
+            batches: number;
+        };
         table: {
             id: string;
             name: string;
@@ -226,9 +230,6 @@ export declare class OrdersService {
             id: string;
             name: string;
             role: import(".prisma/client").$Enums.UserRole;
-        };
-        _count: {
-            batches: number;
         };
     } & {
         id: string;
@@ -245,12 +246,12 @@ export declare class OrdersService {
         externalOrderId: string | null;
         externalChannel: string | null;
         deliveryAddress: string | null;
-        deliveryFee: import("@prisma/client/runtime/library").Decimal | null;
+        deliveryFee: Prisma.Decimal | null;
         specialInstructions: string | null;
-        subtotal: import("@prisma/client/runtime/library").Decimal | null;
-        taxAmount: import("@prisma/client/runtime/library").Decimal | null;
-        discountAmount: import("@prisma/client/runtime/library").Decimal | null;
-        totalAmount: import("@prisma/client/runtime/library").Decimal | null;
+        subtotal: Prisma.Decimal | null;
+        taxAmount: Prisma.Decimal | null;
+        discountAmount: Prisma.Decimal | null;
+        totalAmount: Prisma.Decimal | null;
         closedAt: Date | null;
         tableId: string | null;
         openedById: string;
@@ -262,6 +263,12 @@ export declare class OrdersService {
             name: string;
             role: import(".prisma/client").$Enums.UserRole;
         } | null;
+        session: {
+            id: string;
+            restaurantId: string;
+            sessionNumber: string;
+            tableId: string | null;
+        };
         items: ({
             menuItem: {
                 id: string;
@@ -274,8 +281,8 @@ export declare class OrdersService {
             status: import(".prisma/client").$Enums.OrderItemStatus;
             notes: string | null;
             quantity: number;
-            unitPrice: import("@prisma/client/runtime/library").Decimal;
-            totalPrice: import("@prisma/client/runtime/library").Decimal;
+            unitPrice: Prisma.Decimal;
+            totalPrice: Prisma.Decimal;
             preparedAt: Date | null;
             servedAt: Date | null;
             cancelledAt: Date | null;
@@ -283,21 +290,15 @@ export declare class OrdersService {
             batchId: string;
             menuItemId: string;
         })[];
-        session: {
-            id: string;
-            restaurantId: string;
-            sessionNumber: string;
-            tableId: string | null;
-        };
     } & {
         id: string;
         createdById: string | null;
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.BatchStatus;
+        batchNumber: string;
         notes: string | null;
         sessionId: string;
-        batchNumber: string;
     }>;
     findAllBatches(actor: User, restaurantId: string, sessionId: string, page?: number, limit?: number): Promise<{
         data: {
@@ -306,9 +307,9 @@ export declare class OrdersService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.BatchStatus;
+            batchNumber: string;
             notes: string | null;
             sessionId: string;
-            batchNumber: string;
         }[];
         meta: {
             total: number;
@@ -320,25 +321,25 @@ export declare class OrdersService {
         };
     }>;
     updateBatchStatus(actor: User, batchId: string, dto: UpdateBatchStatusDto): Promise<{
-        items: {
-            id: string;
-            status: import(".prisma/client").$Enums.OrderItemStatus;
-        }[];
         session: {
             id: string;
             restaurantId: string;
             sessionNumber: string;
             tableId: string | null;
         };
+        items: {
+            id: string;
+            status: import(".prisma/client").$Enums.OrderItemStatus;
+        }[];
     } & {
         id: string;
         createdById: string | null;
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.BatchStatus;
+        batchNumber: string;
         notes: string | null;
         sessionId: string;
-        batchNumber: string;
     }>;
     updateItemStatus(actor: User, itemId: string, dto: UpdateItemStatusDto): Promise<{
         menuItem: {
@@ -347,8 +348,8 @@ export declare class OrdersService {
         };
         batch: {
             id: string;
-            sessionId: string;
             batchNumber: string;
+            sessionId: string;
         };
     } & {
         id: string;
@@ -357,8 +358,8 @@ export declare class OrdersService {
         status: import(".prisma/client").$Enums.OrderItemStatus;
         notes: string | null;
         quantity: number;
-        unitPrice: import("@prisma/client/runtime/library").Decimal;
-        totalPrice: import("@prisma/client/runtime/library").Decimal;
+        unitPrice: Prisma.Decimal;
+        totalPrice: Prisma.Decimal;
         preparedAt: Date | null;
         servedAt: Date | null;
         cancelledAt: Date | null;
@@ -372,6 +373,15 @@ export declare class OrdersService {
             id: string;
             name: string;
         } | null;
+        session: {
+            id: string;
+            sessionNumber: string;
+            channel: import(".prisma/client").$Enums.OrderChannel;
+            table: {
+                id: string;
+                name: string;
+            } | null;
+        };
         items: ({
             menuItem: {
                 id: string;
@@ -385,8 +395,8 @@ export declare class OrdersService {
             status: import(".prisma/client").$Enums.OrderItemStatus;
             notes: string | null;
             quantity: number;
-            unitPrice: import("@prisma/client/runtime/library").Decimal;
-            totalPrice: import("@prisma/client/runtime/library").Decimal;
+            unitPrice: Prisma.Decimal;
+            totalPrice: Prisma.Decimal;
             preparedAt: Date | null;
             servedAt: Date | null;
             cancelledAt: Date | null;
@@ -394,24 +404,15 @@ export declare class OrdersService {
             batchId: string;
             menuItemId: string;
         })[];
-        session: {
-            id: string;
-            sessionNumber: string;
-            channel: import(".prisma/client").$Enums.OrderChannel;
-            table: {
-                id: string;
-                name: string;
-            } | null;
-        };
     } & {
         id: string;
         createdById: string | null;
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.BatchStatus;
+        batchNumber: string;
         notes: string | null;
         sessionId: string;
-        batchNumber: string;
     })[]>;
     getBillingView(actor: User, restaurantId: string): Promise<({
         table: {
@@ -419,18 +420,18 @@ export declare class OrdersService {
             name: string;
         } | null;
         batches: {
-            status: import(".prisma/client").$Enums.BatchStatus;
             _count: {
                 items: number;
             };
+            status: import(".prisma/client").$Enums.BatchStatus;
         }[];
         bill: {
             id: string;
             status: import(".prisma/client").$Enums.BillStatus;
-            totalAmount: import("@prisma/client/runtime/library").Decimal;
+            totalAmount: Prisma.Decimal;
             billNumber: string;
             payments: {
-                amount: import("@prisma/client/runtime/library").Decimal;
+                amount: Prisma.Decimal;
             }[];
         } | null;
     } & {
@@ -448,12 +449,12 @@ export declare class OrdersService {
         externalOrderId: string | null;
         externalChannel: string | null;
         deliveryAddress: string | null;
-        deliveryFee: import("@prisma/client/runtime/library").Decimal | null;
+        deliveryFee: Prisma.Decimal | null;
         specialInstructions: string | null;
-        subtotal: import("@prisma/client/runtime/library").Decimal | null;
-        taxAmount: import("@prisma/client/runtime/library").Decimal | null;
-        discountAmount: import("@prisma/client/runtime/library").Decimal | null;
-        totalAmount: import("@prisma/client/runtime/library").Decimal | null;
+        subtotal: Prisma.Decimal | null;
+        taxAmount: Prisma.Decimal | null;
+        discountAmount: Prisma.Decimal | null;
+        totalAmount: Prisma.Decimal | null;
         closedAt: Date | null;
         tableId: string | null;
         openedById: string;
@@ -463,8 +464,8 @@ export declare class OrdersService {
             id: string;
             name: string;
             quantity: number;
-            unitPrice: import("@prisma/client/runtime/library").Decimal;
-            totalPrice: import("@prisma/client/runtime/library").Decimal;
+            unitPrice: Prisma.Decimal;
+            totalPrice: Prisma.Decimal;
             menuItemId: string;
             billId: string;
         }[];
@@ -476,10 +477,10 @@ export declare class OrdersService {
             id: string;
             createdAt: Date;
             notes: string | null;
-            amount: import("@prisma/client/runtime/library").Decimal;
+            billId: string;
+            amount: Prisma.Decimal;
             method: import(".prisma/client").$Enums.PaymentMethod;
             reference: string | null;
-            billId: string;
             processedById: string | null;
         }[];
     } & {
@@ -488,32 +489,18 @@ export declare class OrdersService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.BillStatus;
-        subtotal: import("@prisma/client/runtime/library").Decimal;
-        taxAmount: import("@prisma/client/runtime/library").Decimal;
-        discountAmount: import("@prisma/client/runtime/library").Decimal;
-        totalAmount: import("@prisma/client/runtime/library").Decimal;
-        billNumber: string;
-        taxRate: import("@prisma/client/runtime/library").Decimal;
+        subtotal: Prisma.Decimal;
+        taxAmount: Prisma.Decimal;
+        discountAmount: Prisma.Decimal;
+        totalAmount: Prisma.Decimal;
         notes: string | null;
-        paidAt: Date | null;
         sessionId: string;
+        billNumber: string;
+        taxRate: Prisma.Decimal;
+        paidAt: Date | null;
         generatedById: string | null;
     }>;
     getBillForSession(actor: User, restaurantId: string, sessionId: string): Promise<{
-        items: ({
-            menuItem: {
-                id: string;
-                name: string;
-            };
-        } & {
-            id: string;
-            name: string;
-            quantity: number;
-            unitPrice: import("@prisma/client/runtime/library").Decimal;
-            totalPrice: import("@prisma/client/runtime/library").Decimal;
-            menuItemId: string;
-            billId: string;
-        })[];
         session: {
             id: string;
             sessionNumber: string;
@@ -525,6 +512,20 @@ export declare class OrdersService {
                 name: string;
             } | null;
         };
+        items: ({
+            menuItem: {
+                id: string;
+                name: string;
+            };
+        } & {
+            id: string;
+            name: string;
+            quantity: number;
+            unitPrice: Prisma.Decimal;
+            totalPrice: Prisma.Decimal;
+            menuItemId: string;
+            billId: string;
+        })[];
         generatedBy: {
             id: string;
             name: string;
@@ -533,10 +534,10 @@ export declare class OrdersService {
             id: string;
             createdAt: Date;
             notes: string | null;
-            amount: import("@prisma/client/runtime/library").Decimal;
+            billId: string;
+            amount: Prisma.Decimal;
             method: import(".prisma/client").$Enums.PaymentMethod;
             reference: string | null;
-            billId: string;
             processedById: string | null;
         }[];
     } & {
@@ -545,15 +546,15 @@ export declare class OrdersService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.BillStatus;
-        subtotal: import("@prisma/client/runtime/library").Decimal;
-        taxAmount: import("@prisma/client/runtime/library").Decimal;
-        discountAmount: import("@prisma/client/runtime/library").Decimal;
-        totalAmount: import("@prisma/client/runtime/library").Decimal;
-        billNumber: string;
-        taxRate: import("@prisma/client/runtime/library").Decimal;
+        subtotal: Prisma.Decimal;
+        taxAmount: Prisma.Decimal;
+        discountAmount: Prisma.Decimal;
+        totalAmount: Prisma.Decimal;
         notes: string | null;
-        paidAt: Date | null;
         sessionId: string;
+        billNumber: string;
+        taxRate: Prisma.Decimal;
+        paidAt: Date | null;
         generatedById: string | null;
     }>;
     addPayment(actor: User, billId: string, dto: AddPaymentDto): Promise<{
@@ -561,10 +562,10 @@ export declare class OrdersService {
             id: string;
             createdAt: Date;
             notes: string | null;
-            amount: import("@prisma/client/runtime/library").Decimal;
+            billId: string;
+            amount: Prisma.Decimal;
             method: import(".prisma/client").$Enums.PaymentMethod;
             reference: string | null;
-            billId: string;
             processedById: string | null;
         };
         isFullyPaid: boolean;
@@ -578,10 +579,98 @@ export declare class OrdersService {
         id: string;
         createdAt: Date;
         notes: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
+        billId: string;
+        amount: Prisma.Decimal;
         method: import(".prisma/client").$Enums.PaymentMethod;
         reference: string | null;
-        billId: string;
         processedById: string | null;
     })[]>;
+    getOrderAnalytics(actor: User, restaurantId: string, filters: {
+        sessionStatus?: SessionStatus;
+        billStatus?: BillStatus;
+        startDate?: string;
+        endDate?: string;
+    }): Promise<{
+        totalOrder: number;
+        totalRevenue: number;
+        averageRevenue: number;
+        insights: Record<string, {
+            order: number;
+            revenue: number;
+        }>;
+    }>;
+    getOrdersWithAnalytics(actor: User, restaurantId: string, filters: {
+        channel?: OrderChannel;
+        status?: SessionStatus;
+        startDate?: string;
+        endDate?: string;
+    }, page: number, limit: number, fetchAll?: boolean): Promise<{
+        analytics: {
+            total_revenue: {
+                value: number;
+                change_percentage: number;
+            };
+            total_orders: {
+                value: number;
+                change_percentage: number;
+            };
+            avg_spend_time: {
+                value: number;
+            };
+        };
+        orders: {
+            order_id: string;
+            timestamp: string;
+            customer: {
+                name: string;
+                email: string | null;
+            };
+            channel: import(".prisma/client").$Enums.OrderChannel;
+            table_number: string | null;
+            total_amount: number;
+            status: string;
+        }[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+            hasNextPage: boolean;
+            hasPrevPage: boolean;
+        };
+    }>;
+    getOrderDetails(actor: User, restaurantId: string, sessionId: string): Promise<{
+        order_header: {
+            order_id: string;
+            status_tag: import(".prisma/client").$Enums.SessionStatus;
+            channel_name: import(".prisma/client").$Enums.OrderChannel;
+            total_amount: number;
+        };
+        customer_details: {
+            customer_name: string;
+            email: string | null;
+            table_number: string | null;
+            start_time: Date;
+            estimated_checkout: Date | null;
+        };
+        order_items: {
+            name: string;
+            description: string | null;
+            image_url: string | null;
+            quantity: number;
+            unit_price: number;
+        }[];
+        order_status_timeline: {
+            status: string;
+            timestamp: Date | null;
+            is_completed: boolean;
+        }[];
+        financial_summary: {
+            subtotal: number;
+            tax_percentage: number;
+            tax_amount: number;
+            delivery_fee: number;
+            grand_total: number;
+        };
+    }>;
 }

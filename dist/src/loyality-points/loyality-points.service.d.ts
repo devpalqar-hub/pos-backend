@@ -31,12 +31,12 @@ export declare class LoyalityPointsService {
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        isGroup: boolean;
-        points: import("@prisma/client/runtime/library").Decimal;
-        startDate: Date | null;
-        endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        isGroup: boolean;
+        points: import("@prisma/client/runtime/library").Decimal;
         maxUsagePerCustomer: number | null;
     }>;
     private resolveType;
@@ -48,12 +48,12 @@ export declare class LoyalityPointsService {
             restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            isGroup: boolean;
-            points: import("@prisma/client/runtime/library").Decimal;
-            startDate: Date | null;
-            endDate: Date | null;
             startTime: string | null;
             endTime: string | null;
+            startDate: Date | null;
+            endDate: Date | null;
+            isGroup: boolean;
+            points: import("@prisma/client/runtime/library").Decimal;
             maxUsagePerCustomer: number | null;
         }[];
         meta: {
@@ -90,12 +90,12 @@ export declare class LoyalityPointsService {
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        isGroup: boolean;
-        points: import("@prisma/client/runtime/library").Decimal;
-        startDate: Date | null;
-        endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        isGroup: boolean;
+        points: import("@prisma/client/runtime/library").Decimal;
         maxUsagePerCustomer: number | null;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateLoyalityPointDto): Promise<{
@@ -123,12 +123,12 @@ export declare class LoyalityPointsService {
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        isGroup: boolean;
-        points: import("@prisma/client/runtime/library").Decimal;
-        startDate: Date | null;
-        endDate: Date | null;
         startTime: string | null;
         endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        isGroup: boolean;
+        points: import("@prisma/client/runtime/library").Decimal;
         maxUsagePerCustomer: number | null;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

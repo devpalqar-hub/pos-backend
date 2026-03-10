@@ -79,6 +79,25 @@ let OrdersController = class OrdersController {
         const limitNum = parseInt(limit ?? '10');
         return this.ordersService.findAllBatches(actor, restaurantId, sessionId, pageNum, limitNum);
     }
+    getOrders(actor, restaurantId, channel, status, page, limit, startDate, endDate) {
+        return this.ordersService.getOrdersWithAnalytics(actor, restaurantId, {
+            channel,
+            status,
+            startDate,
+            endDate,
+        }, parseInt(page ?? '1'), parseInt(limit ?? '20'));
+    }
+    getOrderDetails(actor, restaurantId, sessionId) {
+        return this.ordersService.getOrderDetails(actor, restaurantId, sessionId);
+    }
+    getOrderAnalytics(actor, restaurantId, sessionStatus, billStatus, startDate, endDate) {
+        return this.ordersService.getOrderAnalytics(actor, restaurantId, {
+            sessionStatus,
+            billStatus,
+            startDate,
+            endDate,
+        });
+    }
     updateBatchStatus(actor, batchId, dto) {
         return this.ordersService.updateBatchStatus(actor, batchId, dto);
     }
@@ -214,6 +233,61 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], OrdersController.prototype, "findAllBatches", null);
+__decorate([
+    (0, common_1.Get)('restaurants/:restaurantId/orders/list/'),
+    (0, roles_decorator_1.Roles)(...ALL_ORDER_ROLES),
+    (0, swagger_1.ApiOperation)({ summary: 'List restaurant orders with analytics' }),
+    (0, swagger_1.ApiParam)({ name: 'restaurantId' }),
+    (0, swagger_1.ApiQuery)({ name: 'channel', enum: create_session_dto_1.OrderChannel, required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'status', enum: update_session_status_dto_1.SessionStatus, required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'startDate', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'endDate', required: false }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)('channel')),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('page')),
+    __param(5, (0, common_1.Query)('limit')),
+    __param(6, (0, common_1.Query)('startDate')),
+    __param(7, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], OrdersController.prototype, "getOrders", null);
+__decorate([
+    (0, common_1.Get)('restaurants/:restaurantId/orders/get/:sessionId'),
+    (0, roles_decorator_1.Roles)(...ALL_ORDER_ROLES),
+    (0, swagger_1.ApiOperation)({ summary: 'Get single order details' }),
+    (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
+    (0, swagger_1.ApiParam)({ name: 'sessionId', description: 'Order session UUID' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Param)('sessionId', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], OrdersController.prototype, "getOrderDetails", null);
+__decorate([
+    (0, common_1.Get)('restaurants/:restaurantId/analytics/orders'),
+    (0, roles_decorator_1.Roles)(...ALL_ORDER_ROLES),
+    (0, swagger_1.ApiOperation)({ summary: 'Restaurant order analytics' }),
+    (0, swagger_1.ApiParam)({ name: 'restaurantId', description: 'Restaurant UUID' }),
+    (0, swagger_1.ApiQuery)({ name: 'sessionStatus', enum: update_session_status_dto_1.SessionStatus, required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'billStatus', enum: client_1.BillStatus, required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'startDate', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'endDate', required: false }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)('sessionStatus')),
+    __param(3, (0, common_1.Query)('billStatus')),
+    __param(4, (0, common_1.Query)('startDate')),
+    __param(5, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], OrdersController.prototype, "getOrderAnalytics", null);
 __decorate([
     (0, common_1.Patch)('orders/batches/:batchId/status'),
     (0, roles_decorator_1.Roles)(...ALL_ORDER_ROLES),

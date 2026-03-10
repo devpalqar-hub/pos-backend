@@ -46,20 +46,20 @@ export declare class CategoriesService {
         };
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
+        _count: {
+            items: number;
+        };
         items: {
             id: string;
             name: string;
-            imageUrl: string | null;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
+            imageUrl: string | null;
             itemType: import(".prisma/client").$Enums.ItemType;
             stockCount: number | null;
             isAvailable: boolean;
             isOutOfStock: boolean;
         }[];
-        _count: {
-            items: number;
-        };
     } & {
         id: string;
         name: string;

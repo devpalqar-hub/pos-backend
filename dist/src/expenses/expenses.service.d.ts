@@ -13,9 +13,9 @@ export declare class ExpensesService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
-        amount: import("@prisma/client/runtime/library").Decimal;
         date: Date;
     }>;
     findAll(actor: User, restaurantId: string, page?: number, limit?: number, expenseType?: ExpenseType, search?: string, startDate?: Date, endDate?: Date): Promise<{
@@ -27,9 +27,9 @@ export declare class ExpensesService {
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
+            amount: import("@prisma/client/runtime/library").Decimal;
             expenseName: string;
             expenseType: import(".prisma/client").$Enums.ExpenseType;
-            amount: import("@prisma/client/runtime/library").Decimal;
             date: Date;
         }[];
         meta: {
@@ -49,9 +49,9 @@ export declare class ExpensesService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
-        amount: import("@prisma/client/runtime/library").Decimal;
         date: Date;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateExpenseDto): Promise<{
@@ -62,9 +62,9 @@ export declare class ExpensesService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
-        amount: import("@prisma/client/runtime/library").Decimal;
         date: Date;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

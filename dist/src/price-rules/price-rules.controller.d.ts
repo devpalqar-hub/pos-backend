@@ -27,14 +27,14 @@ export declare class PriceRulesController {
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        startDate: Date | null;
-        endDate: Date | null;
-        startTime: string | null;
-        endTime: string | null;
         menuItemId: string;
-        priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        priority: number;
     }>;
     getEffectivePrice(actor: User, restaurantId: string, menuItemId: string, atTime?: string): Promise<{
         menuItemId: string;
@@ -74,14 +74,14 @@ export declare class PriceRulesController {
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        startDate: Date | null;
-        endDate: Date | null;
-        startTime: string | null;
-        endTime: string | null;
         menuItemId: string;
-        priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        priority: number;
     }>;
     update(actor: User, restaurantId: string, menuItemId: string, id: string, dto: UpdatePriceRuleDto): Promise<{
         restaurant: {
@@ -105,14 +105,14 @@ export declare class PriceRulesController {
         restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        startDate: Date | null;
-        endDate: Date | null;
-        startTime: string | null;
-        endTime: string | null;
         menuItemId: string;
-        priority: number;
         ruleType: import(".prisma/client").$Enums.PriceRuleType;
         specialPrice: import("@prisma/client/runtime/library").Decimal;
+        startTime: string | null;
+        endTime: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+        priority: number;
     }>;
     remove(actor: User, restaurantId: string, menuItemId: string, id: string): Promise<{
         id: string;

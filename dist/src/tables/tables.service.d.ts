@@ -47,6 +47,9 @@ export declare class TablesService {
         };
     }>;
     findOneGroup(actor: User, restaurantId: string, id: string): Promise<{
+        _count: {
+            tables: number;
+        };
         tables: {
             id: string;
             name: string;
@@ -54,9 +57,6 @@ export declare class TablesService {
             createdAt: Date;
             seatCount: number;
         }[];
-        _count: {
-            tables: number;
-        };
     } & {
         id: string;
         name: string;
@@ -103,8 +103,8 @@ export declare class TablesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
     findAllTables(actor: User, restaurantId: string, groupId?: string, page?: number, limit?: number, fetchAll?: boolean): Promise<{
         data: {
@@ -116,8 +116,8 @@ export declare class TablesService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.TableStatus;
-            seatCount: number;
             groupId: string | null;
+            seatCount: number;
         }[];
         meta: {
             total: number;
@@ -138,8 +138,8 @@ export declare class TablesService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.TableStatus;
-            seatCount: number;
             groupId: string | null;
+            seatCount: number;
         }[];
         meta: {
             total: number;
@@ -165,8 +165,8 @@ export declare class TablesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
     updateTable(actor: User, restaurantId: string, id: string, dto: UpdateTableDto): Promise<{
         group: {
@@ -183,8 +183,8 @@ export declare class TablesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
     removeTable(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
@@ -204,7 +204,7 @@ export declare class TablesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
 }

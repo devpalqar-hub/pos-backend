@@ -20,8 +20,8 @@ export declare class TablesController {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
     findAll(actor: User, restaurantId: string, groupId?: string, page?: string, limit?: string, fetchAll?: string): Promise<{
         data: {
@@ -33,8 +33,8 @@ export declare class TablesController {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.TableStatus;
-            seatCount: number;
             groupId: string | null;
+            seatCount: number;
         }[];
         meta: {
             total: number;
@@ -60,8 +60,8 @@ export declare class TablesController {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateTableDto): Promise<{
         group: {
@@ -78,8 +78,8 @@ export declare class TablesController {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;
@@ -99,7 +99,7 @@ export declare class TablesController {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.TableStatus;
-        seatCount: number;
         groupId: string | null;
+        seatCount: number;
     }>;
 }
