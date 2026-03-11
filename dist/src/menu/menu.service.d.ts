@@ -23,12 +23,6 @@ export declare class MenuService {
         id: string;
         name: string;
         description: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
-        createdById: string | null;
-        categoryId: string;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -37,15 +31,22 @@ export declare class MenuService {
         isAvailable: boolean;
         isOutOfStock: boolean;
         outOfStockAt: Date | null;
+        isActive: boolean;
         sortOrder: number;
+        createdById: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
+        categoryId: string;
     }>;
     private resolveSort;
     private applyDatePricing;
     private isRuleApplicable;
     private getDayEnum;
     private formatTime;
-    findAll(actor: User, restaurantId: string, page?: number, limit?: number, search?: string, sortBy?: string, date?: Date, fetchAll?: boolean): Promise<any>;
-    findByCategory(actor: User, restaurantId: string, categoryId: string, page?: number, limit?: number, search?: string, sortBy?: string, date?: Date, fetchAll?: boolean): Promise<any>;
+    findAll(actor: User, restaurantId: string, page?: number, limit?: number, search?: string, sortBy?: string, date?: Date, fetchAll?: boolean, type?: string, status?: string): Promise<any>;
+    findByCategory(actor: User, restaurantId: string, categoryId: string, page?: number, limit?: number, search?: string, sortBy?: string, date?: Date, fetchAll?: boolean, type?: string, status?: string): Promise<any>;
+    private filterByStatus;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
         restaurant: {
             id: string;
@@ -60,12 +61,6 @@ export declare class MenuService {
         id: string;
         name: string;
         description: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
-        createdById: string | null;
-        categoryId: string;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -74,7 +69,13 @@ export declare class MenuService {
         isAvailable: boolean;
         isOutOfStock: boolean;
         outOfStockAt: Date | null;
+        isActive: boolean;
         sortOrder: number;
+        createdById: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
+        categoryId: string;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateMenuItemDto): Promise<{
         restaurant: {
@@ -90,12 +91,6 @@ export declare class MenuService {
         id: string;
         name: string;
         description: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
-        createdById: string | null;
-        categoryId: string;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -104,7 +99,13 @@ export declare class MenuService {
         isAvailable: boolean;
         isOutOfStock: boolean;
         outOfStockAt: Date | null;
+        isActive: boolean;
         sortOrder: number;
+        createdById: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
+        categoryId: string;
     }>;
     manageStock(actor: User, restaurantId: string, id: string, dto: StockActionDto): Promise<{
         restaurant: {
@@ -120,12 +121,6 @@ export declare class MenuService {
         id: string;
         name: string;
         description: string | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        restaurantId: string;
-        createdById: string | null;
-        categoryId: string;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -134,7 +129,13 @@ export declare class MenuService {
         isAvailable: boolean;
         isOutOfStock: boolean;
         outOfStockAt: Date | null;
+        isActive: boolean;
         sortOrder: number;
+        createdById: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        restaurantId: string;
+        categoryId: string;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

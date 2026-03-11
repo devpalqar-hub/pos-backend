@@ -186,37 +186,39 @@ export class MenuService {
     return date.toISOString().slice(11, 16); // HH:mm in UTC
   }
 
-  async findAll(actor: User,
+  async findAll(
+    actor: User,
     restaurantId: string,
-    page = 1, limit = 10,
+    page = 1,
+    limit = 10,
     search?: string,
     sortBy?: string,
     date?: Date,
-    fetchAll = false,) {
+    fetchAll = false,
+    type?: string,
+    status?: string,
+  ) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+    const where: any = {
+      restaurantId,
+      ...(search && {
+        OR: [
+          { name: { contains: search } },
+          { description: { contains: search } },
+        ],
+      }),
+    };
+    if (type && (type === 'STOCKABLE' || type === 'NON_STOCKABLE')) {
+      where.itemType = type;
+    }
 
     const result = await paginate({
       prismaModel: this.prisma.menuItem,
       page,
       limit,
       fetchAll,
-      where: {
-        restaurantId,
-        ...(search && {
-          OR: [
-            {
-              name: {
-                contains: search
-              },
-            },
-            {
-              description: {
-                contains: search
-              },
-            },
-          ],
-        }),
-      },
+      where,
       include: {
         ...ITEM_INCLUDE,
         priceRules: {
@@ -228,16 +230,19 @@ export class MenuService {
       orderBy: this.resolveSort(sortBy),
     });
 
+    // Filter by status if provided
+    if (status) {
+      result.data = this.filterByStatus(result.data, status);
+    }
+
     const evaluationDate = date ?? new Date();
-    console.log("Server Evaluation Date (ISO):", evaluationDate.toISOString());
-    console.log("Server Evaluation Weekday (UTC):", this.getDayEnum(evaluationDate));
-    console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
     return this.applyDatePricing(result, evaluationDate);
   }
 
   // ─── List by category ─────────────────────────────────────────────────────
 
-  async findByCategory(actor: User,
+  async findByCategory(
+    actor: User,
     restaurantId: string,
     categoryId: string,
     page = 1,
@@ -245,7 +250,10 @@ export class MenuService {
     search?: string,
     sortBy?: string,
     date?: Date,
-    fetchAll = false,) {
+    fetchAll = false,
+    type?: string,
+    status?: string,
+  ) {
     await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
     const category = await this.prisma.menuCategory.findFirst({
@@ -257,30 +265,27 @@ export class MenuService {
       );
     }
 
+    const where: any = {
+      restaurantId,
+      categoryId,
+      isActive: true,
+      ...(search && {
+        OR: [
+          { name: { contains: search } },
+          { description: { contains: search } },
+        ],
+      }),
+    };
+    if (type && (type === 'STOCKABLE' || type === 'NON_STOCKABLE')) {
+      where.itemType = type;
+    }
+
     const result = await paginate({
       prismaModel: this.prisma.menuItem,
       page,
       limit,
       fetchAll,
-      where: {
-        restaurantId,
-        categoryId,
-        isActive: true,
-        ...(search && {
-          OR: [
-            {
-              name: {
-                contains: search,
-              },
-            },
-            {
-              description: {
-                contains: search,
-              },
-            },
-          ],
-        }),
-      },
+      where,
       include: {
         ...ITEM_INCLUDE,
         priceRules: {
@@ -294,11 +299,38 @@ export class MenuService {
         : [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
+    // Filter by status if provided
+    if (status) {
+      result.data = this.filterByStatus(result.data, status);
+    }
+
     const evaluationDate = date ?? new Date();
-    console.log("Server Evaluation Date (ISO):", evaluationDate.toISOString());
-    console.log("Server Evaluation Weekday (UTC):", this.getDayEnum(evaluationDate));
-    console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
     return this.applyDatePricing(result, evaluationDate);
+  }
+
+  // Helper to filter menu items by stock status
+  private filterByStatus(items: any[], status: string) {
+    status = status.toLowerCase();
+    if (status === 'low_stock') {
+      return items.filter(item =>
+        item.itemType === 'STOCKABLE' &&
+        item.stockCount !== null &&
+        item.stockCount > 0 &&
+        item.stockCount <= 15 &&
+        !item.isOutOfStock
+      );
+    } else if (status === 'out_of_stock') {
+      return items.filter(item =>
+        (item.itemType === 'STOCKABLE' && (item.stockCount === 0 || item.isOutOfStock)) ||
+        (item.itemType === 'NON_STOCKABLE' && item.isOutOfStock)
+      );
+    } else if (status === 'in_stock') {
+      return items.filter(item =>
+        (item.itemType === 'STOCKABLE' && item.stockCount !== null && item.stockCount > 15 && !item.isOutOfStock) ||
+        (item.itemType === 'NON_STOCKABLE' && !item.isOutOfStock)
+      );
+    }
+    return items;
   }
 
   // ─── Get One ──────────────────────────────────────────────────────────────

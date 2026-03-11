@@ -141,30 +141,26 @@ let MenuService = MenuService_1 = class MenuService {
     formatTime(date) {
         return date.toISOString().slice(11, 16);
     }
-    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy, date, fetchAll = false) {
+    async findAll(actor, restaurantId, page = 1, limit = 10, search, sortBy, date, fetchAll = false, type, status) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
+        const where = {
+            restaurantId,
+            ...(search && {
+                OR: [
+                    { name: { contains: search } },
+                    { description: { contains: search } },
+                ],
+            }),
+        };
+        if (type && (type === 'STOCKABLE' || type === 'NON_STOCKABLE')) {
+            where.itemType = type;
+        }
         const result = await (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuItem,
             page,
             limit,
             fetchAll,
-            where: {
-                restaurantId,
-                ...(search && {
-                    OR: [
-                        {
-                            name: {
-                                contains: search
-                            },
-                        },
-                        {
-                            description: {
-                                contains: search
-                            },
-                        },
-                    ],
-                }),
-            },
+            where,
             include: {
                 ...ITEM_INCLUDE,
                 priceRules: {
@@ -175,13 +171,13 @@ let MenuService = MenuService_1 = class MenuService {
             },
             orderBy: this.resolveSort(sortBy),
         });
+        if (status) {
+            result.data = this.filterByStatus(result.data, status);
+        }
         const evaluationDate = date ?? new Date();
-        console.log("Server Evaluation Date (ISO):", evaluationDate.toISOString());
-        console.log("Server Evaluation Weekday (UTC):", this.getDayEnum(evaluationDate));
-        console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
         return this.applyDatePricing(result, evaluationDate);
     }
-    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy, date, fetchAll = false) {
+    async findByCategory(actor, restaurantId, categoryId, page = 1, limit = 10, search, sortBy, date, fetchAll = false, type, status) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const category = await this.prisma.menuCategory.findFirst({
             where: { id: categoryId, restaurantId },
@@ -189,30 +185,26 @@ let MenuService = MenuService_1 = class MenuService {
         if (!category) {
             throw new common_1.NotFoundException(`Category ${categoryId} not found in restaurant ${restaurantId}`);
         }
+        const where = {
+            restaurantId,
+            categoryId,
+            isActive: true,
+            ...(search && {
+                OR: [
+                    { name: { contains: search } },
+                    { description: { contains: search } },
+                ],
+            }),
+        };
+        if (type && (type === 'STOCKABLE' || type === 'NON_STOCKABLE')) {
+            where.itemType = type;
+        }
         const result = await (0, pagination_util_1.paginate)({
             prismaModel: this.prisma.menuItem,
             page,
             limit,
             fetchAll,
-            where: {
-                restaurantId,
-                categoryId,
-                isActive: true,
-                ...(search && {
-                    OR: [
-                        {
-                            name: {
-                                contains: search,
-                            },
-                        },
-                        {
-                            description: {
-                                contains: search,
-                            },
-                        },
-                    ],
-                }),
-            },
+            where,
             include: {
                 ...ITEM_INCLUDE,
                 priceRules: {
@@ -225,11 +217,30 @@ let MenuService = MenuService_1 = class MenuService {
                 ? this.resolveSort(sortBy)
                 : [{ sortOrder: 'asc' }, { name: 'asc' }],
         });
+        if (status) {
+            result.data = this.filterByStatus(result.data, status);
+        }
         const evaluationDate = date ?? new Date();
-        console.log("Server Evaluation Date (ISO):", evaluationDate.toISOString());
-        console.log("Server Evaluation Weekday (UTC):", this.getDayEnum(evaluationDate));
-        console.log("Server Evaluation Time (UTC HH:mm):", this.formatTime(evaluationDate));
         return this.applyDatePricing(result, evaluationDate);
+    }
+    filterByStatus(items, status) {
+        status = status.toLowerCase();
+        if (status === 'low_stock') {
+            return items.filter(item => item.itemType === 'STOCKABLE' &&
+                item.stockCount !== null &&
+                item.stockCount > 0 &&
+                item.stockCount <= 15 &&
+                !item.isOutOfStock);
+        }
+        else if (status === 'out_of_stock') {
+            return items.filter(item => (item.itemType === 'STOCKABLE' && (item.stockCount === 0 || item.isOutOfStock)) ||
+                (item.itemType === 'NON_STOCKABLE' && item.isOutOfStock));
+        }
+        else if (status === 'in_stock') {
+            return items.filter(item => (item.itemType === 'STOCKABLE' && item.stockCount !== null && item.stockCount > 15 && !item.isOutOfStock) ||
+                (item.itemType === 'NON_STOCKABLE' && !item.isOutOfStock));
+        }
+        return items;
     }
     async findOne(actor, restaurantId, id) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');

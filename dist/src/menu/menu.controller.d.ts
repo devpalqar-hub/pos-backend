@@ -22,12 +22,6 @@ export declare class MenuController {
             id: string;
             name: string;
             description: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            restaurantId: string;
-            createdById: string | null;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             imageUrl: string | null;
@@ -36,10 +30,16 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
             sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
-    findAll(actor: User, restaurantId: string, categoryId?: string, page?: string, limit?: string, search?: string, sortBy?: string, date?: string, fetchAll?: string): Promise<{
+    findAll(actor: User, restaurantId: string, categoryId?: string, type?: string, status?: string, page?: string, limit?: string, search?: string, sortBy?: string, date?: string, fetchAll?: string): Promise<{
         message: string;
         data: any;
     }>;
@@ -59,12 +59,6 @@ export declare class MenuController {
             id: string;
             name: string;
             description: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            restaurantId: string;
-            createdById: string | null;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             imageUrl: string | null;
@@ -73,7 +67,13 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
             sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateMenuItemDto): Promise<{
@@ -92,12 +92,6 @@ export declare class MenuController {
             id: string;
             name: string;
             description: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            restaurantId: string;
-            createdById: string | null;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             imageUrl: string | null;
@@ -106,7 +100,13 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
             sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
     manageStock(actor: User, restaurantId: string, id: string, dto: StockActionDto): Promise<{
@@ -125,12 +125,6 @@ export declare class MenuController {
             id: string;
             name: string;
             description: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            restaurantId: string;
-            createdById: string | null;
-            categoryId: string;
             price: import("@prisma/client/runtime/library").Decimal;
             discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
             imageUrl: string | null;
@@ -139,7 +133,13 @@ export declare class MenuController {
             isAvailable: boolean;
             isOutOfStock: boolean;
             outOfStockAt: Date | null;
+            isActive: boolean;
             sortOrder: number;
+            createdById: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            restaurantId: string;
+            categoryId: string;
         };
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{

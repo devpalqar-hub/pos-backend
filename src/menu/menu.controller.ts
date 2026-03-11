@@ -99,6 +99,8 @@ Creates a new item in the restaurant menu.
     type: String,
     description: 'ISO date (YYYY-MM-DD or full ISO string) to evaluate price rules',
   })
+  @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by item type (STOCKABLE | NON_STOCKABLE)' })
+  @ApiQuery({ name: 'status', required: false, type: String, description: 'Filter by stock status (low_stock | out_of_stock | in_stock)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiQuery({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' })
@@ -115,6 +117,8 @@ Creates a new item in the restaurant menu.
     @CurrentUser() actor: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     @Query('categoryId') categoryId?: string,
+    @Query('type') type?: string,
+    @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
@@ -156,6 +160,8 @@ Creates a new item in the restaurant menu.
         sortBy,
         parsedDate,
         shouldFetchAll,
+        type,
+        status,
       )
       : await this.menuService.findAll(
         actor,
@@ -166,6 +172,8 @@ Creates a new item in the restaurant menu.
         sortBy,
         parsedDate,
         shouldFetchAll,
+        type,
+        status,
       );
 
     // Format each menu item to match required response

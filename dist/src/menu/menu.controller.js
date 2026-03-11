@@ -34,7 +34,7 @@ let MenuController = class MenuController {
             data: await this.menuService.create(actor, restaurantId, dto),
         };
     }
-    async findAll(actor, restaurantId, categoryId, page, limit, search, sortBy, date, fetchAll) {
+    async findAll(actor, restaurantId, categoryId, type, status, page, limit, search, sortBy, date, fetchAll) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
         const shouldFetchAll = fetchAll === 'true';
@@ -54,8 +54,8 @@ let MenuController = class MenuController {
             console.log("Weekday (UTC):", weekday);
         }
         const rawResult = categoryId
-            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll)
-            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll);
+            ? await this.menuService.findByCategory(actor, restaurantId, categoryId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll, type, status)
+            : await this.menuService.findAll(actor, restaurantId, pageNum, limitNum, search, sortBy, parsedDate, shouldFetchAll, type, status);
         const formatItem = (item) => ({
             id: item.id,
             restaurantId: item.restaurantId,
@@ -163,6 +163,8 @@ __decorate([
         type: String,
         description: 'ISO date (YYYY-MM-DD or full ISO string) to evaluate price rules',
     }),
+    (0, swagger_1.ApiQuery)({ name: 'type', required: false, type: String, description: 'Filter by item type (STOCKABLE | NON_STOCKABLE)' }),
+    (0, swagger_1.ApiQuery)({ name: 'status', required: false, type: String, description: 'Filter by stock status (low_stock | out_of_stock | in_stock)' }),
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
     (0, swagger_1.ApiQuery)({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' }),
@@ -177,14 +179,16 @@ __decorate([
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('restaurantId', common_1.ParseUUIDPipe)),
     __param(2, (0, common_1.Query)('categoryId')),
-    __param(3, (0, common_1.Query)('page')),
-    __param(4, (0, common_1.Query)('limit')),
-    __param(5, (0, common_1.Query)('search')),
-    __param(6, (0, common_1.Query)('sortBy')),
-    __param(7, (0, common_1.Query)('date')),
-    __param(8, (0, common_1.Query)('fetchAll')),
+    __param(3, (0, common_1.Query)('type')),
+    __param(4, (0, common_1.Query)('status')),
+    __param(5, (0, common_1.Query)('page')),
+    __param(6, (0, common_1.Query)('limit')),
+    __param(7, (0, common_1.Query)('search')),
+    __param(8, (0, common_1.Query)('sortBy')),
+    __param(9, (0, common_1.Query)('date')),
+    __param(10, (0, common_1.Query)('fetchAll')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], MenuController.prototype, "findAll", null);
 __decorate([
