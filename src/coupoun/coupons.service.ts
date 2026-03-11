@@ -5,6 +5,7 @@ import { CreateCouponDto } from "./dto/create-coupon.dto"
 import { UpdateCouponDto } from "./dto/update-coupoun.dto"
 import { CouponsValidationService } from "./coupons.validation.service"
 import { CouponUsageRepository } from "./coupon-usage.repository"
+import { paginate } from "src/common/utlility/pagination.util"
 @Injectable()
 export class CouponsService {
 
@@ -15,18 +16,33 @@ export class CouponsService {
     ) { }
 
     async create(restaurantId: string, dto: CreateCouponDto) {
-
         return this.prisma.coupon.create({
             data: {
                 restaurantId,
-                ...dto
-            }
+                ...dto,
+                validFrom: new Date(dto.validFrom),
+                validUntil: new Date(dto.validUntil),
+            },
         })
     }
 
-    async findAll(restaurantId: string) {
-        return this.prisma.coupon.findMany({
-            where: { restaurantId }
+    async findAll(
+        restaurantId: string,
+        page?: number,
+        limit?: number,
+        fetchAll?: boolean,
+    ) {
+        return paginate({
+            prismaModel: this.prisma.coupon,
+            page: page || 1,
+            limit: limit || 10,
+            fetchAll: fetchAll || false,
+            where: {
+                restaurantId,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
         })
     }
 
@@ -65,6 +81,12 @@ export class CouponsService {
         couponCode: string,
         orderAmount: number
     ) {
+        const orderSession = await this.prisma.orderSession.findUnique({
+            where: { id: orderSessionId }
+        })
+
+        if (!orderSession)
+            throw new BadRequestException('Invalid order session')
 
         const { coupon, discount } =
             await this.validationService.validateCoupon(

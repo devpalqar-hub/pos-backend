@@ -5,6 +5,10 @@ export class ValidateCouponDto {
 
     @ApiProperty()
     @IsString()
+    orderSessionId: string
+
+    @ApiProperty()
+    @IsString()
     couponCode: string
 
     @ApiProperty()

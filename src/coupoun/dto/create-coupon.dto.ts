@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { CouponDiscountType } from '@prisma/client'
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator'
+import { IsEnum, IsNumber, IsOptional, IsString, IsDateString } from 'class-validator'
 
 export class CreateCouponDto {
 
@@ -13,6 +13,8 @@ export class CreateCouponDto {
     name: string
 
     @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     description?: string
 
     @ApiProperty({ enum: CouponDiscountType })
@@ -34,9 +36,10 @@ export class CreateCouponDto {
     minOrderAmount?: number
 
     @ApiProperty()
-    validFrom: Date
+    @IsDateString()
+    validFrom: string
 
     @ApiProperty()
-    validUntil: Date
-
+    @IsDateString()
+    validUntil: string
 }

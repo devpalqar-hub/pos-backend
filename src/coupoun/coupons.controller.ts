@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post } from "@nestjs/common"
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common"
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
 import { CouponsService } from "./coupons.service"
 import { UserRole } from "@prisma/client"
@@ -28,8 +28,19 @@ export class CouponsController {
 
     @Get('coupons')
     @ApiOperation({ summary: 'List coupons' })
-    findAll(@Param('restaurantId') restaurantId: string) {
-        return this.couponsService.findAll(restaurantId)
+    findAll(
+        @Param('restaurantId') restaurantId: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('fetchAll') fetchAll?: string,
+    ) {
+        console.log({ page, limit, fetchAll })
+        return this.couponsService.findAll(
+            restaurantId,
+            page ? Number(page) : 1,
+            limit ? Number(limit) : 10,
+            fetchAll === 'true',
+        )
     }
 
     @Get('coupons/:couponId')
@@ -73,7 +84,7 @@ export class CouponsController {
     ) {
         return this.couponsService.applyCoupon(
             restaurantId,
-            '',
+            dto.orderSessionId,
             dto.couponCode,
             dto.orderAmount
         )
