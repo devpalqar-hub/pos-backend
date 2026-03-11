@@ -38,6 +38,7 @@ const transform_interceptor_1 = require("./common/interceptors/transform.interce
 const s3_module_1 = require("./s3/s3.module");
 const throttler_1 = require("@nestjs/throttler");
 const expense_categories_module_1 = require("./expense-category/expense-categories.module");
+const coupons_module_1 = require("./coupoun/coupons.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -53,6 +54,7 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             prisma_module_1.PrismaModule,
             common_module_1.CommonModule,
+            coupons_module_1.CouponsModule,
             expense_categories_module_1.ExpenseCategoriesModule,
             auth_module_1.AuthModule,
             users_module_1.UsersModule,

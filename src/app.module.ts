@@ -29,6 +29,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { S3Module } from './s3/s3.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ExpenseCategoriesModule } from './expense-category/expense-categories.module';
+import { CouponsModule } from './coupoun/coupons.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ExpenseCategoriesModule } from './expense-category/expense-categories.m
 
     // Global common (S3 service, etc.)
     CommonModule,
+    CouponsModule,
 
     // Feature modules
     ExpenseCategoriesModule,
