@@ -23,7 +23,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node prisma/seed.ts",
     "seed:attendance": "ts-node prisma/staff-attendance.seed.ts",
-    "seed:analytics": "ts-node prisma/order-analytics.seed.ts"
+    "seed:analytics": "ts-node prisma/order-analytics.seed.ts",
+    "seed:expense": "ts-node prisma/expense.seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
@@ -37,11 +38,13 @@
     "@nestjs/platform-socket.io": "^11.1.14",
     "@nestjs/schedule": "^6.1.1",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.14",
     "@prisma/client": "^6.17.0",
     "axios": "^1.13.6",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "express-rate-limit": "^8.3.1",
     "mime-types": "^3.0.2",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.1",

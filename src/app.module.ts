@@ -27,9 +27,17 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { S3Module } from './s3/s3.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ExpenseCategoriesModule } from './expense-category/expense-categories.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 100,
+      },
+    ]),
     // Load .env globally
     ConfigModule.forRoot({ isGlobal: true }),
 
@@ -40,6 +48,7 @@ import { S3Module } from './s3/s3.module';
     CommonModule,
 
     // Feature modules
+    ExpenseCategoriesModule,
     AuthModule,
     UsersModule,
     RestaurantsModule,
@@ -61,6 +70,10 @@ import { S3Module } from './s3/s3.module';
   ],
   controllers: [AppController],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     AppService,
 
     // Apply JWT guard globally (public routes are marked with @Public())

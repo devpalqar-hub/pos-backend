@@ -10,11 +10,11 @@ export declare class CustomersController {
         data: {
             id: string;
             name: string | null;
-            email: string | null;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            email: string | null;
             phone: string;
             wallet: import("@prisma/client/runtime/library").Decimal;
         };
@@ -25,11 +25,11 @@ export declare class CustomersController {
             data: {
                 id: string;
                 name: string | null;
-                email: string | null;
                 isActive: boolean;
-                restaurantId: string;
                 createdAt: Date;
                 updatedAt: Date;
+                restaurantId: string;
+                email: string | null;
                 phone: string;
                 wallet: import("@prisma/client/runtime/library").Decimal;
             }[];
@@ -61,11 +61,11 @@ export declare class CustomersController {
         } & {
             id: string;
             name: string | null;
-            email: string | null;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            email: string | null;
             phone: string;
             wallet: import("@prisma/client/runtime/library").Decimal;
         };
@@ -88,11 +88,11 @@ export declare class CustomersController {
         } & {
             id: string;
             name: string | null;
-            email: string | null;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            email: string | null;
             phone: string;
             wallet: import("@prisma/client/runtime/library").Decimal;
         };
@@ -102,11 +102,11 @@ export declare class CustomersController {
         data: {
             id: string;
             name: string | null;
-            email: string | null;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            email: string | null;
             phone: string;
             wallet: import("@prisma/client/runtime/library").Decimal;
         };

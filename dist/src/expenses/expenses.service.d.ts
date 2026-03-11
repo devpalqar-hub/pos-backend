@@ -7,30 +7,32 @@ export declare class ExpensesService {
     constructor(prisma: PrismaService);
     create(actor: User, restaurantId: string, dto: CreateExpenseDto): Promise<{
         id: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
+        amount: import("@prisma/client/runtime/library").Decimal;
         date: Date;
+        createdById: string | null;
+        expenseCategoryId: string | null;
     }>;
     findAll(actor: User, restaurantId: string, page?: number, limit?: number, expenseType?: ExpenseType, search?: string, startDate?: Date, endDate?: Date): Promise<{
         data: {
             id: string;
+            description: string | null;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            description: string | null;
-            amount: import("@prisma/client/runtime/library").Decimal;
+            restaurantId: string;
             expenseName: string;
             expenseType: import(".prisma/client").$Enums.ExpenseType;
+            amount: import("@prisma/client/runtime/library").Decimal;
             date: Date;
+            createdById: string | null;
+            expenseCategoryId: string | null;
         }[];
         meta: {
             total: number;
@@ -42,30 +44,41 @@ export declare class ExpensesService {
         };
     }>;
     findOne(actor: User, restaurantId: string, id: string): Promise<{
+        expenseCategory: {
+            id: string;
+            name: string;
+            description: string | null;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+        } | null;
+    } & {
         id: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
+        amount: import("@prisma/client/runtime/library").Decimal;
         date: Date;
+        createdById: string | null;
+        expenseCategoryId: string | null;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateExpenseDto): Promise<{
         id: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
+        restaurantId: string;
         expenseName: string;
         expenseType: import(".prisma/client").$Enums.ExpenseType;
+        amount: import("@prisma/client/runtime/library").Decimal;
         date: Date;
+        createdById: string | null;
+        expenseCategoryId: string | null;
     }>;
     remove(actor: User, restaurantId: string, id: string): Promise<{
         message: string;

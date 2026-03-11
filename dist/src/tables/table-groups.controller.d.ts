@@ -12,12 +12,12 @@ export declare class TableGroupsController {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
+        restaurantId: string;
+        createdById: string | null;
         sortOrder: number;
         color: string | null;
     }>;
@@ -25,12 +25,12 @@ export declare class TableGroupsController {
         data: {
             id: string;
             name: string;
+            description: string | null;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            description: string | null;
+            restaurantId: string;
+            createdById: string | null;
             sortOrder: number;
             color: string | null;
         }[];
@@ -57,12 +57,12 @@ export declare class TableGroupsController {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
+        restaurantId: string;
+        createdById: string | null;
         sortOrder: number;
         color: string | null;
     }>;
@@ -73,12 +73,12 @@ export declare class TableGroupsController {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
+        restaurantId: string;
+        createdById: string | null;
         sortOrder: number;
         color: string | null;
     }>;

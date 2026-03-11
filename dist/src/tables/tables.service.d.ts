@@ -15,12 +15,12 @@ export declare class TablesService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
+        restaurantId: string;
+        createdById: string | null;
         sortOrder: number;
         color: string | null;
     }>;
@@ -28,12 +28,12 @@ export declare class TablesService {
         data: {
             id: string;
             name: string;
+            description: string | null;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            description: string | null;
+            restaurantId: string;
+            createdById: string | null;
             sortOrder: number;
             color: string | null;
         }[];
@@ -60,12 +60,12 @@ export declare class TablesService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
+        restaurantId: string;
+        createdById: string | null;
         sortOrder: number;
         color: string | null;
     }>;
@@ -76,12 +76,12 @@ export declare class TablesService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
+        restaurantId: string;
+        createdById: string | null;
         sortOrder: number;
         color: string | null;
     }>;
@@ -98,10 +98,10 @@ export declare class TablesService {
         id: string;
         name: string;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
         groupId: string | null;
         seatCount: number;
@@ -111,10 +111,10 @@ export declare class TablesService {
             id: string;
             name: string;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            createdById: string | null;
             status: import(".prisma/client").$Enums.TableStatus;
             groupId: string | null;
             seatCount: number;
@@ -133,10 +133,10 @@ export declare class TablesService {
             id: string;
             name: string;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            createdById: string | null;
             status: import(".prisma/client").$Enums.TableStatus;
             groupId: string | null;
             seatCount: number;
@@ -160,10 +160,10 @@ export declare class TablesService {
         id: string;
         name: string;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
         groupId: string | null;
         seatCount: number;
@@ -178,10 +178,10 @@ export declare class TablesService {
         id: string;
         name: string;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
         groupId: string | null;
         seatCount: number;
@@ -199,10 +199,10 @@ export declare class TablesService {
         id: string;
         name: string;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         status: import(".prisma/client").$Enums.TableStatus;
         groupId: string | null;
         seatCount: number;

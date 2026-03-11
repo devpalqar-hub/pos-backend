@@ -29,6 +29,7 @@ let ExpensesService = class ExpensesService {
                 description: dto.description ?? null,
                 date: dto.date ?? new Date(),
                 createdById: actor.id,
+                expenseCategoryId: dto.expenseCategoryId ?? null,
             },
         });
     }
@@ -56,6 +57,9 @@ let ExpensesService = class ExpensesService {
             page,
             limit,
             where,
+            include: {
+                expenseCategory: true,
+            },
             orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         });
     }
@@ -63,6 +67,9 @@ let ExpensesService = class ExpensesService {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
         const expense = await this.prisma.expense.findFirst({
             where: { id, restaurantId },
+            include: {
+                expenseCategory: true,
+            },
         });
         if (!expense) {
             throw new common_1.NotFoundException(`Expense ${id} not found in restaurant ${restaurantId}`);
@@ -85,6 +92,7 @@ let ExpensesService = class ExpensesService {
                 ...(dto.amount !== undefined && { amount: dto.amount }),
                 ...(dto.description !== undefined && { description: dto.description }),
                 ...(dto.date !== undefined && { date: dto.date }),
+                ...(dto.expenseCategoryId !== undefined && { expenseCategoryId: dto.expenseCategoryId }),
             },
         });
     }

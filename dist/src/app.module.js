@@ -36,15 +36,24 @@ const roles_guard_1 = require("./common/guards/roles.guard");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 const transform_interceptor_1 = require("./common/interceptors/transform.interceptor");
 const s3_module_1 = require("./s3/s3.module");
+const throttler_1 = require("@nestjs/throttler");
+const expense_categories_module_1 = require("./expense-category/expense-categories.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            throttler_1.ThrottlerModule.forRoot([
+                {
+                    ttl: 60,
+                    limit: 100,
+                },
+            ]),
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             prisma_module_1.PrismaModule,
             common_module_1.CommonModule,
+            expense_categories_module_1.ExpenseCategoriesModule,
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             restaurants_module_1.RestaurantsModule,
@@ -66,6 +75,10 @@ exports.AppModule = AppModule = __decorate([
         ],
         controllers: [app_controller_1.AppController],
         providers: [
+            {
+                provide: core_1.APP_GUARD,
+                useClass: throttler_1.ThrottlerGuard,
+            },
             app_service_1.AppService,
             { provide: core_1.APP_GUARD, useClass: jwt_auth_guard_1.JwtAuthGuard },
             { provide: core_1.APP_GUARD, useClass: roles_guard_1.RolesGuard },

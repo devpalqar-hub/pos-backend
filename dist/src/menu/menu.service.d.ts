@@ -22,13 +22,13 @@ export declare class MenuService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         categoryId: string;
-        description: string | null;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -59,13 +59,13 @@ export declare class MenuService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         categoryId: string;
-        description: string | null;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -89,13 +89,13 @@ export declare class MenuService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         categoryId: string;
-        description: string | null;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;
@@ -119,13 +119,13 @@ export declare class MenuService {
     } & {
         id: string;
         name: string;
+        description: string | null;
         isActive: boolean;
-        createdById: string | null;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        createdById: string | null;
         categoryId: string;
-        description: string | null;
         price: import("@prisma/client/runtime/library").Decimal;
         discountedPrice: import("@prisma/client/runtime/library").Decimal | null;
         imageUrl: string | null;

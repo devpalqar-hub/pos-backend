@@ -27,6 +27,7 @@ export class ExpensesService {
                 description: dto.description ?? null,
                 date: dto.date ?? new Date(),
                 createdById: actor.id,
+                expenseCategoryId: dto.expenseCategoryId ?? null,
             },
         });
     }
@@ -68,6 +69,9 @@ export class ExpensesService {
             page,
             limit,
             where,
+            include: {
+                expenseCategory: true,
+            },
             orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         });
     }
@@ -79,6 +83,9 @@ export class ExpensesService {
 
         const expense = await this.prisma.expense.findFirst({
             where: { id, restaurantId },
+            include: {
+                expenseCategory: true,
+            },
         });
 
         if (!expense) {
@@ -118,6 +125,7 @@ export class ExpensesService {
                 ...(dto.amount !== undefined && { amount: dto.amount }),
                 ...(dto.description !== undefined && { description: dto.description }),
                 ...(dto.date !== undefined && { date: dto.date }),
+                ...(dto.expenseCategoryId !== undefined && { expenseCategoryId: dto.expenseCategoryId }),
             },
         });
     }

@@ -8,11 +8,11 @@ export declare class CustomersService {
     create(actor: User, restaurantId: string, dto: CreateCustomerDto): Promise<{
         id: string;
         name: string | null;
-        email: string | null;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        email: string | null;
         phone: string;
         wallet: import("@prisma/client/runtime/library").Decimal;
     }>;
@@ -20,11 +20,11 @@ export declare class CustomersService {
         data: {
             id: string;
             name: string | null;
-            email: string | null;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            email: string | null;
             phone: string;
             wallet: import("@prisma/client/runtime/library").Decimal;
         }[];
@@ -53,11 +53,11 @@ export declare class CustomersService {
     } & {
         id: string;
         name: string | null;
-        email: string | null;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        email: string | null;
         phone: string;
         wallet: import("@prisma/client/runtime/library").Decimal;
     }>;
@@ -77,22 +77,22 @@ export declare class CustomersService {
     } & {
         id: string;
         name: string | null;
-        email: string | null;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        email: string | null;
         phone: string;
         wallet: import("@prisma/client/runtime/library").Decimal;
     }>;
     update(actor: User, restaurantId: string, id: string, dto: UpdateCustomerDto): Promise<{
         id: string;
         name: string | null;
-        email: string | null;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
+        email: string | null;
         phone: string;
         wallet: import("@prisma/client/runtime/library").Decimal;
     }>;

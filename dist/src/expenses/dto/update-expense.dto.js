@@ -67,4 +67,13 @@ __decorate([
     (0, class_transformer_1.Type)(() => Date),
     __metadata("design:type", Date)
 ], UpdateExpenseDto.prototype, "date", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Expense category ID',
+        example: 'f4f0c9d0-9c7c-4c6e-8a7b-8b0e6f1d7f3a',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateExpenseDto.prototype, "expenseCategoryId", void 0);
 //# sourceMappingURL=update-expense.dto.js.map

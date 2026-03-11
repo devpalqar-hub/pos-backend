@@ -147,4 +147,55 @@ Returns a detailed P&L analytics summary including:
             ),
         };
     }
+
+    @Get('analytics/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+        UserRole.WAITER,
+        UserRole.CHEF,
+        UserRole.BILLER,)
+    @ApiOperation({ summary: 'Expense analytics dashboard' })
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({
+        name: 'month',
+        required: false,
+        description: 'Month number (1-12). Default: current month',
+    })
+    @ApiQuery({
+        name: 'months',
+        required: false,
+        description: 'Number of previous months for trend. Default: 6',
+    })
+    getExpenseAnalytics(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('month') month?: string,
+        @Query('months') months?: string,
+    ) {
+        return this.analyticsService.getExpenseAnalytics(
+            actor,
+            restaurantId,
+            month ? parseInt(month) : undefined,
+            months ? parseInt(months) : undefined,
+        )
+    }
+
+    @Get('coupons/analytics')
+    @ApiOperation({ summary: 'Coupon performance' })
+    performance(
+        @Param('restaurantId') restaurantId: string
+    ) {
+        return this.analyticsService.performance(restaurantId)
+    }
+
+    @Get('coupons/analytics/trend')
+    @ApiOperation({ summary: 'Coupon usage trend' })
+    trend(
+        @Param('restaurantId') restaurantId: string
+    ) {
+        return this.analyticsService.usageTrend(restaurantId)
+    }
+
 }

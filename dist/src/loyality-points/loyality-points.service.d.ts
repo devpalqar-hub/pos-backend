@@ -28,9 +28,9 @@ export declare class LoyalityPointsService {
         id: string;
         name: string;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
@@ -45,9 +45,9 @@ export declare class LoyalityPointsService {
             id: string;
             name: string;
             isActive: boolean;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
             startTime: string | null;
             endTime: string | null;
             startDate: Date | null;
@@ -87,9 +87,9 @@ export declare class LoyalityPointsService {
         id: string;
         name: string;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;
@@ -120,9 +120,9 @@ export declare class LoyalityPointsService {
         id: string;
         name: string;
         isActive: boolean;
-        restaurantId: string;
         createdAt: Date;
         updatedAt: Date;
+        restaurantId: string;
         startTime: string | null;
         endTime: string | null;
         startDate: Date | null;

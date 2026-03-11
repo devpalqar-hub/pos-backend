@@ -134,6 +134,19 @@ export class AnalyticsService {
         return this.toNumber(result._sum.finalSalary);
     }
 
+    private async assertRestaurantAccess(actor: User, restaurantId: string) {
+
+        if (actor.role === 'SUPER_ADMIN') {
+            return
+        }
+
+        if (actor.restaurantId !== restaurantId) {
+            throw new ForbiddenException(
+                `User does not have access to restaurant ${restaurantId}`,
+            )
+        }
+    }
+
     // ─── Monthly Chart Data ───────────────────────────────────────────────────
 
     private async getMonthlyChartData(
@@ -501,27 +514,170 @@ export class AnalyticsService {
         };
     }
 
-    // ─── Restaurant Access Helper ─────────────────────────────────────────────
 
-    private async assertRestaurantAccess(
+    async getExpenseAnalytics(
         actor: User,
         restaurantId: string,
-    ): Promise<void> {
-        if (actor.role === UserRole.SUPER_ADMIN) return;
+        month?: number,
+        months = 6,
+    ) {
 
-        const restaurant = await this.prisma.restaurant.findUnique({
-            where: { id: restaurantId },
-        });
-        if (!restaurant)
-            throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+        await this.assertRestaurantAccess(actor, restaurantId)
 
-        if (actor.role === UserRole.OWNER) {
-            if (restaurant.ownerId !== actor.id)
-                throw new ForbiddenException('You do not own this restaurant');
-            return;
+        const now = new Date()
+        const targetMonth = month ?? now.getMonth() + 1
+        const year = now.getFullYear()
+
+        const startOfMonth = new Date(year, targetMonth - 1, 1)
+        const endOfMonth = new Date(year, targetMonth, 0, 23, 59, 59)
+
+        // TOTAL EXPENSE THIS MONTH
+        const totalExpenseAgg = await this.prisma.expense.aggregate({
+            where: {
+                restaurantId,
+                date: {
+                    gte: startOfMonth,
+                    lte: endOfMonth,
+                },
+                isActive: true,
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+
+        const totalExpense = Number(totalExpenseAgg._sum.amount ?? 0)
+
+        // TOP EXPENSE CATEGORY
+        const categoryAgg = await this.prisma.expense.groupBy({
+            by: ['expenseCategoryId'],
+            where: {
+                restaurantId,
+                date: {
+                    gte: startOfMonth,
+                    lte: endOfMonth,
+                },
+                isActive: true,
+            },
+            _sum: {
+                amount: true,
+            },
+            orderBy: {
+                _sum: {
+                    amount: 'desc',
+                },
+            },
+            take: 1,
+        })
+
+        let topCategory: { id: string | undefined; name: string | undefined; total: number } | null = null
+
+        if (categoryAgg.length > 0 && categoryAgg[0].expenseCategoryId) {
+
+            const category = await this.prisma.expenseCategory.findUnique({
+                where: { id: categoryAgg[0].expenseCategoryId! },
+            })
+
+            topCategory = {
+                id: category?.id,
+                name: category?.name,
+                total: Number(categoryAgg[0]._sum.amount ?? 0),
+            }
         }
 
-        if (actor.restaurantId !== restaurantId)
-            throw new ForbiddenException('You are not assigned to this restaurant');
+        // MONTHLY TREND
+        const startTrend = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1)
+
+        const expenses = await this.prisma.expense.findMany({
+            where: {
+                restaurantId,
+                date: {
+                    gte: startTrend,
+                },
+                isActive: true,
+            },
+        })
+
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+        const trendMap: Record<string, number> = {}
+
+        expenses.forEach((e) => {
+            const d = new Date(e.date)
+            const key = `${d.getFullYear()}-${d.getMonth()}`
+            trendMap[key] = (trendMap[key] || 0) + Number(e.amount)
+        })
+
+        const monthlyTrend: { month: string; total: number }[] = []
+
+        for (let i = months - 1; i >= 0; i--) {
+
+            const d = new Date()
+            d.setMonth(d.getMonth() - i)
+
+            const key = `${d.getFullYear()}-${d.getMonth()}`
+
+            monthlyTrend.push({
+                month: monthNames[d.getMonth()],
+                total: trendMap[key] ?? 0
+            })
+        }
+
+        return {
+            total_expense_this_month: totalExpense,
+
+            top_expense_category: topCategory,
+
+            monthly_trend: monthlyTrend,
+        }
     }
+
+    // -----------Coupoun---------------------------------------
+
+    async performance(restaurantId: string) {
+
+        const totalCoupons =
+            await this.prisma.coupon.count({
+                where: { restaurantId }
+            })
+
+        const usages =
+            await this.prisma.couponUsage.findMany({
+                include: { coupon: true }
+            })
+
+        const totalDiscount =
+            usages.reduce((sum, u) =>
+                sum + Number(u.discountAmount), 0)
+
+        return {
+            total_coupons: totalCoupons,
+            total_discount_given: totalDiscount
+        }
+    }
+
+    async usageTrend(restaurantId: string) {
+
+        const rows =
+            await this.prisma.couponUsage.findMany({
+                include: { coupon: true }
+            })
+
+        const trend: Record<string, number> = {}
+
+        rows.forEach(r => {
+
+            const m =
+                new Date(r.createdAt)
+                    .toLocaleString('default', { month: 'short' })
+
+            trend[m] = (trend[m] || 0) + 1
+        })
+
+        return Object.keys(trend).map(m => ({
+            month: m,
+            usage: trend[m]
+        }))
+    }
+
 }

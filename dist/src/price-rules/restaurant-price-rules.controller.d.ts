@@ -8,10 +8,10 @@ export declare class RestaurantPriceRulesController {
             id: string;
             name: string;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
+            restaurantId: string;
+            createdById: string | null;
             menuItemId: string;
             ruleType: import(".prisma/client").$Enums.PriceRuleType;
             specialPrice: import("@prisma/client/runtime/library").Decimal;

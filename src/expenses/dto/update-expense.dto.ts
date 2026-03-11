@@ -4,6 +4,7 @@ import {
     IsNumber,
     IsOptional,
     IsString,
+    IsUUID,
     MaxLength,
     Min,
 } from 'class-validator';
@@ -55,4 +56,13 @@ export class UpdateExpenseDto {
     @IsOptional()
     @Type(() => Date)
     date?: Date;
+
+
+    @ApiPropertyOptional({
+        description: 'Expense category ID',
+        example: 'f4f0c9d0-9c7c-4c6e-8a7b-8b0e6f1d7f3a',
+    })
+    @IsOptional()
+    @IsUUID()
+    expenseCategoryId?: string;
 }

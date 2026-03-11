@@ -15,6 +15,7 @@ import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -24,6 +25,7 @@ export class AuthController {
     // ─── Send OTP ──────────────────────────────────────────────────────────────
 
     @Public()
+    @Throttle({ default: { limit: 100, ttl: 60000 } })
     @Post('send-otp')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({

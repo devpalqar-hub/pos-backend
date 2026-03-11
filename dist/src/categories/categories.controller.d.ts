@@ -14,12 +14,12 @@ export declare class CategoriesController {
         } & {
             id: string;
             name: string;
+            description: string | null;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            description: string | null;
+            restaurantId: string;
+            createdById: string | null;
             imageUrl: string | null;
             sortOrder: number;
         };
@@ -30,12 +30,12 @@ export declare class CategoriesController {
             data: {
                 id: string;
                 name: string;
+                description: string | null;
                 isActive: boolean;
-                createdById: string | null;
-                restaurantId: string;
                 createdAt: Date;
                 updatedAt: Date;
-                description: string | null;
+                restaurantId: string;
+                createdById: string | null;
                 imageUrl: string | null;
                 sortOrder: number;
             }[];
@@ -69,12 +69,12 @@ export declare class CategoriesController {
         } & {
             id: string;
             name: string;
+            description: string | null;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            description: string | null;
+            restaurantId: string;
+            createdById: string | null;
             imageUrl: string | null;
             sortOrder: number;
         };
@@ -88,12 +88,12 @@ export declare class CategoriesController {
         } & {
             id: string;
             name: string;
+            description: string | null;
             isActive: boolean;
-            createdById: string | null;
-            restaurantId: string;
             createdAt: Date;
             updatedAt: Date;
-            description: string | null;
+            restaurantId: string;
+            createdById: string | null;
             imageUrl: string | null;
             sortOrder: number;
         };

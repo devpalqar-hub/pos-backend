@@ -12,6 +12,11 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
 enum UserRole {
   SUPER_ADMIN
   OWNER
@@ -297,6 +302,7 @@ model Restaurant {
   uberEatsSettings    UberEatsSettings?
   uberEatsWebhookLogs UberEatsWebhookLog[]
   triggerCampaigns    TriggerCampaign[]
+  coupons             Coupon[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -521,11 +527,12 @@ model OrderSession {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  table      Table?       @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  openedBy   User         @relation("SessionOpenedBy", fields: [openedById], references: [id])
-  batches    OrderBatch[]
-  bill       Bill?
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table        Table?        @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  openedBy     User          @relation("SessionOpenedBy", fields: [openedById], references: [id])
+  batches      OrderBatch[]
+  bill         Bill?
+  couponUsages CouponUsage[]
 
   @@unique([restaurantId, sessionNumber])
   @@index([restaurantId])
@@ -752,6 +759,20 @@ model LoyalityPointRedemption {
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
 
+model ExpenseCategory {
+  id          String  @id @default(uuid())
+  name        String  @db.VarChar(255)
+  description String? @db.Text
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
 model Expense {
   id           String      @id @default(uuid())
   restaurantId String
@@ -764,6 +785,9 @@ model Expense {
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  expenseCategoryId String?
+  expenseCategory   ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id])
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
@@ -1270,4 +1294,54 @@ model TriggerCampaignTracker {
   @@index([triggerCampaignId])
   @@index([customerId])
   @@map("trigger_campaign_trackers")
+}
+
+// ─── Coupouns ────────────────────────────────────────────────────────────────────
+
+model Coupon {
+  id           String  @id @default(uuid())
+  restaurantId String
+  code         String  @unique @db.VarChar(50)
+  name         String  @db.VarChar(255)
+  description  String? @db.Text
+
+  discountType  CouponDiscountType
+  discountValue Decimal            @db.Decimal(10, 2)
+  maxDiscount   Decimal?           @db.Decimal(10, 2)
+
+  minOrderAmount Decimal? @db.Decimal(10, 2)
+
+  usageLimit       Int?
+  perCustomerLimit Int?
+
+  validFrom  DateTime
+  validUntil DateTime
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  usages     CouponUsage[]
+
+  @@index([restaurantId])
+  @@map("coupons")
+}
+
+model CouponUsage {
+  id             String  @id @default(uuid())
+  couponId       String
+  orderSessionId String
+  customerId     String?
+  discountAmount Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  coupon  Coupon       @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  session OrderSession @relation(fields: [orderSessionId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([orderSessionId])
+  @@map("coupon_usages")
 }

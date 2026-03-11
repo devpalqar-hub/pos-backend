@@ -5,4 +5,5 @@ export declare class UpdateExpenseDto {
     amount?: number;
     description?: string;
     date?: Date;
+    expenseCategoryId?: string;
 }
