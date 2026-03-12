@@ -1,9 +1,10 @@
 import { PrismaClient, Prisma } from '@prisma/client'
+import { OrderChannel } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-const restaurantId = "c5f50dda-222a-445b-a41d-4f1a31914cf9"
-// const restaurantId = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
+// const restaurantId = "c5f50dda-222a-445b-a41d-4f1a31914cf9"
+const restaurantId = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
 
 const customers = [
     {
@@ -16,7 +17,7 @@ const customers = [
         name: "M Sonasasi Kumar",
         email: "msonasasikumar@gmail.com",
         phone: "+919900000002",
-        wallet: new Prisma.Decimal(20),
+        wallet: new Prisma.Decimal(500), // ensure loyalty rule passes
     },
     {
         name: "Sabarinath P",
@@ -86,9 +87,8 @@ async function seedCustomers() {
 
     const createdCustomers: Awaited<ReturnType<typeof prisma.customer.create>>[] = []
 
-
     for (const customer of customers) {
-        // Check if customer exists by restaurantId and phone
+
         const existing = await prisma.customer.findUnique({
             where: {
                 restaurantId_phone: {
@@ -97,7 +97,9 @@ async function seedCustomers() {
                 }
             }
         })
+
         let createdOrExisting
+
         if (existing) {
             createdOrExisting = existing
         } else {
@@ -111,6 +113,7 @@ async function seedCustomers() {
                 }
             })
         }
+
         createdCustomers.push(createdOrExisting)
     }
 
@@ -137,15 +140,24 @@ async function seedOrders(customers) {
 
         const customer = customers[i]
 
-        const channel =
-            i === 0 ? "DINE_IN" :
-                i === 1 ? "ONLINE_OWN" :
-                    i === 2 ? "UBER_EATS" :
-                        "DINE_IN"
+        let channels: OrderChannel[] = [OrderChannel.DINE_IN]
+        let orderCount = i + 1
 
-        const orderCount = i + 1
+        // Ensure tester satisfies every campaign rule
+        if (customer.email === "msonasasikumar@gmail.com") {
+            channels = [OrderChannel.DINE_IN, OrderChannel.ONLINE_OWN, OrderChannel.UBER_EATS]
+            orderCount = 5
+        } else {
+            channels =
+                i === 0 ? [OrderChannel.DINE_IN] :
+                    i === 1 ? [OrderChannel.ONLINE_OWN] :
+                        i === 2 ? [OrderChannel.UBER_EATS] :
+                            [OrderChannel.DINE_IN]
+        }
 
         for (let j = 0; j < orderCount; j++) {
+
+            const channel = channels[j % channels.length]
 
             const session = await prisma.orderSession.create({
                 data: {
@@ -157,9 +169,9 @@ async function seedOrders(customers) {
                     customerPhone: customer.phone,
                     customerEmail: customer.email,
                     status: "PAID",
-                    subtotal: new Prisma.Decimal(100 + j * 50),
-                    taxAmount: new Prisma.Decimal(10),
-                    totalAmount: new Prisma.Decimal(110 + j * 50),
+                    subtotal: new Prisma.Decimal(200 + j * 100),
+                    taxAmount: new Prisma.Decimal(20),
+                    totalAmount: new Prisma.Decimal(220 + j * 100),
                     closedAt: new Date()
                 }
             })
@@ -177,8 +189,8 @@ async function seedOrders(customers) {
                     batchId: batch.id,
                     menuItemId: menuItem.id,
                     quantity: 1,
-                    unitPrice: new Prisma.Decimal(100),
-                    totalPrice: new Prisma.Decimal(100),
+                    unitPrice: new Prisma.Decimal(200),
+                    totalPrice: new Prisma.Decimal(200),
                     status: "SERVED"
                 }
             })
