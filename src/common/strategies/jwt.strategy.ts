@@ -23,7 +23,30 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         });
     }
 
-    async validate(payload: JwtPayload) {
+    async validate(payload: any) {
+        // CUSTOMER TOKEN
+        if (payload.type === 'customer') {
+            const customer = await this.prisma.customer.findUnique({
+                where: { id: payload.sub },
+                include: {
+                    restaurant: { select: { id: true, name: true } },
+                },
+            });
+
+            if (!customer || !customer.isActive) {
+                throw new UnauthorizedException('Customer not found or inactive');
+            }
+
+            return {
+                id: customer.id,
+                email: customer.email,
+                restaurantId: customer.restaurantId,
+                type: 'customer',
+                restaurant: customer.restaurant,
+            };
+        }
+
+        // USER TOKEN (existing behavior)
         const user = await this.prisma.user.findUnique({
             where: { id: payload.sub },
             include: { restaurant: { select: { id: true, name: true } } },

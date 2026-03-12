@@ -8,6 +8,7 @@ import {
     Patch,
     Post,
     Query,
+    UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
@@ -23,8 +24,11 @@ import { CreateCartDto } from './dto/create-cart.dto';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { MergeCartDto } from './dto/merge-cart.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { CustomerJwtAuthGuard } from 'src/common/guards/customer-jwt.guard';
 
 @ApiTags('Cart')
+@UseGuards(CustomerJwtAuthGuard)
 @Controller('restaurants/:restaurantId/cart')
 export class CartController {
     constructor(private readonly cartService: CartService) { }
@@ -54,6 +58,7 @@ export class CartController {
         @Query('guestId') guestId?: string,
         @CurrentUser() user?: any,
     ) {
+        console.log('Fetching cart for restaurant:', restaurantId, 'guestId:', guestId, 'customerId:', user ? user.id : null);
         const customerId = user ? user.id : undefined;
         return {
             message: 'Cart fetched successfully',
@@ -80,11 +85,12 @@ export class CartController {
     @ApiResponse({ status: 404, description: 'Restaurant not found.' })
     async createCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Body() dto: CreateCartDto,
+        @Query('guestId') guestId?: string,
+        @CurrentUser() user?: any,
     ) {
         return {
             message: 'Cart created successfully',
-            data: await this.cartService.createCart(restaurantId, dto),
+            data: await this.cartService.createCart(restaurantId, { customerId: user?.id, guestId }),
         };
     }
 

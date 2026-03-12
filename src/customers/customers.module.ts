@@ -6,13 +6,14 @@ import { CustomersAuthController } from './customers-auth.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { CustomerJwtStrategy } from 'src/common/strategies/customer-jwt.strategy';
 
 @Module({
     controllers: [CustomersController, CustomersAuthController],
-    providers: [CustomersService, CustomersAuthService],
+    providers: [CustomersService, CustomersAuthService, CustomerJwtStrategy],
     exports: [CustomersService],
     imports: [
-        PassportModule.register({ defaultStrategy: 'jwt' }),
+        PassportModule.register({ defaultStrategy: 'customer-jwt' }),
         JwtModule.registerAsync({
             imports: [ConfigModule],
             useFactory: (configService: ConfigService) => ({

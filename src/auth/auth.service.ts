@@ -10,7 +10,7 @@ import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { JwtPayload } from './strategies/jwt.strategy';
+import { JwtPayload } from '../common/strategies/jwt.strategy';
 
 @Injectable()
 export class AuthService {
