@@ -30,6 +30,7 @@ import { S3Module } from './s3/s3.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ExpenseCategoriesModule } from './expense-category/expense-categories.module';
 import { CouponsModule } from './coupoun/coupons.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { CouponsModule } from './coupoun/coupons.module';
     UberEatsModule,
     AnalyticsModule,
     TriggerCampaignsModule,
+    CartModule
   ],
   controllers: [AppController],
   providers: [

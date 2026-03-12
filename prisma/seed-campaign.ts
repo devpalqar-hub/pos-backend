@@ -201,6 +201,32 @@ async function seedOrders(customers) {
 
 }
 
+async function seedLoyalty(customers) {
+
+    console.log("Creating loyalty points...")
+
+    const loyaltyProgram = await prisma.loyalityPoint.create({
+        data: {
+            restaurantId,
+            name: "Test Loyalty Program",
+            points: new Prisma.Decimal(100),
+            isActive: true
+        }
+    })
+
+    for (const customer of customers) {
+
+        await prisma.loyalityPointRedemption.create({
+            data: {
+                loyalityPointId: loyaltyProgram.id,
+                customerId: customer.id,
+                pointsAwarded: new Prisma.Decimal(150)
+            }
+        })
+
+    }
+
+}
 async function main() {
 
     const shouldReset = process.argv.includes("--reset")
@@ -213,7 +239,10 @@ async function main() {
 
     await seedOrders(createdCustomers)
 
+    await seedLoyalty(createdCustomers)
+
     console.log("Seeding completed successfully")
+
 }
 
 main()

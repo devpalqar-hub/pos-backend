@@ -3,3 +3,13 @@ Usually stores one-time or manually scheduled marketing campaigns (e.g., a Black
 
 TriggerCampaign:
 Designed for automated, rule-based, repeating campaigns. It stores extra logic: trigger rules, repeat delay, per-customer throttling, and expiration.
+
+
+
+
+
+
+
+user registering --> user login --> view menu --> add to cart --> checkout --> payment success.
+
+

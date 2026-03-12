@@ -29,6 +29,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '@prisma/client'
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Menu Items')
 @ApiBearerAuth('Bearer')
@@ -74,6 +75,7 @@ Creates a new item in the restaurant menu.
 
   // ─── List All ─────────────────────────────────────────────────────────────
 
+  // @Public()
   @Get()
   @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
   @ApiQuery({
