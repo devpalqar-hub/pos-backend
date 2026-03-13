@@ -41,14 +41,13 @@ function randomAlpha(len: number) {
 }
 
 function daysAgo(n: number): Date {
-    // Dates relative to March 13 2026 so sessions land in the past
-    const base = new Date('2026-03-13T00:00:00.000Z');
+    const base = new Date('2026-03-20T00:00:00.000Z');
     return new Date(base.getTime() - n * 24 * 60 * 60 * 1000);
 }
 
 // scheduledAt must be > March 13 2026
 function futureDate(daysFromNow: number): Date {
-    const base = new Date('2026-03-13T00:00:00.000Z');
+    const base = new Date('2026-03-31T00:00:00.000Z');
     return new Date(base.getTime() + daysFromNow * 24 * 60 * 60 * 1000);
 }
 
