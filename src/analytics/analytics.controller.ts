@@ -190,7 +190,7 @@ Returns a detailed P&L analytics summary including:
         return this.analyticsService.performance(restaurantId)
     }
 
-    @Get('coupons/analytics/trend')
+    @Get('coupons/analytics/trend/:restaurantId')
     @ApiOperation({ summary: 'Coupon usage trend' })
     trend(
         @Param('restaurantId') restaurantId: string
