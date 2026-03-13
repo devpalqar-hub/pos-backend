@@ -741,22 +741,22 @@ export class AnalyticsService {
         startDate?: string,
         endDate?: string,
     ) {
-
         const days = range === '30d' ? 30 : range === '90d' ? 90 : 7;
-
         let startDateObj = new Date();
         let endDateObj = new Date();
-
         if (startDate && endDate) {
             startDateObj = new Date(startDate);
             endDateObj = new Date(endDate);
-
             startDateObj.setHours(0, 0, 0, 0);
+            endDateObj.setHours(23, 59, 59, 999);
+        } else if (startDate && !endDate) {
+            startDateObj = new Date(startDate);
+            startDateObj.setHours(0, 0, 0, 0);
+            endDateObj = new Date(startDate);
             endDateObj.setHours(23, 59, 59, 999);
         } else {
             startDateObj.setDate(startDateObj.getDate() - days);
         }
-
         const previousStart = new Date(startDateObj);
         previousStart.setDate(previousStart.getDate() - days);
 
@@ -970,25 +970,105 @@ export class AnalyticsService {
         startDate?: string,
         endDate?: string,
     ) {
-
         const days = range === '30d' ? 30 : 7;
-
         let startDateObj = new Date();
         let endDateObj = new Date();
-
         if (startDate && endDate) {
-
             startDateObj = new Date(startDate);
             endDateObj = new Date(endDate);
-
             startDateObj.setHours(0, 0, 0, 0);
             endDateObj.setHours(23, 59, 59, 999);
-
+        } else if (startDate && !endDate) {
+            startDateObj = new Date(startDate);
+            startDateObj.setHours(0, 0, 0, 0);
+            endDateObj = new Date(startDate);
+            endDateObj.setHours(23, 59, 59, 999);
         } else {
             startDateObj.setDate(startDateObj.getDate() - days);
         }
+        const previousStart = new Date(startDateObj);
+        previousStart.setDate(previousStart.getDate() - days);
 
-        const bills = await this.prisma.bill.findMany({
+        // Most Selling Item
+
+        const mostSelling = await this.prisma.billItem.groupBy({
+            by: ['menuItemId'],
+            where: {
+                bill: {
+                    restaurantId,
+                    status: 'PAID',
+                    createdAt: {
+                        gte: startDateObj,
+                        lte: endDateObj,
+                    },
+                },
+            },
+            _sum: {
+                quantity: true,
+            },
+            orderBy: {
+                _sum: {
+                    quantity: 'desc',
+                },
+            },
+            take: 1,
+        });
+
+        let mostSellingItem: any = null;
+
+        if (mostSelling.length) {
+
+            const item = await this.prisma.menuItem.findUnique({
+                where: { id: mostSelling[0].menuItemId },
+            });
+
+            mostSellingItem = {
+                name: item?.name,
+                units_sold: mostSelling[0]._sum.quantity || 0,
+                growth: 0,
+            };
+        }
+
+        // Peak Hours
+
+        const sessions = await this.prisma.orderSession.findMany({
+            where: {
+                restaurantId,
+                createdAt: {
+                    gte: startDateObj,
+                    lte: endDateObj,
+                },
+            },
+            select: {
+                createdAt: true,
+            },
+        });
+
+        const hourMap: Record<number, number> = {};
+
+        sessions.forEach((s) => {
+            const hour = new Date(s.createdAt).getHours();
+            hourMap[hour] = (hourMap[hour] || 0) + 1;
+        });
+
+        let peakHour = 0;
+        let peakCount = 0;
+
+        Object.entries(hourMap).forEach(([hour, count]) => {
+            if (count > peakCount) {
+                peakHour = Number(hour);
+                peakCount = count;
+            }
+        });
+
+        const peakHours = {
+            range: `${peakHour}:00 - ${peakHour + 1}:00`,
+            avg_orders_per_hour: peakCount,
+        };
+
+        // Revenue
+
+        const currentRevenue = await this.prisma.bill.aggregate({
             where: {
                 restaurantId,
                 status: 'PAID',
@@ -997,75 +1077,119 @@ export class AnalyticsService {
                     lte: endDateObj,
                 },
             },
-            include: {
-                items: true,
+            _sum: { totalAmount: true },
+        });
+
+        const previousRevenue = await this.prisma.bill.aggregate({
+            where: {
+                restaurantId,
+                status: 'PAID',
+                createdAt: {
+                    gte: previousStart,
+                    lt: startDateObj,
+                },
             },
-            orderBy: {
-                createdAt: 'asc',
+            _sum: { totalAmount: true },
+        });
+
+        const current = Number(currentRevenue._sum.totalAmount || 0);
+        const previous = Number(previousRevenue._sum.totalAmount || 0);
+
+        const growth =
+            previous === 0 ? 100 : ((current - previous) / previous) * 100;
+
+        const totalRevenue = {
+            current,
+            previous,
+            growth: Number(growth.toFixed(2)),
+        };
+
+        // Menu Performance
+
+        const performance = await this.prisma.billItem.groupBy({
+            by: ['menuItemId'],
+            where: {
+                bill: {
+                    restaurantId,
+                    status: 'PAID',
+                    createdAt: {
+                        gte: startDateObj,
+                        lte: endDateObj,
+                    },
+                },
+            },
+            _sum: {
+                quantity: true,
+                totalPrice: true,
             },
         });
 
-        const dayMap: Record<string, any> = {};
+        const menuPerformance = await Promise.all(
+            performance.map(async (item) => {
 
-        bills.forEach((bill) => {
+                const menu = await this.prisma.menuItem.findUnique({
+                    where: { id: item.menuItemId },
+                    include: { category: true },
+                });
 
-            const date = bill.createdAt.toISOString().split('T')[0];
-            const day = new Date(bill.createdAt)
-                .toLocaleDateString('en-US', { weekday: 'short' })
-                .toUpperCase();
-
-            if (!dayMap[date]) {
-
-                dayMap[date] = {
-                    date,
-                    day,
-                    daily_total: 0,
-                    itemRevenue: {},
+                return {
+                    item_name: menu?.name,
+                    category: menu?.category?.name,
+                    units_sold: item._sum.quantity || 0,
+                    total_revenue: Number(item._sum.totalPrice || 0),
+                    growth_percentage: 0,
                 };
-            }
+            }),
+        );
 
-            dayMap[date].daily_total += Number(bill.totalAmount);
+        // Popular Item Combinations
 
-            bill.items.forEach((item) => {
+        const batches = await this.prisma.orderBatch.findMany({
+            where: {
+                session: {
+                    restaurantId,
+                    createdAt: {
+                        gte: startDateObj,
+                        lte: endDateObj,
+                    },
+                },
+            },
+            include: {
+                items: {
+                    include: { menuItem: true },
+                },
+            },
+        });
 
-                if (!dayMap[date].itemRevenue[item.menuItemId]) {
+        const comboMap: Record<string, number> = {};
 
-                    dayMap[date].itemRevenue[item.menuItemId] = {
-                        name: item.name,
-                        revenue: 0,
-                    };
+        batches.forEach((batch) => {
+
+            const items = batch.items.map((i) => i.menuItem.name);
+
+            for (let i = 0; i < items.length; i++) {
+                for (let j = i + 1; j < items.length; j++) {
+
+                    const key = `${items[i]} + ${items[j]}`;
+                    comboMap[key] = (comboMap[key] || 0) + 1;
                 }
-
-                dayMap[date].itemRevenue[item.menuItemId].revenue += Number(
-                    item.totalPrice,
-                );
-            });
+            }
         });
 
-        const trendData = Object.values(dayMap).map((d: any) => {
-
-            const items = Object.entries(d.itemRevenue)
-                .map(([id, v]: any) => ({
-                    item_id: id,
-                    name: v.name,
-                    revenue: Number(v.revenue.toFixed(2)),
-                }))
-                .sort((a, b) => b.revenue - a.revenue)
-                .slice(0, 3);
-
-            return {
-                date: d.date,
-                day: d.day,
-                daily_total: Number(d.daily_total.toFixed(2)),
+        const popularCombinations = Object.entries(comboMap)
+            .map(([items, count]) => ({
                 items,
-            };
-        });
+                orders: count,
+            }))
+            .sort((a, b) => b.orders - a.orders)
+            .slice(0, 5);
 
         return {
-            period: range === '30d' ? 'last_30_days' : 'last_7_days',
-            trend_data: trendData,
+            most_selling_item: mostSellingItem,
+            peak_hours: peakHours,
+            total_revenue: totalRevenue,
+            popular_combinations: popularCombinations,
+            menu_performance: menuPerformance,
         };
     }
-
-
 }
