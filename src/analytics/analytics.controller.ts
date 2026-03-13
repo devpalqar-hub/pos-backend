@@ -30,7 +30,7 @@ export class AnalyticsController {
 
     // ─── Profit & Loss ───────────────────────────────────────────────────────
 
-    @Get('profit-and-loss')
+    @Get('profit-and-loss/:restaurantId')
     @Roles(
         UserRole.SUPER_ADMIN,
         UserRole.OWNER,
@@ -60,7 +60,7 @@ Returns a detailed P&L analytics summary including:
         enum: ['last30', 'quarterly', 'yearly'],
         description: 'Time period filter (default: last30)',
     })
-    @ApiQuery({
+    @ApiParam({
         name: 'restaurantId',
         required: false,
         type: String,
@@ -71,7 +71,7 @@ Returns a detailed P&L analytics summary including:
     async getProfitAndLoss(
         @CurrentUser() actor: User,
         @Query('period') period?: string,
-        @Query('restaurantId') restaurantId?: string,
+        @Param('restaurantId') restaurantId?: string,
     ) {
         const validPeriods = ['last30', 'quarterly', 'yearly'] as const;
         const safePeriod = validPeriods.includes(period as any)
@@ -182,7 +182,7 @@ Returns a detailed P&L analytics summary including:
         )
     }
 
-    @Get('coupons/analytics')
+    @Get('coupons/analytics/:restaurantId')
     @ApiOperation({ summary: 'Coupon performance' })
     performance(
         @Param('restaurantId') restaurantId: string
