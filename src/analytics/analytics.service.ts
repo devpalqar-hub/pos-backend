@@ -636,53 +636,102 @@ export class AnalyticsService {
 
     // -----------Coupoun---------------------------------------
 
-    async performance(restaurantId: string) {
+    async performance(
+        restaurantId: string,
+        startYear?: number,
+        endYear?: number
+    ) {
 
-        const totalCoupons =
-            await this.prisma.coupon.count({
-                where: { restaurantId }
-            })
+        const whereCoupon: any = { restaurantId };
+        const whereUsage: any = { coupon: { restaurantId } };
 
-        const usages =
-            await this.prisma.couponUsage.findMany({
-                where: { coupon: { restaurantId } },
-                include: { coupon: true }
-            })
+        if (startYear || endYear) {
 
-        const totalDiscount =
-            usages.reduce((sum, u) =>
-                sum + Number(u.discountAmount), 0)
+            const start = startYear
+                ? new Date(startYear, 0, 1)
+                : new Date(2000, 0, 1);
+
+            const end = endYear
+                ? new Date(endYear, 11, 31, 23, 59, 59)
+                : new Date();
+
+            whereCoupon.createdAt = { gte: start, lte: end };
+            whereUsage.createdAt = { gte: start, lte: end };
+        }
+
+        const totalCoupons = await this.prisma.coupon.count({
+            where: whereCoupon
+        });
+
+        const usages = await this.prisma.couponUsage.findMany({
+            where: whereUsage,
+            select: {
+                discountAmount: true
+            }
+        });
+
+        const totalDiscount = usages.reduce(
+            (sum, u) => sum + Number(u.discountAmount),
+            0
+        );
 
         return {
             total_coupons: totalCoupons,
             total_discount_given: totalDiscount
-        }
+        };
     }
 
-    async usageTrend(restaurantId: string) {
+    async usageTrend(
+        restaurantId: string,
+        startYear?: number,
+        endYear?: number
+    ) {
 
-        const rows =
-            await this.prisma.couponUsage.findMany({
-                include: { coupon: true },
-                where: { coupon: { restaurantId } }
-            })
+        const where: any = {
+            coupon: { restaurantId }
+        };
 
-        const trend: Record<string, number> = {}
+        if (startYear || endYear) {
+
+            const start = startYear
+                ? new Date(startYear, 0, 1)
+                : new Date(2000, 0, 1);
+
+            const end = endYear
+                ? new Date(endYear, 11, 31, 23, 59, 59)
+                : new Date();
+
+            where.createdAt = {
+                gte: start,
+                lte: end
+            };
+        }
+
+        const rows = await this.prisma.couponUsage.findMany({
+            where,
+            select: { createdAt: true }
+        });
+
+        const months = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+
+        const trend: Record<string, number> = {};
+        months.forEach(m => trend[m] = 0);
 
         rows.forEach(r => {
+            const m = months[new Date(r.createdAt).getMonth()];
+            trend[m]++;
+        });
 
-            const m =
-                new Date(r.createdAt)
-                    .toLocaleString('default', { month: 'short' })
-
-            trend[m] = (trend[m] || 0) + 1
-        })
-
-        return Object.keys(trend).map(m => ({
+        return months.map(m => ({
             month: m,
             usage: trend[m]
-        }))
+        }));
     }
+
+    // -----------Coupoun---------------------------------------
 
 
     async getMenuPerformance(

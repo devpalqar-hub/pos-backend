@@ -183,21 +183,34 @@ Returns a detailed P&L analytics summary including:
     }
 
     @Get('coupons/analytics/:restaurantId')
-    @ApiOperation({ summary: 'Coupon performance' })
+    @ApiQuery({ name: 'startYear', required: false, type: Number })
+    @ApiQuery({ name: 'endYear', required: false, type: Number })
     performance(
-        @Param('restaurantId') restaurantId: string
+        @Param('restaurantId') restaurantId: string,
+        @Query('startYear') startYear?: string,
+        @Query('endYear') endYear?: string
     ) {
-        return this.analyticsService.performance(restaurantId)
+        return this.analyticsService.performance(
+            restaurantId,
+            startYear ? parseInt(startYear) : undefined,
+            endYear ? parseInt(endYear) : undefined
+        );
     }
 
     @Get('coupons/analytics/trend/:restaurantId')
-    @ApiOperation({ summary: 'Coupon usage trend' })
+    @ApiQuery({ name: 'startYear', required: false, type: Number })
+    @ApiQuery({ name: 'endYear', required: false, type: Number })
     trend(
-        @Param('restaurantId') restaurantId: string
+        @Param('restaurantId') restaurantId: string,
+        @Query('startYear') startYear?: string,
+        @Query('endYear') endYear?: string
     ) {
-        return this.analyticsService.usageTrend(restaurantId)
+        return this.analyticsService.usageTrend(
+            restaurantId,
+            startYear ? parseInt(startYear) : undefined,
+            endYear ? parseInt(endYear) : undefined
+        );
     }
-
 
 
     //--------------------------------- MENU & SALES ANALYTICS-----------------------------------------------------------------
