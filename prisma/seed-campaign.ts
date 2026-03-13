@@ -17,8 +17,8 @@ import {
 } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const RESTAURANT_ID = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
-// const RESTAURANT_ID = 'c5f50dda-222a-445b-a41d-4f1a31914cf9';
+// const RESTAURANT_ID = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
+const RESTAURANT_ID = 'c5f50dda-222a-445b-a41d-4f1a31914cf9';
 const CUSTOMER_EMAIL = 'msonasasikumar@gmail.com';
 const CUSTOMER_PHONE = '+919999000001';
 
