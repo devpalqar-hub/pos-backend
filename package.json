@@ -26,7 +26,8 @@
     "seed:analytics": "ts-node prisma/order-analytics.seed.ts",
     "seed:expense": "ts-node prisma/expense.seed.ts",
     "seed:trigger": "ts-node prisma/seed-trigger-customers.ts",
-    "seed:normal": "ts-node prisma/seed-campaign.ts"
+    "seed:normal": "ts-node prisma/seed-campaign.ts",
+    "seed:coupoun": "ts-node prisma/seed-coupons.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
