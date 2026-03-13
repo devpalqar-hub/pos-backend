@@ -107,7 +107,7 @@ Returns a detailed P&L analytics summary including:
     @ApiResponse({ status: 404, description: 'Restaurant not found.' })
     async getLoyaltyProgramsAnalytics(
         @CurrentUser() actor: User,
-        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('restaurantId') restaurantId: string,
     ) {
         return {
             message: 'Loyalty programs analytics fetched successfully',
@@ -233,7 +233,7 @@ Supports range filtering:
 
 - \`7d\` → Last 7 days
 - \`30d\` → Last 30 days
-- \`90d\` → Last 90 days
+-startDate + endDate → Custom date range
 
 ### Allowed Roles
 SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
@@ -245,6 +245,18 @@ SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
         required: false,
         enum: ['7d', '30d', '90d'],
         description: 'Analytics time range (default: 7d)',
+    })
+    @ApiQuery({
+        name: 'startDate',
+        required: false,
+        type: String,
+        description: 'Custom range start date (YYYY-MM-DD)',
+    })
+    @ApiQuery({
+        name: 'endDate',
+        required: false,
+        type: String,
+        description: 'Custom range end date (YYYY-MM-DD)',
     })
     @ApiResponse({
         status: 200,
@@ -324,7 +336,7 @@ For each day the API returns:
 
 - \`7d\` → Last 7 days
 - \`30d\` → Last 30 days
-- \`custom\` → Custom date range
+--startDate + endDate → Custom date range
 
 ### Allowed Roles
 SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
