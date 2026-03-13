@@ -643,6 +643,7 @@ export class AnalyticsService {
 
         const usages =
             await this.prisma.couponUsage.findMany({
+                where: { coupon: { restaurantId } },
                 include: { coupon: true }
             })
 
@@ -660,7 +661,8 @@ export class AnalyticsService {
 
         const rows =
             await this.prisma.couponUsage.findMany({
-                include: { coupon: true }
+                include: { coupon: true },
+                where: { coupon: { restaurantId } }
             })
 
         const trend: Record<string, number> = {}
