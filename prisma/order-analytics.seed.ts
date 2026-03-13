@@ -2,8 +2,8 @@ import { PrismaClient, BillStatus, PaymentMethod, OrderChannel, SessionStatus, B
 
 const prisma = new PrismaClient()
 
-// const restaurantId = 'c5f50dda-222a-445b-a41d-4f1a31914cf9'
-const restaurantId = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
+const restaurantId = 'c5f50dda-222a-445b-a41d-4f1a31914cf9'
+// const restaurantId = "110201cd-698d-4ad9-9c63-4ea706d95f8f"
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function randomBetween(min: number, max: number) {
