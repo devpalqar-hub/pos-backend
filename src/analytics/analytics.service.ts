@@ -286,7 +286,9 @@ export class AnalyticsService {
                     throw new NotFoundException(
                         `Restaurant ${restaurantId} not found`,
                     );
+                console.log(restaurant.ownerId, actor.id, "owner id vs actor id")
                 if (restaurant.ownerId !== actor.id)
+
                     throw new ForbiddenException(
                         'You do not own this restaurant',
                     );

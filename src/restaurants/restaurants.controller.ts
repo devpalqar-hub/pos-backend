@@ -37,7 +37,7 @@ export class RestaurantsController {
     constructor(private readonly restaurantsService: RestaurantsService) { }
 
     // ─── Create Restaurant ────────────────────────────────────────────────────
-    kitchen
+
     @Post()
     @Roles(UserRole.SUPER_ADMIN)
     @HttpCode(HttpStatus.CREATED)
@@ -200,6 +200,7 @@ Working hours are **upserted** — supplying days overwrites those days, unmenti
         @Query('page') page?: string,
         @Query('limit') limit?: string,
     ) {
+        console.log(actor, "this is current user")
         const roleArray = roles ? roles.split(',').map(r => r.trim()).filter(r => r) : undefined;
         const activeStatus = isActive ? isActive === 'true' : undefined;
         const pageNum = parseInt(page ?? '1');
