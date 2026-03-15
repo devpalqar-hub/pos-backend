@@ -18,6 +18,7 @@ import {
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
+import { v4 as uuid } from 'uuid';
 
 import { CartService } from './cart.service';
 import { CreateCartDto } from './dto/create-cart.dto';
@@ -26,9 +27,12 @@ import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { MergeCartDto } from './dto/merge-cart.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CustomerJwtAuthGuard } from 'src/common/guards/customer-jwt.guard';
+import { Public } from 'src/common/decorators/public.decorator';
+import { OptionalCustomerJwtAuthGuard } from 'src/common/guards/ optional-jwt-auth.guard';
 
 @ApiTags('Cart')
-@UseGuards(CustomerJwtAuthGuard)
+@Public()
+@UseGuards(OptionalCustomerJwtAuthGuard)
 @Controller('restaurants/:restaurantId/cart')
 export class CartController {
     constructor(private readonly cartService: CartService) { }
@@ -73,6 +77,7 @@ export class CartController {
     CREATE CART
     */
 
+
     @Post()
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiOperation({
@@ -97,7 +102,8 @@ export class CartController {
     /*
     ADD ITEM TO CART
     */
-
+    @Public()
+    @UseGuards(OptionalCustomerJwtAuthGuard)
     @Post('items')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
@@ -120,15 +126,39 @@ export class CartController {
         @CurrentUser() user?: any,
     ) {
         const customerId = user ? user.id : undefined;
+
         return {
             message: 'Item added to cart',
             data: await this.cartService.addItem(restaurantId, { customerId, guestId }, dto),
         };
     }
 
+    @Public()
+    @Get('guest-id')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Generate guest ID',
+        description:
+            'Generates a unique guestId used for cart operations for unauthenticated users.',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Guest ID generated successfully',
+    })
+    async generateGuestId(
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    ) {
+        const guestId = `guest_${uuid()}`;
+
+        return {
+            message: 'Guest ID generated successfully',
+            guestId,
+        };
+    }
     /*
     UPDATE CART ITEM
     */
+
 
     @Patch('items/:itemId')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
@@ -156,6 +186,7 @@ export class CartController {
     REMOVE ITEM FROM CART
     */
 
+
     @Delete('items/:itemId')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiParam({ name: 'itemId', description: 'Cart item UUID' })
@@ -178,6 +209,7 @@ export class CartController {
     /*
     CLEAR CART
     */
+
 
     @Delete()
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
@@ -212,6 +244,7 @@ export class CartController {
     MERGE CART
     */
 
+
     @Post('merge')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiOperation({
@@ -233,6 +266,7 @@ export class CartController {
     /*
     VALIDATE CART
     */
+
 
     @Post('validate')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
@@ -266,6 +300,7 @@ export class CartController {
     RECALCULATE CART
     */
 
+
     @Post('recalculate')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
@@ -297,6 +332,7 @@ export class CartController {
     /*
     CART SUMMARY
     */
+
 
     @Get('summary')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })

@@ -11,7 +11,8 @@ import { paginate } from '../common/utlility/pagination.util';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { AssignStaffDto, RemoveStaffDto } from './dto/assign-staff.dto';
-import { User, UserRole } from '@prisma/client'
+import { RestaurantFeature, User, UserRole } from '@prisma/client'
+import { features } from 'process';
 
 // ─── Full include clause reused across queries ─────────────────────────────────
 
@@ -45,9 +46,11 @@ const RESTAURANT_LIST_INCLUDE = {
     workingHours: {
         select: { day: true, openTime: true, closeTime: true, isClosed: true },
     },
+    features: true,
     _count: { select: { staff: true } },
 } as const;
 
+const ALL_RESTAURANT_FEATURES = Object.values(RestaurantFeature);
 @Injectable()
 export class RestaurantsService {
     private readonly logger = new Logger(RestaurantsService.name);
@@ -79,46 +82,65 @@ export class RestaurantsService {
 
         const { workingHours, ...restDto } = dto;
 
-        const restaurant = await this.prisma.restaurant.create({
-            data: {
-                name: restDto.name,
-                slug,
-                description: restDto.description ?? null,
-                ownerId: restDto.ownerId,
-                createdById: actor.id,
-                phone: restDto.phone ?? null,
-                email: restDto.email ?? null,
-                website: restDto.website ?? null,
-                address: restDto.address ?? null,
-                city: restDto.city ?? null,
-                state: restDto.state ?? null,
-                country: restDto.country ?? null,
-                postalCode: restDto.postalCode ?? null,
-                latitude: restDto.latitude ?? null,
-                longitude: restDto.longitude ?? null,
-                logoUrl: restDto.logoUrl ?? null,
-                coverUrl: restDto.coverUrl ?? null,
-                cuisineType: restDto.cuisineType ?? null,
-                maxCapacity: restDto.maxCapacity ?? null,
-                taxRate: restDto.taxRate ?? null,
-                currency: restDto.currency ?? 'USD',
-                workingHours: workingHours?.length
-                    ? {
-                        create: workingHours.map((wh) => ({
-                            day: wh.day,
-                            openTime: wh.openTime ?? null,
-                            closeTime: wh.closeTime ?? null,
-                            isClosed: wh.isClosed ?? false,
-                        })),
-                    }
-                    : undefined,
-            },
-            include: RESTAURANT_INCLUDE,
+        const restaurant = await this.prisma.$transaction(async (tx) => {
+
+            const createdRestaurant = await tx.restaurant.create({
+                data: {
+                    name: restDto.name,
+                    slug,
+                    description: restDto.description ?? null,
+                    ownerId: restDto.ownerId,
+                    createdById: actor.id,
+                    phone: restDto.phone ?? null,
+                    email: restDto.email ?? null,
+                    website: restDto.website ?? null,
+                    address: restDto.address ?? null,
+                    city: restDto.city ?? null,
+                    state: restDto.state ?? null,
+                    country: restDto.country ?? null,
+                    postalCode: restDto.postalCode ?? null,
+                    latitude: restDto.latitude ?? null,
+                    longitude: restDto.longitude ?? null,
+                    logoUrl: restDto.logoUrl ?? null,
+                    coverUrl: restDto.coverUrl ?? null,
+                    cuisineType: restDto.cuisineType ?? null,
+                    maxCapacity: restDto.maxCapacity ?? null,
+                    taxRate: restDto.taxRate ?? null,
+                    currency: restDto.currency ?? 'USD',
+
+                    workingHours: workingHours?.length
+                        ? {
+                            create: workingHours.map((wh) => ({
+                                day: wh.day,
+                                openTime: wh.openTime ?? null,
+                                closeTime: wh.closeTime ?? null,
+                                isClosed: wh.isClosed ?? false,
+                            })),
+                        }
+                        : undefined,
+                },
+                include: RESTAURANT_INCLUDE,
+            });
+
+            /*
+            ─────────────────────────────────────────────────────────
+            Create all SaaS feature flags (default disabled)
+            ─────────────────────────────────────────────────────────
+            */
+
+            await tx.restaurantFeatureFlag.createMany({
+                data: ALL_RESTAURANT_FEATURES.map((feature) => ({
+                    restaurantId: createdRestaurant.id,
+                    feature,
+                    isEnabled: false,
+                })),
+            });
+
+            return createdRestaurant;
         });
 
         return restaurant;
     }
-
     // ─── List Restaurants ─────────────────────────────────────────────────────
 
     async findAll(actor: User, page: number = 1, limit: number = 10): Promise<object> {

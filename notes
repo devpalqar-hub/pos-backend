@@ -13,3 +13,14 @@ Designed for automated, rule-based, repeating campaigns. It stores extra logic: 
 user registering --> user login --> view menu --> add to cart --> checkout --> payment success.
 
 
+Here the OrderChannel means how the way user is ordered food. i have provided an addBatch method, which is for creating  Inrestaurant booking. on calling addBatch method, the order is created and order is passed to kitchen and billing using websocket. the websocket code is also provided. Also i have provided the complete cart module for you. if you want i can provide the whole code of websocket. Never make any edit on the code i have given.
+
+the next module to create is the booking module. booking is completely through cart. so for booking, one parameter should be cartId. both registered as well as guest users can purchase from the platform. that is the way i am designed cart module. 
+you might confused of OrderSession and OrderBatch. OrderSession means one person on a table of restaurant having food, there can be multiple different person on a same table. so Ordersession is for handling that case. OrderBatch means, a person can give order multiple times on a single session like after having biriyani he can then order one grape juice parcel. order items stores what is the item ordered. 
+for online order, one ordersession, one orderBatch and the items a user is only needed. 
+on creating order, use websocket to inform that to kitchen and billing only. use ONLINE_OWN as OrderChannel value. payment gateways can later integrate, leave space for that and implement booking module 
+
+
+
+next doubts: 
+how loyality points should awarded?

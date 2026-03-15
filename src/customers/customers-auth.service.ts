@@ -36,17 +36,15 @@ export class CustomersAuthService {
             email: customer.email,
             phone: customer.phone,
             wallet: customer.wallet,
+            is_registered: customer.is_registered,
             restaurant: customer.restaurant,
         };
     }
 
     //    -------------------------- PRIVATE METHODS -------------------------------------------
-
-
     /*
     SEND OTP
     */
-
     async sendOtp(restaurantId: string, dto: SendOtpDto) {
         const customer = await this.prisma.customer.findFirst({
             where: {
@@ -74,7 +72,7 @@ export class CustomersAuthService {
 
         await this.sendOtpEmail(restaurantId, dto.email, otp, customer.name);
 
-        return { email: dto.email, otp: otp, expiresAt: expires };
+        return { email: dto.email };
     }
 
     /*
@@ -103,7 +101,6 @@ export class CustomersAuthService {
         if (!customer.isActive) {
             throw new BadRequestException('Customer account is inactive');
         }
-
         const defaultOtp = this.configService.get<string>('DEFAULT_OTP', '759409');
         const isDefaultOtp = otp === defaultOtp;
 
@@ -117,14 +114,28 @@ export class CustomersAuthService {
             }
         }
 
-        await this.prisma.customer.update({
-            where: { id: customer.id },
-            data: {
-                otp: null,
-                otpExpiresAt: null,
-            },
-        });
+        if (!customer.is_registered) {
 
+            await this.prisma.customer.update({
+                where: { id: customer.id },
+                data: {
+                    otp: null,
+                    otpExpiresAt: null,
+                    is_registered: true,
+                },
+            });
+
+        }
+        else {
+
+            await this.prisma.customer.update({
+                where: { id: customer.id },
+                data: {
+                    otp: null,
+                    otpExpiresAt: null,
+                },
+            });
+        }
         const payload = {
             sub: customer.id,
             email: customer.email,
@@ -173,8 +184,27 @@ export class CustomersAuthService {
                 email: dto.email,
                 phone: dto.phone,
                 name: dto.name,
+                carts: {
+                    create: { restaurantId },
+                },
+                is_registered: false
             },
         });
+
+        const otp = this.generateOtp();
+
+        const expires = new Date();
+        expires.setMinutes(expires.getMinutes() + 10);
+
+        await this.prisma.customer.update({
+            where: { id: customer.id },
+            data: {
+                otp,
+                otpExpiresAt: expires,
+            },
+        });
+
+        await this.sendOtpEmail(restaurantId, dto.email, otp, customer.name);
 
         return customer;
     }

@@ -34,6 +34,7 @@ export class CustomersService {
                 restaurantId,
                 phone: dto.phone,
                 name: dto.name ?? null,
+                is_registered: true
             },
         });
     }

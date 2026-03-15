@@ -31,6 +31,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ExpenseCategoriesModule } from './expense-category/expense-categories.module';
 import { CouponsModule } from './coupoun/coupons.module';
 import { CartModule } from './cart/cart.module';
+import { RestaurantFeaturesModule } from './restaurant-features/restaurant-features.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
   imports: [
@@ -70,7 +72,9 @@ import { CartModule } from './cart/cart.module';
     UberEatsModule,
     AnalyticsModule,
     TriggerCampaignsModule,
-    CartModule
+    CartModule,
+    RestaurantFeaturesModule,
+    BookingModule
   ],
   controllers: [AppController],
   providers: [

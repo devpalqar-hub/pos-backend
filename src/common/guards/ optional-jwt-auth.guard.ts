@@ -1,13 +1,26 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
-    handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
-        // If there's no token, just return `undefined` instead of throwing
-        if (err || info || !user) {
-            return undefined;
+export class OptionalCustomerJwtAuthGuard extends AuthGuard('customer-jwt') {
+
+    canActivate(context) {
+        const req = context.switchToHttp().getRequest();
+
+        const hasToken = req.headers.authorization?.startsWith('Bearer ');
+
+        if (!hasToken) {
+            return true; // allow guest
         }
-        return user;
+
+        return super.canActivate(context);
+    }
+
+    handleRequest(err, user) {
+        if (err) {
+            return null;
+        }
+
+        return user || null;
     }
 }

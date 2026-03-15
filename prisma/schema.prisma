@@ -12,6 +12,18 @@ datasource db {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
+enum RestaurantFeature {
+  POS
+  ONLINE_ORDERING
+  COUPONS
+  LOYALTY_POINTS
+  MARKETING
+  DOORDASH
+  UBER_EATS
+  PAYROLL
+  EXPENSES
+}
+
 enum CouponDiscountType {
   PERCENTAGE
   FIXED
@@ -304,6 +316,7 @@ model Restaurant {
   triggerCampaigns    TriggerCampaign[]
   coupons             Coupon[]
   carts               Cart[]
+  features            RestaurantFeatureFlag[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -675,17 +688,18 @@ model OtpToken {
 // ─── Customer ────────────────────────────────────────────────────────────────
 
 model Customer {
-  id           String    @id @default(uuid())
-  restaurantId String
-  phone        String    @db.VarChar(30)
-  name         String?   @db.VarChar(255)
-  email        String?   @db.VarChar(255)
-  wallet       Decimal   @default(0) @db.Decimal(10, 2)
-  otp          String?   @db.VarChar(10) // For email-based login
-  otpExpiresAt DateTime?
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  restaurantId  String
+  phone         String    @db.VarChar(30)
+  name          String?   @db.VarChar(255)
+  email         String?   @db.VarChar(255)
+  wallet        Decimal   @default(0) @db.Decimal(10, 2)
+  otp           String?   @db.VarChar(10) // For email-based login
+  otpExpiresAt  DateTime?
+  is_registered Boolean   @default(false) // True if customer has completed registration (e.g. set password)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   restaurant              Restaurant                @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   LoyalityPointRedemption LoyalityPointRedemption[]
@@ -1399,4 +1413,21 @@ model CartItem {
   @@unique([cartId, menuItemId])
   @@index([cartId])
   @@map("cart_items")
+}
+
+model RestaurantFeatureFlag {
+  id           String            @id @default(uuid())
+  restaurantId String
+  feature      RestaurantFeature
+
+  isEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, feature])
+  @@index([restaurantId])
+  @@map("restaurant_feature_flags")
 }
