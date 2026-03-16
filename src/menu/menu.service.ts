@@ -483,10 +483,14 @@ export class MenuService {
       case StockAction.RESTOCK:
         if (item.itemType === ItemType.STOCKABLE) {
           this.requireQuantity(dto);
+
+          const current = item.stockCount ?? 0;
+          const newCount = current + dto.quantity!;
+
           updateData = {
-            stockCount: dto.quantity,
-            isOutOfStock: dto.quantity! <= 0,
-            ...(dto.quantity! > 0 && { outOfStockAt: null }),
+            stockCount: newCount,
+            isOutOfStock: newCount <= 0,
+            ...(newCount > 0 && { outOfStockAt: null }),
           };
         } else {
           // NON_STOCKABLE — just flip the flag
