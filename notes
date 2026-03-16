@@ -24,3 +24,16 @@ on creating order, use websocket to inform that to kitchen and billing only. use
 
 next doubts: 
 how loyality points should awarded?
+
+
+
+
+POS -- 
+  ONLINE_ORDERING - disable cart
+  COUPONS - disable coupoun
+  LOYALTY_POINTS - disable loyalty points module
+  MARKETING - disable campainn mod and trigger campaign 
+  DOORDASH --  disable doordash module
+  UBER_EATS -- disable uber eats module
+  PAYROLL -- disable payroll module
+  EXPENSES -- disable expenses module

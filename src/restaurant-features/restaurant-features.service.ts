@@ -37,6 +37,14 @@ export class RestaurantFeaturesService {
     }
 
     async update(id: string, dto: UpdateRestaurantFeatureDto) {
+        const feature = await this.prisma.restaurantFeatureFlag.findUnique({
+            where: { id },
+        });
+
+        if (!feature) {
+            throw new NotFoundException('Feature not found');
+        }
+
         return this.prisma.restaurantFeatureFlag.update({
             where: { id },
             data: dto,
@@ -44,7 +52,14 @@ export class RestaurantFeaturesService {
     }
 
     async remove(id: string) {
-        return this.prisma.restaurantFeatureFlag.delete({
+        const feature = await this.prisma.restaurantFeatureFlag.findUnique({
+            where: { id },
+        });
+
+        if (!feature) {
+            throw new NotFoundException('Feature not found');
+        }
+        return await this.prisma.restaurantFeatureFlag.delete({
             where: { id },
         });
     }

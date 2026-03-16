@@ -76,13 +76,14 @@ restaurant's subscription plan.
         status: 400,
         description: 'Feature already exists for this restaurant.',
     })
-    create(
+    async create(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Body() dto: CreateRestaurantFeatureDto,
     ) {
+        const feature = await this.service.create(restaurantId, dto);
         return {
             message: 'Feature created successfully',
-            data: this.service.create(restaurantId, dto),
+            data: feature,
         };
     }
 
@@ -121,10 +122,10 @@ A restaurant may have:
         status: 200,
         description: 'Restaurant features fetched successfully.',
     })
-    findAll(@Param('restaurantId', ParseUUIDPipe) restaurantId: string) {
+    async findAll(@Param('restaurantId', ParseUUIDPipe) restaurantId: string) {
         return {
             message: 'Restaurant features fetched successfully',
-            data: this.service.findAll(restaurantId),
+            data: await this.service.findAll(restaurantId),
         };
     }
 
@@ -157,10 +158,10 @@ to determine whether coupon-related APIs should be accessible.
         status: 404,
         description: 'Restaurant feature not found.',
     })
-    findOne(@Param('id', ParseUUIDPipe) id: string) {
+    async findOne(@Param('id', ParseUUIDPipe) id: string) {
         return {
             message: 'Restaurant feature fetched successfully',
-            data: this.service.findOne(id),
+            data: await this.service.findOne(id),
         };
     }
 
@@ -198,13 +199,13 @@ When disabled:
         status: 404,
         description: 'Restaurant feature not found.',
     })
-    update(
+    async update(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() dto: UpdateRestaurantFeatureDto,
     ) {
         return {
             message: 'Restaurant feature updated successfully',
-            data: this.service.update(id, dto),
+            data: await this.service.update(id, dto),
         };
     }
 
@@ -239,10 +240,10 @@ This operation is typically used when:
         status: 404,
         description: 'Restaurant feature not found.',
     })
-    remove(@Param('id', ParseUUIDPipe) id: string) {
+    async remove(@Param('id', ParseUUIDPipe) id: string) {
         return {
             message: 'Restaurant feature deleted successfully',
-            data: this.service.remove(id),
+            data: await this.service.remove(id),
         };
     }
 }

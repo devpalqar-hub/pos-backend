@@ -133,14 +133,14 @@ export class OrdersService {
 
     private mapSessionStatusToOrderStatus(status: SessionStatus) {
         const map = {
-            OPEN: 'New',
-            BILLED: 'Preparing',
-            PAID: 'Served',
-            CANCELLED: 'Cancelled',
-            VOID: 'Cancelled',
+            OPEN: 'OPEN',
+            BILLED: 'PREPARING',
+            PAID: 'SERVED',
+            CANCELLED: 'CANCELLED',
+            VOID: 'CANCELLED',
         };
 
-        return map[status] ?? 'New';
+        return map[status] ?? 'NEW';
     }
 
     // =========================================================================
