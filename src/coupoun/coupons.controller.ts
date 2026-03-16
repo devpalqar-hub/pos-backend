@@ -1,12 +1,13 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common"
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
 import { CouponsService } from "./coupons.service"
-import { UserRole } from "@prisma/client"
+import { RestaurantFeature, UserRole } from "@prisma/client"
 import { Roles } from "src/common/decorators/roles.decorator"
 import { CreateCouponDto } from "./dto/create-coupon.dto"
 import { UpdateCouponDto } from "./dto/update-coupoun.dto"
 import { ValidateCouponDto } from "./dto/validate-coupoun.dto"
 import { ToggleCouponStatusDto } from "./dto/toggle-coupon-status.dto"
+import { RequireRestaurantFeature } from "src/common/decorators/feature.decorator"
 
 @ApiTags('Coupons')
 @Controller('restaurants/:restaurantId')
@@ -16,6 +17,7 @@ export class CouponsController {
         private couponsService: CouponsService,
     ) { }
 
+    @RequireRestaurantFeature(RestaurantFeature.COUPONS)
     @Post('coupons')
     @ApiOperation({ summary: 'Create coupon' })
     @ApiParam({ name: 'restaurantId' })

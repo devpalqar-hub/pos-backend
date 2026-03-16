@@ -33,6 +33,7 @@ import { CouponsModule } from './coupoun/coupons.module';
 import { CartModule } from './cart/cart.module';
 import { RestaurantFeaturesModule } from './restaurant-features/restaurant-features.module';
 import { BookingModule } from './booking/booking.module';
+import { RestaurantFeatureGuard } from './common/guards/feature.guard';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { BookingModule } from './booking/booking.module';
 
     // Global response transform interceptor
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_GUARD, useClass: RestaurantFeatureGuard }
   ],
 })
 export class AppModule { }
