@@ -4,7 +4,7 @@ import {
     NotFoundException,
     ForbiddenException,
 } from '@nestjs/common';
-import { CouponDiscountType } from '@prisma/client';
+import { CouponDiscountType, PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { OrdersGateway } from '../orders/orders.gateway';
@@ -64,18 +64,34 @@ export class BookingService {
         return code;
     }
 
+    private async generateBillNumber(restaurantId: string) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const exists = await this.prisma.bill.findFirst({
+            where: {
+                restaurantId,
+                billNumber: code,
+            },
+        });
+
+        if (exists) {
+            return this.generateBillNumber(restaurantId);
+        }
+
+        return code;
+    }
+
     async createBooking(
         actor: any,
         restaurantId: string,
         guestId: string | undefined,
         dto: CreateBookingDto,
     ) {
-
-        /*
-        Guest validation
-        If request comes without auth token but guestId is provided,
-        require customer details
-        */
 
         if (!actor && guestId) {
             if (
@@ -108,18 +124,48 @@ export class BookingService {
             throw new BadRequestException('Cart is empty');
         }
 
+        // ================================
+        // STEP 1: CALCULATE SUBTOTAL
+        // ================================
 
-        // -----------------------------------------Get Cart Total-----------------------------------------
         let subtotal = 0;
 
+        const items: {
+            menuItemId: string;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+        }[] = [];
+
         for (const item of cart.items) {
-            subtotal += Number(item.price) * item.quantity;
+
+            const menuItem = await this.prisma.menuItem.findUnique({
+                where: { id: item.menuItemId },
+            });
+
+            if (!menuItem) {
+                throw new NotFoundException(`Menu item ${item.menuItemId} not found`);
+            }
+
+            const unitPrice = Number(menuItem.price);
+            const totalPrice = unitPrice * item.quantity;
+
+            subtotal += totalPrice;
+
+            items.push({
+                menuItemId: item.menuItemId,
+                quantity: item.quantity,
+                unitPrice,
+                totalPrice,
+            });
         }
 
-        let discountAmount = 0;
-        // ------------------------------------------------------------------------------------
+        // ================================
+        // STEP 2: COUPON LOGIC
+        // ================================
 
-        // -----------------------------------------Coupon Validation-----------------------------------------
+        let discountAmount = 0;
+
         if (dto.couponName) {
 
             if (!actor) {
@@ -150,41 +196,6 @@ export class BookingService {
                 );
             }
 
-            /*
-            Global usage limit
-            */
-
-            if (coupon.usageLimit) {
-                const usageCount = await this.prisma.couponUsage.count({
-                    where: { couponId: coupon.id },
-                });
-
-                if (usageCount >= coupon.usageLimit) {
-                    throw new BadRequestException('Coupon usage limit reached');
-                }
-            }
-
-            /*
-            Per customer limit
-            */
-
-            if (coupon.perCustomerLimit && actor?.id) {
-                const usageCount = await this.prisma.couponUsage.count({
-                    where: {
-                        couponId: coupon.id,
-                        customerId: actor.id,
-                    },
-                });
-
-                if (usageCount >= coupon.perCustomerLimit) {
-                    throw new BadRequestException('Coupon already used maximum times');
-                }
-            }
-
-            /*
-            Calculate discount
-            */
-
             if (coupon.discountType === 'PERCENTAGE') {
                 discountAmount = subtotal * (Number(coupon.discountValue) / 100);
             } else {
@@ -196,9 +207,9 @@ export class BookingService {
             }
         }
 
-        // ----------------------------------------------------------------------------------------------
-
-        // ------------------------------------Loyalty Points Logic---------------------------------
+        // ================================
+        // STEP 3: LOYALTY POINTS
+        // ================================
 
         let loyaltyDiscount = 0;
 
@@ -215,9 +226,6 @@ export class BookingService {
                         restaurantId,
                     },
                 },
-                include: {
-                    loyalityPoint: true,
-                },
             });
 
             if (redemptions.length === 0) {
@@ -228,17 +236,17 @@ export class BookingService {
                 loyaltyDiscount += Number(r.pointsAwarded);
             }
         }
-        // ----------------------------------------------------------------------------------------------
 
-        // ------------------------------------Calculate Final Amount----------------------------------------------------------
+        // ================================
+        // STEP 4: FINAL TOTAL
+        // ================================
 
         const totalDiscount = discountAmount + loyaltyDiscount;
-
         const finalTotal = Math.max(subtotal - totalDiscount, 0);
 
-        // ----------------------------------------------------------------------------------------------
-
-
+        // ================================
+        // STEP 5: CREATE SESSION
+        // ================================
 
         const sessionNumber = await this.generateSessionNumber(restaurantId);
 
@@ -247,7 +255,7 @@ export class BookingService {
                 restaurantId,
                 sessionNumber,
                 channel: OrderChannel.ONLINE_OWN,
-                openedById: actor?.id ?? cart.customerId,
+                customerId: actor?.id ?? cart.customerId,
 
                 subtotal,
                 discountAmount: totalDiscount,
@@ -261,88 +269,17 @@ export class BookingService {
             },
         });
 
-
-        // ------------------------------------Record Coupon Usage----------------------------------------------------------
-
-        if (dto.couponName && actor) {
-
-            const coupon = await this.prisma.coupon.findUnique({
-                where: { code: dto.couponName },
-            });
-
-            if (!coupon) {
-                throw new NotFoundException('Coupon not found');
-            }
-
-            await this.prisma.couponUsage.create({
-                data: {
-                    couponId: coupon.id,
-                    orderSessionId: session.id,
-                    customerId: actor.id,
-                    discountAmount,
-                },
-            });
-        }
-        // ----------------------------------------------------------------------------------------------
-
-        // ------------------------------------Record Loyalty Redemption----------------------------------------------------------
-        if (dto.claimedLoyalityPoints && actor) {
-
-            const points = await this.prisma.loyalityPointRedemption.findMany({
-                where: {
-                    customerId: actor.id,
-                    loyalityPoint: {
-                        restaurantId,
-                    },
-                },
-            });
-
-            for (const p of points) {
-                await this.prisma.loyalityPointRedemption.update({
-                    where: { id: p.id },
-                    data: {
-                        redeemedAt: new Date(),
-                    },
-                });
-            }
-        }
-
-
+        // ================================
+        // STEP 6: CREATE BATCH
+        // ================================
 
         const batchNumber = await this.generateBatchNumber(session.id);
-
-        const items: {
-            menuItemId: string;
-            quantity: number;
-            unitPrice: number;
-            totalPrice: number;
-        }[] = [];
-
-        for (const item of cart.items) {
-            const menuItem = await this.prisma.menuItem.findUnique({
-                where: { id: item.menuItemId },
-            });
-
-            if (!menuItem) {
-                throw new NotFoundException(`Menu item ${item.menuItemId} not found`);
-            }
-
-            const unitPrice = Number(menuItem.price);
-            const totalPrice = unitPrice * item.quantity;
-
-            items.push({
-                menuItemId: item.menuItemId,
-                quantity: item.quantity,
-                unitPrice,
-                totalPrice,
-            });
-        }
 
         const batch = await this.prisma.orderBatch.create({
             data: {
                 sessionId: session.id,
                 batchNumber,
-                createdById: actor?.id ?? cart.customerId,
+                customerId: actor?.id ?? cart.customerId,
                 items: {
                     create: items,
                 },
@@ -358,28 +295,74 @@ export class BookingService {
                         },
                     },
                 },
-                session: true,
             },
         });
 
-        /*
-        Websocket events
-        */
+        // ================================
+        // STEP 7: CREATE BILL
+        // ================================
 
-        this.gateway.emitToKitchen(restaurantId, 'batch:created', batch);
-        this.gateway.emitToBilling(restaurantId, 'batch:created', batch);
+        const billNumber = await this.generateBillNumber(restaurantId);
 
-        /*
-        Payment gateway integration placeholder
-        */
+        const bill = await this.prisma.bill.create({
+            data: {
+                sessionId: session.id,
+                restaurantId,
+                billNumber,
+                status: 'PAID',
 
-        // TODO:
-        // integrate Stripe / Razorpay here
-        // after successful payment mark session confirmed
+                subtotal,
+                taxRate: 0,
+                taxAmount: 0,
+                discountAmount: totalDiscount,
+                totalAmount: finalTotal,
 
-        /*
-        Clear cart after booking
-        */
+                paidAt: new Date(),
+            },
+        });
+
+        await this.prisma.billItem.createMany({
+            data: items.map((item) => ({
+                billId: bill.id,
+                menuItemId: item.menuItemId,
+                name: batch.items.find(i => i.menuItemId === item.menuItemId)?.menuItem.name ?? '',
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+            })),
+        });
+
+        // ================================
+        // STEP 8: CREATE PAYMENT
+        // ================================
+
+        const payment = await this.prisma.payment.create({
+            data: {
+                billId: bill.id,
+                amount: finalTotal,
+                method: PaymentMethod.CASH,
+            },
+        });
+
+        // ================================
+        // STEP 9: WEBSOCKET EVENTS
+        // ================================
+
+        this.gateway.emitToBilling(restaurantId, 'bill:generated', bill);
+
+        this.gateway.emitToBilling(restaurantId, 'payment:recorded', {
+            billId: bill.id,
+            amount: finalTotal,
+            method: 'CASH',
+        });
+
+        this.gateway.emitToBilling(restaurantId, 'bill:paid', {
+            billId: bill.id,
+        });
+
+        // ================================
+        // STEP 10: CLEAR CART
+        // ================================
 
         await this.prisma.cartItem.deleteMany({
             where: { cartId: cart.id },
@@ -388,6 +371,8 @@ export class BookingService {
         return {
             session,
             batch,
+            bill,
+            payment,
         };
     }
 }

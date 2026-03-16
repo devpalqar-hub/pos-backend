@@ -34,12 +34,10 @@ export class BookingController {
 
     @Post()
     @HttpCode(HttpStatus.CREATED)
-
     @ApiParam({
         name: 'restaurantId',
         description: 'Restaurant UUID for which the booking is being created',
     })
-
     @ApiQuery({
         name: 'guestId',
         required: false,
@@ -154,13 +152,14 @@ The following features will be integrated in future versions:
         status: 404,
         description: 'Cart not found for the specified restaurant.',
     })
-
     async createBooking(
         @CurrentUser() actor: any,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Body() dto: CreateBookingDto,
         @Query('guestId') guestId?: string,
+
     ) {
+        console.log('Received booking request for restaurantId:', restaurantId, 'guestId:', guestId, 'dto:', dto)
         return {
             message: 'Booking created successfully',
             data: await this.bookingService.createBooking(

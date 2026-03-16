@@ -537,17 +537,20 @@ model OrderSession {
   discountAmount Decimal? @db.Decimal(10, 2)
   totalAmount    Decimal? @db.Decimal(10, 2)
 
-  openedById String
+  openedById String?
+  customerId String?
   closedAt   DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  table        Table?        @relation(fields: [tableId], references: [id], onDelete: SetNull)
-  openedBy     User          @relation("SessionOpenedBy", fields: [openedById], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      Table?     @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  openedBy   User?      @relation("SessionOpenedBy", fields: [openedById], references: [id])
+
   batches      OrderBatch[]
   bill         Bill?
   couponUsages CouponUsage[]
+  customer     Customer?     @relation(fields: [customerId], references: [id])
 
   @@unique([restaurantId, sessionNumber])
   @@index([restaurantId])
@@ -564,11 +567,13 @@ model OrderBatch {
   notes       String?     @db.Text // Kitchen-level notes for the whole batch
 
   createdById String?
+  customerId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   session   OrderSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   createdBy User?        @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  customer  Customer?    @relation(fields: [customerId], references: [id])
   items     OrderItem[]
 
   @@unique([sessionId, batchNumber])
@@ -707,6 +712,8 @@ model Customer {
   triggerCampaignLogs     TriggerCampaignLog[]
   triggerCampaignTrackers TriggerCampaignTracker[]
   carts                   Cart[]
+  orderSessions           OrderSession[]
+  orderBatches            OrderBatch[]
 
   @@unique([restaurantId, phone])
   @@unique([restaurantId, email])

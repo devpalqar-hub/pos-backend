@@ -33,6 +33,12 @@ export class CartService {
     }
 
     async addItem(restaurantId: string, query: any, dto: any) {
+        if (query.guestId && !query.customerId) {
+            const cart = await this.findCart(restaurantId, query);
+            if (!cart) {
+                await this.createCart(restaurantId, query);
+            }
+        }
         const cart = await this.findCart(restaurantId, query);
 
         if (!cart) throw new NotFoundException('Cart not found');
