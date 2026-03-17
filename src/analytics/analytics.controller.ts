@@ -57,7 +57,7 @@ Returns a detailed P&L analytics summary including:
     @ApiQuery({
         name: 'period',
         required: false,
-        enum: ['last30', 'quarterly', 'yearly'],
+        enum: ['last7', 'last30', 'quarterly', 'yearly'],
         description: 'Time period filter (default: last30)',
     })
     @ApiParam({
@@ -73,11 +73,11 @@ Returns a detailed P&L analytics summary including:
         @Query('period') period?: string,
         @Param('restaurantId') restaurantId?: string,
     ) {
-        const validPeriods = ['last30', 'quarterly', 'yearly'] as const;
-        const safePeriod = validPeriods.includes(period as any)
-            ? (period as 'last30' | 'quarterly' | 'yearly')
-            : 'last30';
+        const validPeriods = ['last7', 'last30', 'quarterly', 'yearly'] as const;
 
+        const safePeriod = validPeriods.includes(period as any)
+            ? (period as 'last7' | 'last30' | 'quarterly' | 'yearly')
+            : 'last30';
         return {
             message: 'Profit & Loss report fetched successfully',
             data: await this.analyticsService.getProfitAndLoss(

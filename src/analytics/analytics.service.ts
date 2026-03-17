@@ -16,7 +16,7 @@ export class AnalyticsService {
     async getProfitAndLoss(
         actor: User,
         restaurantId: string | null,
-        period: 'last30' | 'quarterly' | 'yearly',
+        period: 'last7' | 'last30' | 'quarterly' | 'yearly',
     ) {
         const restaurantIds = await this.resolveRestaurantIds(
             actor,
@@ -204,7 +204,7 @@ export class AnalyticsService {
 
     // ─── Date Range Helpers ───────────────────────────────────────────────────
 
-    private getDateRanges(period: 'last30' | 'quarterly' | 'yearly') {
+    private getDateRanges(period: 'last7' | 'last30' | 'quarterly' | 'yearly') {
         const now = new Date();
         let currentStart: Date;
         let currentEnd: Date;
@@ -212,6 +212,18 @@ export class AnalyticsService {
         let previousEnd: Date;
 
         switch (period) {
+            case 'last7': {
+                currentEnd = now;
+                currentStart = new Date(now);
+                currentStart.setDate(currentStart.getDate() - 7);
+
+                previousEnd = new Date(currentStart);
+                previousEnd.setMilliseconds(previousEnd.getMilliseconds() - 1);
+
+                previousStart = new Date(previousEnd);
+                previousStart.setDate(previousStart.getDate() - 7);
+                break;
+            }
             case 'last30': {
                 currentEnd = now;
                 currentStart = new Date(now);
