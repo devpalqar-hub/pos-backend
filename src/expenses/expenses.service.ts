@@ -43,19 +43,29 @@ export class ExpensesService {
         search?: string,
         startDate?: Date,
         endDate?: Date,
+        expenseCategoryName?: string,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
         const where: any = {
             restaurantId,
             isActive: true,
+
             ...(expenseType && { expenseType }),
+
+            ...(expenseCategoryName && {
+                expenseCategory: {
+                    name: expenseCategoryName,
+                },
+            }),
+
             ...(search && {
                 OR: [
                     { expenseName: { contains: search } },
                     { description: { contains: search } },
                 ],
             }),
+
             ...((startDate || endDate) && {
                 date: {
                     ...(startDate && { gte: startDate }),

@@ -91,6 +91,12 @@ export class ExpensesController {
         type: String,
         description: 'Filter expenses up to this date (ISO 8601)',
     })
+    @ApiQuery({
+        name: 'expenseCategory',
+        required: false,
+        type: String,
+        description: 'Filter by expense category name (e.g., Salary, Utilities)',
+    })
     @ApiOperation({
         summary: 'List expenses for a restaurant',
         description:
@@ -109,6 +115,7 @@ export class ExpensesController {
         @Query('search') search?: string,
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
+        @Query('expenseCategory') expenseCategory?: string,
     ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
@@ -122,6 +129,7 @@ export class ExpensesController {
             search,
             startDate ? new Date(startDate) : undefined,
             endDate ? new Date(endDate) : undefined,
+            expenseCategory,
         );
 
         return {

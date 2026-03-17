@@ -542,13 +542,13 @@ export class PayrollService {
             },
             include: STAFF_INCLUDE,
         });
+
         if (!profile) {
             throw new NotFoundException(
                 `Staff profile ${staffProfileId} not found in restaurant ${restaurantId}`,
             );
         }
 
-        // Check if payroll already processed for this month
         const existingPayroll = await this.prisma.payroll.findUnique({
             where: {
                 staffId_month_year: {
@@ -558,13 +558,13 @@ export class PayrollService {
                 },
             },
         });
+
         if (existingPayroll) {
             throw new ConflictException(
                 `Payroll for ${dto.month}/${dto.year} already processed for this staff member`,
             );
         }
 
-        // Calculate total working days in the month based on staff's working days config
         const totalWorkingDays = this.calculateWorkingDaysInMonth(
             dto.year,
             dto.month,
@@ -580,7 +580,6 @@ export class PayrollService {
         const monthlySalary = Number(profile.monthlySalary);
         const perDaySalary = monthlySalary / totalWorkingDays;
 
-        // Get leaves for the month
         const startDate = new Date(dto.year, dto.month - 1, 1);
         const endDate = new Date(dto.year, dto.month, 0, 23, 59, 59);
 
@@ -594,16 +593,18 @@ export class PayrollService {
         const paidLeaveDays = leaves.filter((l) => l.leaveType === LeaveType.PAID).length;
         const unpaidLeaveDays = leaves.filter((l) => l.leaveType === LeaveType.UNPAID).length;
 
-        // Get overtime for the month
         const overtimes = await this.prisma.staffOvertime.findMany({
             where: {
                 staffId: staffProfileId,
                 date: { gte: startDate, lte: endDate },
             },
         });
-        const overtimeAmount = overtimes.reduce((sum, ot) => sum + Number(ot.wageAmount), 0);
 
-        // Calculate deductions and additions
+        const overtimeAmount = overtimes.reduce(
+            (sum, ot) => sum + Number(ot.wageAmount),
+            0,
+        );
+
         const bonusAmount = dto.bonusAmount ?? 0;
         const deductionAmount = dto.deductionAmount ?? 0;
 
@@ -613,33 +614,62 @@ export class PayrollService {
 
         const finalSalary = monthlySalary - totalDeductions + totalAdditions;
 
-        // Create payroll record
-        const payroll = await this.prisma.payroll.create({
-            data: {
-                restaurantId,
-                staffId: staffProfileId,
-                month: dto.month,
-                year: dto.year,
-                monthlySalary,
-                totalWorkingDays,
-                perDaySalary: Math.round(perDaySalary * 100) / 100,
-                paidLeaveDays,
-                unpaidLeaveDays,
-                overtimeAmount,
-                bonusAmount,
-                deductionAmount,
-                deductionNotes: dto.deductionNotes ?? null,
-                totalDeductions: Math.round(totalDeductions * 100) / 100,
-                totalAdditions: Math.round(totalAdditions * 100) / 100,
-                finalSalary: Math.round(finalSalary * 100) / 100,
-                status: 'PROCESSED',
-                processedAt: new Date(),
-                notes: dto.notes ?? null,
-                createdById: actor.id,
+        // Get Salary Expense Category
+        const salaryCategory = await this.prisma.expenseCategory.findFirst({
+            where: {
+                name: 'Salary',
+                isActive: true,
             },
-            include: {
-                staff: { include: STAFF_INCLUDE },
-            },
+        });
+
+        if (!salaryCategory) {
+            throw new NotFoundException('Salary expense category not found');
+        }
+
+        const payroll = await this.prisma.$transaction(async (tx) => {
+
+            const payrollRecord = await tx.payroll.create({
+                data: {
+                    restaurantId,
+                    staffId: staffProfileId,
+                    month: dto.month,
+                    year: dto.year,
+                    monthlySalary,
+                    totalWorkingDays,
+                    perDaySalary: Math.round(perDaySalary * 100) / 100,
+                    paidLeaveDays,
+                    unpaidLeaveDays,
+                    overtimeAmount,
+                    bonusAmount,
+                    deductionAmount,
+                    deductionNotes: dto.deductionNotes ?? null,
+                    totalDeductions: Math.round(totalDeductions * 100) / 100,
+                    totalAdditions: Math.round(totalAdditions * 100) / 100,
+                    finalSalary: Math.round(finalSalary * 100) / 100,
+                    status: 'PROCESSED',
+                    processedAt: new Date(),
+                    notes: dto.notes ?? null,
+                    createdById: actor.id,
+                },
+                include: {
+                    staff: { include: STAFF_INCLUDE },
+                },
+            });
+
+            await tx.expense.create({
+                data: {
+                    restaurantId,
+                    expenseName: `Salary - ${profile.name} (${dto.month}/${dto.year})`,
+                    expenseType: 'MONTHLY',
+                    amount: Math.round(finalSalary * 100) / 100,
+                    description: `Payroll salary expense for ${profile.name}`,
+                    date: new Date(),
+                    createdById: actor.id,
+                    expenseCategoryId: salaryCategory.id,
+                },
+            });
+
+            return payrollRecord;
         });
 
         return {

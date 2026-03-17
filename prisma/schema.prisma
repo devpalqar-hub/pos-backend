@@ -789,7 +789,7 @@ model LoyalityPointRedemption {
 
 model ExpenseCategory {
   id          String  @id @default(uuid())
-  name        String  @db.VarChar(255)
+  name        String  @unique @db.VarChar(255)
   description String? @db.Text
   isActive    Boolean @default(true)
 
