@@ -285,6 +285,66 @@ export class OrdersController {
             endDate,
         });
     }
+
+
+
+    @Get('restaurants/:restaurantId/analytics/orders/timeline')
+    @Roles(...ALL_ORDER_ROLES)
+
+    @ApiOperation({
+        summary: 'Orders timeline analytics',
+        description:
+            'Returns order counts grouped by time interval. Supports filtering by month/year or date range.',
+    })
+
+    @ApiParam({
+        name: 'restaurantId',
+        description: 'Restaurant UUID',
+    })
+
+    @ApiQuery({
+        name: 'year',
+        required: false,
+        type: Number,
+        description: 'Year filter (e.g., 2026)',
+    })
+
+    @ApiQuery({
+        name: 'month',
+        required: false,
+        type: Number,
+        description: 'Month filter (1-12)',
+    })
+
+    @ApiQuery({
+        name: 'date1',
+        required: false,
+        type: String,
+        description: 'Start date (YYYY-MM-DD)',
+    })
+
+    @ApiQuery({
+        name: 'date2',
+        required: false,
+        type: String,
+        description: 'End date (YYYY-MM-DD)',
+    })
+
+    getOrderTimeline(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('year') year?: number,
+        @Query('month') month?: number,
+        @Query('date1') date1?: string,
+        @Query('date2') date2?: string,
+    ) {
+        return this.ordersService.getOrderTimeline(actor, restaurantId, {
+            year,
+            month,
+            date1,
+            date2,
+        });
+    }
     /**
      * PATCH /orders/batches/:batchId/status
      * Manual batch status override (chef / waiter / admin).

@@ -5,6 +5,9 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  (BigInt.prototype as any).toJSON = function () {
+    return Number(this);
+  };
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // ─── Global Validation Pipe ────────────────────────────────────────────────

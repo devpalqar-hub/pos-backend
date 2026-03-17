@@ -1495,4 +1495,75 @@ export class OrdersService {
             },
         };
     }
+
+
+    async getOrderTimeline(
+        actor: User,
+        restaurantId: string,
+        filters: {
+            year?: number;
+            month?: number;
+            date1?: string;
+            date2?: string;
+        },
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const { year, month, date1, date2 } = filters;
+
+        let startDate: Date | undefined;
+        let endDate: Date | undefined;
+        let groupBy: string;
+
+        // Date filtering priority
+        if (date1 && !date2) {
+            startDate = new Date(date1);
+            endDate = new Date(date1);
+            endDate.setHours(23, 59, 59, 999);
+            groupBy = 'HOUR(createdAt)';
+        }
+        else if (date1 && date2) {
+            startDate = new Date(date1);
+            endDate = new Date(date2);
+            endDate.setHours(23, 59, 59, 999);
+            groupBy = 'DATE(createdAt)';
+        }
+        else if (month && year) {
+            startDate = new Date(year, month - 1, 1);
+            endDate = new Date(year, month, 0, 23, 59, 59);
+            groupBy = 'WEEK(createdAt)';
+        }
+        else if (year) {
+            startDate = new Date(year, 0, 1);
+            endDate = new Date(year, 11, 31, 23, 59, 59);
+            groupBy = 'MONTH(createdAt)';
+        }
+        else {
+            throw new BadRequestException(
+                'Provide either date1, date1+date2, month+year, or year',
+            );
+        }
+
+        const result: any[] = await this.prisma.$queryRawUnsafe(`
+    SELECT 
+      ${groupBy} as label,
+      CAST(COUNT(*) AS SIGNED) as orders
+    FROM order_sessions
+    WHERE restaurantId = '${restaurantId}'
+      AND createdAt BETWEEN '${startDate.toISOString()}' AND '${endDate.toISOString()}'
+    GROUP BY ${groupBy}
+    ORDER BY label
+  `);
+
+        return {
+            range: {
+                startDate,
+                endDate,
+            },
+            data: result.map((r) => ({
+                label: r.label,
+                orders: Number(r.orders),
+            })),
+        };
+    }
 }
