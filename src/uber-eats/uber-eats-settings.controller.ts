@@ -58,6 +58,7 @@ Also returns the \`webhookUrl\` you should register in the Uber Eats Developer D
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
     ) {
+        console.log('Fetching Uber Eats settings for restaurant', restaurantId, 'by user', actor.id);
         return {
             message: 'Uber Eats settings fetched successfully',
             data: await this.uberEatsService.getSettings(actor, restaurantId),
