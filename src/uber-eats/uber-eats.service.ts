@@ -102,7 +102,6 @@ export class UberEatsService {
     async getSettings(actor: User, restaurantId: string) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        console.log("stage 1")
         const settings = await this.prisma.uberEatsSettings.findUnique({
             where: { restaurantId },
             include: {
@@ -114,7 +113,6 @@ export class UberEatsService {
                 },
             },
         });
-        console.log("stage 2")
 
         if (!settings) {
             return {
@@ -124,7 +122,6 @@ export class UberEatsService {
             };
         }
 
-        console.log("stage 3")
         // Mask secrets in response
         return {
             configured: true,
