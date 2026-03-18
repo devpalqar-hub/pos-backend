@@ -225,6 +225,7 @@ export class OrdersController {
     @ApiQuery({ name: 'limit', required: false })
     @ApiQuery({ name: 'startDate', required: false })
     @ApiQuery({ name: 'endDate', required: false })
+    @ApiQuery({ name: 'search', required: false, description: 'Search by customer name' })
     getOrders(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
@@ -234,6 +235,7 @@ export class OrdersController {
         @Query('limit') limit?: string,
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
+        @Query('search') search?: string,
     ) {
         return this.ordersService.getOrdersWithAnalytics(
             actor,
@@ -243,6 +245,7 @@ export class OrdersController {
                 status,
                 startDate,
                 endDate,
+                search,   // 👈 pass down
             },
             parseInt(page ?? '1'),
             parseInt(limit ?? '20'),

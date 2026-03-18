@@ -26,6 +26,7 @@ import { OrdersGateway } from './orders.gateway';
 const SESSION_SUMMARY_INCLUDE = {
     table: { select: { id: true, name: true, seatCount: true, status: true } },
     openedBy: { select: { id: true, name: true, role: true } },
+    orderSessionUpdateTimes: true,
     _count: { select: { batches: true } },
 } as const;
 
@@ -51,6 +52,7 @@ const SESSION_DETAIL_INCLUDE = {
             generatedBy: { select: { id: true, name: true } },
         },
     },
+    orderSessionUpdateTimes: true,
 } as const;
 
 const BATCH_INCLUDE = {
@@ -291,6 +293,13 @@ export class OrdersService {
             },
             include: SESSION_SUMMARY_INCLUDE,
         });
+
+        const sessionCreateTime = await this.prisma.orderSessionUpdateTime.create({
+            data: {
+                orderSessionId: session.id,
+                updatedAt: session.createdAt
+            }
+        })
 
         // Mark table as OCCUPIED if applicable
         if (dto.tableId) {
@@ -1261,6 +1270,7 @@ export class OrdersService {
             status?: SessionStatus;
             startDate?: string;
             endDate?: string;
+            search?: string;   // 👈 NEW
         },
         page: number,
         limit: number,
@@ -1268,7 +1278,7 @@ export class OrdersService {
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        const { channel, status, startDate, endDate } = filters;
+        const { channel, status, startDate, endDate, search } = filters;
 
         const where: any = {
             restaurantId,
@@ -1281,6 +1291,12 @@ export class OrdersService {
             where.createdAt = {
                 gte: new Date(startDate),
                 lte: new Date(endDate),
+            };
+        }
+        // 🔥 SEARCH LOGIC
+        if (search) {
+            where.customerName = {
+                contains: search
             };
         }
         type OrderSessionWithRelations = Prisma.OrderSessionGetPayload<{
