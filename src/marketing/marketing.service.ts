@@ -27,7 +27,7 @@ import { TriggerCampaignDto } from './dto/trigger-campaign.dto';
 export class MarketingService {
   private readonly logger = new Logger(MarketingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  Marketing Settings
@@ -809,6 +809,8 @@ export class MarketingService {
     customerName: string,
     restaurantName: string,
   ) {
+    this.logger.log(`[EMAIL] Preparing to send email to: ${toEmail}`);
+
     const transporter = nodemailer.createTransport({
       host: settings.smtpHost,
       port: settings.smtpPort ?? 587,
@@ -818,6 +820,7 @@ export class MarketingService {
         pass: settings.smtpPassword,
       },
     });
+    this.logger.log(`[EMAIL] SMTP Config → host: ${settings.smtpHost}, port: ${settings.smtpPort}, user: ${settings.smtpUser}`);
 
     const subject = this.renderTemplate(
       campaign.subject ?? campaign.name,
@@ -832,17 +835,25 @@ export class MarketingService {
         ? this.renderTemplate(campaign.htmlContent, customerName, restaurantName, campaign.imageUrl)
         : this.buildDefaultHtml(campaign, customerName, restaurantName);
 
+    this.logger.log(`[EMAIL] Sending email → to: ${toEmail}, subject: ${subject}`);
     const textBody = campaign.textContent
       ? this.renderTemplate(campaign.textContent, customerName, restaurantName, campaign.imageUrl)
       : undefined;
 
-    await transporter.sendMail({
-      from: `"${settings.smtpFromName ?? restaurantName}" <${settings.smtpFromEmail}>`,
-      to: toEmail,
-      subject,
-      html: htmlBody,
-      text: textBody,
-    });
+    try {
+      const response = await transporter.sendMail({
+        from: `"${settings.smtpFromName ?? restaurantName}" <${settings.smtpFromEmail}>`,
+        to: toEmail,
+        subject,
+        html: htmlBody,
+        text: textBody,
+      });
+
+      this.logger.log(`[EMAIL] SUCCESS → messageId: ${response.messageId}`);
+    } catch (err) {
+      this.logger.error(`[EMAIL] FAILED → to: ${toEmail}, error: ${err.message}`, err.stack);
+      throw err;
+    }
   }
 
   /** Builds a simple responsive default HTML email when no htmlContent is provided */
@@ -939,22 +950,34 @@ export class MarketingService {
       restaurantName,
       campaign.imageUrl,
     );
+    this.logger.log(`[WHATSAPP] Preparing message → to: ${toPhone}`);
+    this.logger.log(`[WHATSAPP] PhoneNumberId: ${settings.waPhoneNumberId}`);
 
-    await axios.post(
-      `https://graph.facebook.com/v18.0/${settings.waPhoneNumberId}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        to: toPhone,
-        type: 'text',
-        text: { body },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${settings.waAccessToken}`,
-          'Content-Type': 'application/json',
+    try {
+      const response = await axios.post(
+        `https://graph.facebook.com/v18.0/${settings.waPhoneNumberId}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to: toPhone,
+          type: 'text',
+          text: { body },
         },
-      },
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${settings.waAccessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      this.logger.log(`[WHATSAPP] SUCCESS → to: ${toPhone}, response: ${JSON.stringify(response.data)}`);
+    } catch (err) {
+      this.logger.error(
+        `[WHATSAPP] FAILED → to: ${toPhone}, error: ${err.response?.data || err.message}`,
+        err.stack,
+      );
+      throw err;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
