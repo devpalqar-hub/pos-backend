@@ -398,6 +398,13 @@ export class OrdersService {
                 throw new NotFoundException(`Session ${sessionId} not found`);
             }
 
+            // ✅ RULE: Prevent updates if already BILLED
+            if (session.status === SessionStatus.BILLED) {
+                throw new BadRequestException(
+                    'Session status cannot be changed once it is BILLED',
+                );
+            }
+
             const updated = await tx.orderSession.update({
                 where: { id: sessionId },
                 data: {
@@ -1311,9 +1318,6 @@ export class OrdersService {
     }
 
 
-
-
-
     async getOrdersWithAnalytics(
         actor: User,
         restaurantId: string,
@@ -1355,6 +1359,8 @@ export class OrdersService {
             include: {
                 table: true;
                 bill: true;
+                openedBy: true,
+                orderSessionUpdateTimes: true
             };
         }>;
 
@@ -1368,6 +1374,8 @@ export class OrdersService {
             include: {
                 table: true,
                 bill: true,
+                openedBy: true,
+                orderSessionUpdateTimes: true
             },
             orderBy: {
                 createdAt: 'desc',
@@ -1440,6 +1448,13 @@ export class OrdersService {
             total_amount: Number(s.bill?.totalAmount ?? 0),
 
             status: this.mapSessionStatusToOrderStatus(s.status as SessionStatus),
+            opened_by: s.openedBy ? { id: s.openedBy.id, name: s.openedBy.name } : null,
+            orderSessionUpdateTimes: s.orderSessionUpdateTimes.map((u) => ({
+                updatedAt: u.updatedAt,
+                fieldChanged: u.fieldChanged,
+                oldValue: u.oldValue,
+                newValue: u.newValue,
+            }))
         }));
 
         return {
