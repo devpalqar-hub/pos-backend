@@ -564,6 +564,9 @@ model OrderSessionUpdateTime {
   id             String   @id @default(uuid())
   orderSessionId String
   updatedAt      DateTime @default(now())
+  fieldChanged   String?  @db.VarChar(100) // e.g. "status", "totalAmount"
+  oldValue       String?  @db.Text
+  newValue       String?  @db.Text
 
   orderSession OrderSession @relation(fields: [orderSessionId], references: [id], onDelete: Cascade)
 

@@ -251,10 +251,14 @@ export class OrdersService {
     async createSession(actor: User, restaurantId: string, dto: CreateSessionDto) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        // Only WAITER, RESTAURANT_ADMIN, OWNER, SUPER_ADMIN can open sessions
+        // Only allowed roles
         const allowedCreators: UserRole[] = [
-            UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.WAITER,
+            UserRole.SUPER_ADMIN,
+            UserRole.OWNER,
+            UserRole.RESTAURANT_ADMIN,
+            UserRole.WAITER,
         ];
+
         if (!allowedCreators.includes(actor.role)) {
             throw new ForbiddenException('You are not allowed to open order sessions');
         }
@@ -264,11 +268,13 @@ export class OrdersService {
             const table = await this.prisma.table.findFirst({
                 where: { id: dto.tableId, restaurantId },
             });
+
             if (!table) {
                 throw new NotFoundException(
                     `Table ${dto.tableId} not found in restaurant ${restaurantId}`,
                 );
             }
+
             if (!table.isActive) {
                 throw new BadRequestException(`Table ${table.name} is inactive`);
             }
@@ -276,46 +282,64 @@ export class OrdersService {
 
         const sessionNumber = await this.generateUniqueSessionNumber(restaurantId);
 
-        const session = await this.prisma.orderSession.create({
-            data: {
-                restaurantId,
-                tableId: dto.tableId ?? null,
-                sessionNumber,
-                channel: (dto.channel ?? OrderChannel.DINE_IN) as any,
-                customerName: dto.customerName ?? null,
-                customerPhone: dto.customerPhone ?? null,
-                customerEmail: dto.customerEmail ?? null,
-                guestCount: dto.guestCount ?? 1,
-                externalOrderId: dto.externalOrderId ?? null,
-                deliveryAddress: dto.deliveryAddress ?? null,
-                specialInstructions: dto.specialInstructions ?? null,
-                openedById: actor.id,
-            },
-            include: SESSION_SUMMARY_INCLUDE,
-        });
-
-        const sessionCreateTime = await this.prisma.orderSessionUpdateTime.create({
-            data: {
-                orderSessionId: session.id,
-                updatedAt: session.createdAt
-            }
-        })
-
-        // Mark table as OCCUPIED if applicable
-        if (dto.tableId) {
-            await this.prisma.table.update({
-                where: { id: dto.tableId },
-                data: { status: 'OCCUPIED' as any },
+        const session = await this.prisma.$transaction(async (tx) => {
+            const session = await tx.orderSession.create({
+                data: {
+                    restaurantId,
+                    tableId: dto.tableId ?? null,
+                    sessionNumber,
+                    channel: (dto.channel ?? OrderChannel.DINE_IN) as any,
+                    customerName: dto.customerName ?? null,
+                    customerPhone: dto.customerPhone ?? null,
+                    customerEmail: dto.customerEmail ?? null,
+                    guestCount: dto.guestCount ?? 1,
+                    externalOrderId: dto.externalOrderId ?? null,
+                    deliveryAddress: dto.deliveryAddress ?? null,
+                    specialInstructions: dto.specialInstructions ?? null,
+                    openedById: actor.id,
+                },
+                include: SESSION_SUMMARY_INCLUDE,
             });
 
+            await tx.orderSessionUpdateTime.create({
+                data: {
+                    orderSessionId: session.id,
+                    updatedAt: session.createdAt,
+                    fieldChanged: "order status",
+                    oldValue: null,
+                    newValue: session.status
+                },
+            });
+
+            // Refetch session to include the new update time
+            const sessionWithUpdateTimes = await tx.orderSession.findUnique({
+                where: { id: session.id },
+                include: SESSION_SUMMARY_INCLUDE,
+            });
+
+            console.log("session update time", sessionWithUpdateTimes?.orderSessionUpdateTimes);
+            console.log("helooo");
+            // 3. Update table status if applicable
+            if (dto.tableId) {
+                await tx.table.update({
+                    where: { id: dto.tableId },
+                    data: { status: 'OCCUPIED' as any },
+                });
+            }
+
+            return sessionWithUpdateTimes;
+        });
+
+        // 4. Emit events (outside transaction)
+        if (dto.tableId) {
             this.gateway.emitTableStatus(dto.tableId, restaurantId, 'OCCUPIED');
         }
 
         this.gateway.emitToRestaurant(restaurantId, 'session:opened', session);
-        this.logger.log(
-            `Session ${sessionNumber} opened by ${actor.name} (${actor.role}) in restaurant ${restaurantId}`,
-        );
 
+        this.logger.log(
+            `Session ${session?.sessionNumber} opened by ${actor.name} (${actor.role}) in restaurant ${restaurantId}`,
+        );
         return session;
     }
 
@@ -365,38 +389,56 @@ export class OrdersService {
         await this.assertRestaurantAccess(actor, restaurantId);
         this.assertManageRole(actor);
 
-        const session = await this.prisma.orderSession.findFirst({
-            where: { id: sessionId, restaurantId },
+        const result = await this.prisma.$transaction(async (tx) => {
+            const session = await tx.orderSession.findFirst({
+                where: { id: sessionId, restaurantId },
+            });
+
+            if (!session) {
+                throw new NotFoundException(`Session ${sessionId} not found`);
+            }
+
+            const updated = await tx.orderSession.update({
+                where: { id: sessionId },
+                data: {
+                    status: dto.status as any,
+                    ...(dto.status === SessionStatus.PAID ||
+                        dto.status === SessionStatus.CANCELLED ||
+                        dto.status === SessionStatus.VOID
+                        ? { closedAt: new Date() }
+                        : {}),
+                },
+                include: SESSION_SUMMARY_INCLUDE,
+            });
+
+
+            await tx.orderSessionUpdateTime.create({
+                data: {
+                    orderSessionId: session.id,
+                    fieldChanged: "order status",
+                    oldValue: session.status,
+                    newValue: updated.status
+                },
+            });
+
+            // Release table if needed
+            if (
+                session.tableId &&
+                [SessionStatus.PAID, SessionStatus.CANCELLED, SessionStatus.VOID].includes(dto.status)
+            ) {
+                await this.releaseTableIfNoOpenSessions(session.tableId, sessionId);
+            }
+
+            return updated;
         });
-        if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
 
-        const updated = await this.prisma.orderSession.update({
-            where: { id: sessionId },
-            data: {
-                status: dto.status as any,
-                ...(dto.status === SessionStatus.PAID ||
-                    dto.status === SessionStatus.CANCELLED ||
-                    dto.status === SessionStatus.VOID
-                    ? { closedAt: new Date() }
-                    : {}),
-            },
-            include: SESSION_SUMMARY_INCLUDE,
-        });
-
-        // Release table if session is being closed
-        if (
-            session.tableId &&
-            [SessionStatus.PAID, SessionStatus.CANCELLED, SessionStatus.VOID].includes(dto.status)
-        ) {
-            await this.releaseTableIfNoOpenSessions(session.tableId, sessionId);
-        }
-
+        // Emit outside transaction
         this.gateway.emitToRestaurant(restaurantId, 'session:status:changed', {
             sessionId,
             status: dto.status,
         });
 
-        return updated;
+        return result;
     }
 
     /**
@@ -953,6 +995,16 @@ export class OrdersService {
                     taxAmount,
                     discountAmount,
                     totalAmount,
+                },
+            });
+
+            await tx.orderSessionUpdateTime.create({
+                data: {
+                    orderSessionId: session.id,
+                    updatedAt: session.createdAt,
+                    fieldChanged: "order status",
+                    oldValue: session.status,
+                    newValue: SessionStatus.BILLED
                 },
             });
 
