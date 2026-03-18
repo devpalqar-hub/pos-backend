@@ -1504,6 +1504,8 @@ export class OrdersService {
                     },
                 },
                 bill: true,
+                openedBy: true,
+                orderSessionUpdateTimes: true,
             },
         });
 
