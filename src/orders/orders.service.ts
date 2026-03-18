@@ -1578,6 +1578,13 @@ export class OrdersService {
                 delivery_fee: Number(session.deliveryFee ?? 0),
                 grand_total: Number(session.bill?.totalAmount ?? 0),
             },
+            opened_by: session.openedBy ? { id: session.openedBy.id, name: session.openedBy.name } : null,
+            orderSessionUpdateTimes: session.orderSessionUpdateTimes.map((u) => ({
+                updatedAt: u.updatedAt,
+                fieldChanged: u.fieldChanged,
+                oldValue: u.oldValue,
+                newValue: u.newValue,
+            }))
         };
     }
 
