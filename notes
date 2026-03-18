@@ -1,40 +1,17 @@
-Campaign:
-Usually stores one-time or manually scheduled marketing campaigns (e.g., a Black Friday blast, a single promo email).
-
-TriggerCampaign:
-Designed for automated, rule-based, repeating campaigns. It stores extra logic: trigger rules, repeat delay, per-customer throttling, and expiration.
-
-
-
-
-
-
-
-user registering --> user login --> view menu --> add to cart --> checkout --> payment success.
-
-
-Here the OrderChannel means how the way user is ordered food. i have provided an addBatch method, which is for creating  Inrestaurant booking. on calling addBatch method, the order is created and order is passed to kitchen and billing using websocket. the websocket code is also provided. Also i have provided the complete cart module for you. if you want i can provide the whole code of websocket. Never make any edit on the code i have given.
-
-the next module to create is the booking module. booking is completely through cart. so for booking, one parameter should be cartId. both registered as well as guest users can purchase from the platform. that is the way i am designed cart module. 
-you might confused of OrderSession and OrderBatch. OrderSession means one person on a table of restaurant having food, there can be multiple different person on a same table. so Ordersession is for handling that case. OrderBatch means, a person can give order multiple times on a single session like after having biriyani he can then order one grape juice parcel. order items stores what is the item ordered. 
-for online order, one ordersession, one orderBatch and the items a user is only needed. 
-on creating order, use websocket to inform that to kitchen and billing only. use ONLINE_OWN as OrderChannel value. payment gateways can later integrate, leave space for that and implement booking module 
-
-
-
-next doubts: 
-how loyality points should awarded?
-
-
-
-
-POS -- 
-  ONLINE_ORDERING - disable cart
-  COUPONS - disable coupoun
-  LOYALTY_POINTS - disable loyalty points module
-  MARKETING - disable campainn mod and trigger campaign 
-  DOORDASH --  disable doordash module
-  UBER_EATS -- disable uber eats module
-  PAYROLL -- disable payroll module
-  EXPENSES -- disable expenses module
-
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Request successful",
+  "data": {
+    "totalOrder": 7,
+    "totalRevenue": 30.31,
+    "averageRevenue": 4.33,
+    "insights": {
+      "DINE_IN": {
+        "order": 7,
+        "revenue": 30.31
+      }
+    }
+  },
+  "timestamp": "2026-03-18T07:27:22.840Z"
+}

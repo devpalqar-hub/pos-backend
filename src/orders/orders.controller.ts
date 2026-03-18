@@ -289,15 +289,12 @@ export class OrdersController {
         });
     }
 
-
-
     @Get('restaurants/:restaurantId/analytics/orders/timeline')
     @Roles(...ALL_ORDER_ROLES)
 
     @ApiOperation({
         summary: 'Orders timeline analytics',
-        description:
-            'Returns order counts grouped by time interval. Supports filtering by month/year or date range.',
+        description: 'Returns order counts grouped by period and channel',
     })
 
     @ApiParam({
@@ -306,48 +303,31 @@ export class OrdersController {
     })
 
     @ApiQuery({
-        name: 'year',
-        required: false,
-        type: Number,
-        description: 'Year filter (e.g., 2026)',
+        name: 'period',
+        required: true,
+        enum: ['day', 'week', 'month', 'year'],
     })
 
     @ApiQuery({
-        name: 'month',
+        name: 'value',
         required: false,
-        type: Number,
-        description: 'Month filter (1-12)',
+        description: `
+    day   → YYYY-MM-DD
+    month → 1-12
+    year  → YYYY
+    week  → ignored
+    `,
     })
-
-    @ApiQuery({
-        name: 'date1',
-        required: false,
-        type: String,
-        description: 'Start date (YYYY-MM-DD)',
-    })
-
-    @ApiQuery({
-        name: 'date2',
-        required: false,
-        type: String,
-        description: 'End date (YYYY-MM-DD)',
-    })
-
     getOrderTimeline(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('year') year?: number,
-        @Query('month') month?: number,
-        @Query('date1') date1?: string,
-        @Query('date2') date2?: string,
+        @Query('period') period: 'day' | 'week' | 'month' | 'year',
+        @Query('value') value?: string,
     ) {
-        return this.ordersService.getOrderTimeline(actor, restaurantId, {
-            year,
-            month,
-            date1,
-            date2,
-        });
+        return this.ordersService.getOrderTimeline(actor, restaurantId, period, value);
     }
+
+
     /**
      * PATCH /orders/batches/:batchId/status
      * Manual batch status override (chef / waiter / admin).

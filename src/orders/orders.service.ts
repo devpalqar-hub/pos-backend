@@ -1583,70 +1583,154 @@ export class OrdersService {
     async getOrderTimeline(
         actor: User,
         restaurantId: string,
-        filters: {
-            year?: number;
-            month?: number;
-            date1?: string;
-            date2?: string;
-        },
+        period: 'day' | 'week' | 'month' | 'year',
+        value?: string,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        const { year, month, date1, date2 } = filters;
+        const now = new Date();
 
-        let startDate: Date | undefined;
-        let endDate: Date | undefined;
+        let startDate: Date;
+        let endDate: Date;
         let groupBy: string;
+        let labels: string[] = [];
 
-        // Date filtering priority
-        if (date1 && !date2) {
-            startDate = new Date(date1);
-            endDate = new Date(date1);
+        // ---------------- DAY ----------------
+        if (period === 'day') {
+            const target = value ? new Date(value) : new Date();
+
+            if (isNaN(target.getTime())) {
+                throw new BadRequestException('Invalid date format (YYYY-MM-DD)');
+            }
+
+            startDate = new Date(target);
+            startDate.setHours(0, 0, 0, 0);
+
+            endDate = new Date(target);
             endDate.setHours(23, 59, 59, 999);
+
             groupBy = 'HOUR(createdAt)';
-        }
-        else if (date1 && date2) {
-            startDate = new Date(date1);
-            endDate = new Date(date2);
-            endDate.setHours(23, 59, 59, 999);
-            groupBy = 'DATE(createdAt)';
-        }
-        else if (month && year) {
-            startDate = new Date(year, month - 1, 1);
-            endDate = new Date(year, month, 0, 23, 59, 59);
-            groupBy = 'WEEK(createdAt)';
-        }
-        else if (year) {
-            startDate = new Date(year, 0, 1);
-            endDate = new Date(year, 11, 31, 23, 59, 59);
-            groupBy = 'MONTH(createdAt)';
-        }
-        else {
-            throw new BadRequestException(
-                'Provide either date1, date1+date2, month+year, or year',
+            labels = Array.from({ length: 24 }, (_, i) =>
+                i.toString().padStart(2, '0') + ':00',
             );
         }
 
+        // ---------------- WEEK ----------------
+        else if (period === 'week') {
+            const today = new Date();
+
+            const day = today.getDay();
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+
+            startDate = new Date(today.setDate(diff));
+            startDate.setHours(0, 0, 0, 0);
+
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            endDate.setHours(23, 59, 59, 999);
+
+            groupBy = 'DAYOFWEEK(createdAt)';
+            labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        }
+
+        // ---------------- MONTH ----------------
+        else if (period === 'month') {
+            const month = value ? Number(value) - 1 : now.getMonth();
+
+            if (month < 0 || month > 11) {
+                throw new BadRequestException('Month must be between 1-12');
+            }
+
+            const year = now.getFullYear();
+
+            startDate = new Date(year, month, 1);
+            endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+            groupBy = 'DAY(createdAt)';
+            const days = endDate.getDate();
+            labels = Array.from({ length: days }, (_, i) => (i + 1).toString());
+        }
+
+        // ---------------- YEAR ----------------
+        else if (period === 'year') {
+            const year = value ? Number(value) : now.getFullYear();
+
+            if (isNaN(year)) {
+                throw new BadRequestException('Invalid year');
+            }
+
+            startDate = new Date(year, 0, 1);
+            endDate = new Date(year, 11, 31, 23, 59, 59);
+
+            groupBy = 'MONTH(createdAt)';
+            labels = [
+                'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+            ];
+        }
+
+        else {
+            throw new BadRequestException('Invalid period');
+        }
+
+        // ---------------- QUERY ----------------
         const result: any[] = await this.prisma.$queryRawUnsafe(`
     SELECT 
-      ${groupBy} as label,
-      CAST(COUNT(*) AS SIGNED) as orders
-    FROM order_sessions
-    WHERE restaurantId = '${restaurantId}'
-      AND createdAt BETWEEN '${startDate.toISOString()}' AND '${endDate.toISOString()}'
-    GROUP BY ${groupBy}
+        label,
+        channel,
+        COUNT(*) as orders
+    FROM (
+        SELECT 
+            ${groupBy} AS label,
+            channel
+        FROM order_sessions
+        WHERE restaurantId = '${restaurantId}'
+          AND createdAt BETWEEN '${startDate.toISOString()}' AND '${endDate.toISOString()}'
+    ) t
+    GROUP BY label, channel
     ORDER BY label
-  `);
+`);
+
+        const channels = ['DINE_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH'];
+
+        const datasets = channels.map((channel) => ({
+            label: channel,
+            data: Array(labels.length).fill(0),
+        }));
+
+        // ---------------- MAP ----------------
+        for (const row of result) {
+            const label = Number(row.label);
+            const orders = Number(row.orders);
+
+            let index = 0;
+
+            switch (period) {
+                case 'day':
+                    index = label;
+                    break;
+                case 'week':
+                    index = (label + 5) % 7;
+                    break;
+                case 'month':
+                    index = label - 1;
+                    break;
+                case 'year':
+                    index = label - 1;
+                    break;
+            }
+
+            const dataset = datasets.find(d => d.label === row.channel);
+
+            if (dataset && index >= 0 && index < dataset.data.length) {
+                dataset.data[index] = orders;
+            }
+        }
 
         return {
-            range: {
-                startDate,
-                endDate,
-            },
-            data: result.map((r) => ({
-                label: r.label,
-                orders: Number(r.orders),
-            })),
+            period,
+            labels,
+            datasets,
         };
     }
 }
