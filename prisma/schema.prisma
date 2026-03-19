@@ -295,29 +295,30 @@ model Restaurant {
   createdBy User?  @relation("RestaurantCreatedBy", fields: [createdById], references: [id])
   staff     User[] @relation("RestaurantStaff")
 
-  workingHours        WorkingHours[]
-  categories          MenuCategory[]
-  menuItems           MenuItem[]
-  priceRules          PriceRule[]
-  tableGroups         TableGroup[]
-  tables              Table[]
-  sessions            OrderSession[]
-  bills               Bill[]
-  customers           Customer[]
-  loyalityPoints      LoyalityPoint[]
-  expenses            Expense[]
-  payrolls            Payroll[]
-  staffs              Staff[]
-  marketingSettings   MarketingSettings?
-  campaigns           Campaign[]
-  doorDashSettings    DoorDashSettings?
-  doorDashWebhookLogs DoorDashWebhookLog[]
-  uberEatsSettings    UberEatsSettings?
-  uberEatsWebhookLogs UberEatsWebhookLog[]
-  triggerCampaigns    TriggerCampaign[]
-  coupons             Coupon[]
-  carts               Cart[]
-  features            RestaurantFeatureFlag[]
+  workingHours             WorkingHours[]
+  categories               MenuCategory[]
+  menuItems                MenuItem[]
+  priceRules               PriceRule[]
+  tableGroups              TableGroup[]
+  tables                   Table[]
+  sessions                 OrderSession[]
+  bills                    Bill[]
+  customers                Customer[]
+  loyalityPoints           LoyalityPoint[]
+  expenses                 Expense[]
+  payrolls                 Payroll[]
+  staffs                   Staff[]
+  marketingSettings        MarketingSettings?
+  campaigns                Campaign[]
+  doorDashSettings         DoorDashSettings?
+  doorDashWebhookLogs      DoorDashWebhookLog[]
+  uberEatsSettings         UberEatsSettings?
+  uberEatsWebhookLogs      UberEatsWebhookLog[]
+  triggerCampaigns         TriggerCampaign[]
+  coupons                  Coupon[]
+  carts                    Cart[]
+  features                 RestaurantFeatureFlag[]
+  loyalityPointsConverters LoyalityPointsConverter[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -803,6 +804,23 @@ model LoyalityPointRedemption {
   @@index([loyalityPointId])
   @@index([customerId])
   @@map("loyality_point_redemptions")
+}
+
+model LoyalityPointsConverter {
+  id           String  @id @default(uuid())
+  restaurantId String
+  points       Decimal @db.Decimal(10, 2) // Points to convert
+  value        Decimal @db.Decimal(10, 2) // Monetary value of the points
+  currency     String  @default("USD") @db.VarChar(10)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@map("loyality_points_converters")
 }
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
