@@ -6,6 +6,7 @@ export enum BatchStatus {
     IN_PROGRESS = 'IN_PROGRESS',
     READY = 'READY',
     SERVED = 'SERVED',
+    CANCELLED = 'CANCELLED',
 }
 
 export class UpdateBatchStatusDto {

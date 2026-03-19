@@ -33,7 +33,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { BillStatus, User, UserRole } from '@prisma/client';
-
+updateBatchStatus
 // ─── All roles that interact with orders ──────────────────────────────────────
 const ALL_ORDER_ROLES = [
     UserRole.SUPER_ADMIN,
