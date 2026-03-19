@@ -11,6 +11,7 @@ import {
     HttpStatus,
     UseGuards,
     Query,
+    Req,
 } from '@nestjs/common';
 import {
     ApiTags,
@@ -28,6 +29,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '@prisma/client';
+
 
 @ApiTags('Loyality Points')
 @ApiBearerAuth('Bearer')
@@ -130,6 +132,61 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
         };
     }
 
+
+    @Get('customers/loyalty')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @HttpCode(HttpStatus.OK)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Get customer loyalty summary using search',
+        description: `
+Fetch loyalty summary using a single **search** parameter.
+
+The system auto-detects the type:
+- UUID → customerId
+- Email → email
+- Otherwise → phone
+
+**Examples:**
+- search=9b1deb4d-5b2d-4c1f-9f1e-123456789abc → customerId
+- search=john@example.com → email
+- search=9876543210 → phone
+
+**Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
+  `,
+    })
+    @ApiQuery({
+        name: 'search',
+        required: true,
+        description: 'Customer identifier (UUID | email | phone)',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Customer loyalty fetched successfully',
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid search parameter',
+    })
+    @ApiResponse({
+        status: 404,
+        description: 'Customer not found',
+    })
+    async getCustomerLoyalty(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('search') search: string,
+    ) {
+        return {
+            message: 'Customer loyalty fetched successfully',
+            data: await this.loyalityPointsService.getCustomerLoyalty(
+                actor,
+                restaurantId,
+                search,
+            ),
+        };
+    }
+
     // ─── Get One ──────────────────────────────────────────────────────────────
 
     @Get(':id')
@@ -207,4 +264,6 @@ All time/date/day fields are optional. When omitted the rule applies uncondition
     ) {
         return await this.loyalityPointsService.remove(actor, restaurantId, id);
     }
+
+
 }

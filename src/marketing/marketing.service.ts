@@ -810,6 +810,9 @@ export class MarketingService {
     restaurantName: string,
   ) {
     this.logger.log(`[EMAIL] Preparing to send email to: ${toEmail}`);
+    this.logger.log(`[EMAIL] Preparing to send email to: ${toEmail}`);
+    this.logger.log(`[EMAIL] Preparing to send email to: ${toEmail}`);
+    this.logger.log(`[EMAIL] Preparing to send email to: ${toEmail}`);
 
     const transporter = nodemailer.createTransport({
       host: settings.smtpHost,

@@ -2,12 +2,14 @@ import {
     Injectable,
     NotFoundException,
     ForbiddenException,
+    BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
 import { CreateLoyalityPointDto } from './dto/create-loyality-point.dto';
 import { UpdateLoyalityPointDto } from './dto/update-loyality-point.dto';
 import { User, UserRole } from '@prisma/client';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class LoyalityPointsService {
@@ -254,6 +256,75 @@ export class LoyalityPointsService {
         };
     }
 
+
+    async getCustomerLoyalty(
+        actor: User,
+        restaurantId: string,
+        search: string,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        if (!search) {
+            throw new BadRequestException('Search parameter is required');
+        }
+
+        let whereCondition: any;
+
+        // Detect type
+        if (isUUID(search)) {
+            whereCondition = { id: search };
+        } else if (this.isEmail(search)) {
+            whereCondition = { email: search };
+        } else {
+            whereCondition = { phone: search };
+        }
+
+        const customer = await this.prisma.customer.findFirst({
+            where: {
+                restaurantId,
+                ...whereCondition,
+            },
+            select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+            },
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Customer not found');
+        }
+
+        const [earned, redeemed] = await Promise.all([
+            this.prisma.loyalityPoint.aggregate({
+                _sum: { points: true },
+                where: {
+                    restaurantId,
+                    // customerId: customer.id,
+                },
+            }),
+            this.prisma.loyalityPointRedemption.aggregate({
+                _sum: { pointsAwarded: true },
+                where: {
+                    customerId: customer.id,
+                },
+            }),
+        ]);
+
+        const totalEarned = Number(earned._sum?.points ?? 0);
+        const totalRedeemed = Number(redeemed._sum?.pointsAwarded ?? 0);
+
+        return {
+            customer,
+            loyalty: {
+                totalEarned,
+                totalRedeemed,
+                balance: totalEarned - totalRedeemed,
+            },
+        };
+    }
+
     // ─── Permission Helpers ───────────────────────────────────────────────────
 
     private async assertRestaurantAccess(
@@ -303,5 +374,9 @@ export class LoyalityPointsService {
                 'Insufficient permissions to delete loyalty point rules',
             );
         }
+    }
+
+    private isEmail(value: string): boolean {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     }
 }

@@ -1,17 +1,6 @@
-{
-  "success": true,
-  "statusCode": 200,
-  "message": "Request successful",
-  "data": {
-    "totalOrder": 7,
-    "totalRevenue": 30.31,
-    "averageRevenue": 4.33,
-    "insights": {
-      "DINE_IN": {
-        "order": 7,
-        "revenue": 30.31
-      }
-    }
-  },
-  "timestamp": "2026-03-18T07:27:22.840Z"
-}
+get bill - amount after lp, coupoun, tax and discount
+get loyality points of user based on their email, phone, or id
+list customers = add filter based on their email also.
+
+
+generate bill - add customer name, email, phone. create user if user not exist
