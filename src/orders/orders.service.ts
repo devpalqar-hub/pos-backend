@@ -1252,6 +1252,7 @@ export class OrdersService {
         // ================================
 
         let couponDiscount = 0;
+        let appliedCoupon: any = null; // ✅ ADD
 
         if (dto.couponName) {
             const coupon = await this.prisma.coupon.findFirst({
@@ -1285,24 +1286,69 @@ export class OrdersService {
             if (coupon.maxDiscount) {
                 couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
             }
+
+            // ✅ STORE FOR RESPONSE
+            appliedCoupon = {
+                id: coupon.id,
+                code: coupon.code,
+                name: coupon.name,
+                discountType: coupon.discountType,
+                discountValue: coupon.discountValue.toString(),
+                maxDiscount: coupon.maxDiscount?.toString() ?? null,
+                appliedDiscount: couponDiscount.toString(),
+            };
         }
 
         // ================================
         // LOYALTY
         // ================================
-
         let loyaltyDiscount = 0;
+        let appliedLoyalty: any = null; // ✅ ADD
 
-        if (dto.claimedLoyalityPoints) {
-            const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+        if (dto.customerEmail || dto.customerPhone) {
+            const customer = await this.prisma.customer.findFirst({
                 where: {
-                    customerId: actor.id,
-                    loyalityPoint: { restaurantId },
+                    email: dto.customerEmail ?? undefined,
+                    phone: dto.customerPhone ?? undefined,
+                    restaurantId,
                 },
             });
 
-            for (const r of redemptions) {
-                loyaltyDiscount += Number(r.pointsAwarded);
+            if (!customer) {
+                throw new NotFoundException('Customer not found for provided contact info');
+            }
+
+            if (dto.claimedLoyalityPoints) {
+                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                    where: {
+                        customerId: customer.id,
+                        loyalityPoint: { restaurantId },
+                    },
+                    include: {
+                        loyalityPoint: {
+                            select: { id: true, name: true },
+                        },
+                    },
+                });
+
+                for (const r of redemptions) {
+                    loyaltyDiscount += Number(r.pointsAwarded);
+                }
+
+                // ✅ STORE FOR RESPONSE
+                appliedLoyalty = {
+                    customerId: customer.id,
+                    customerName: customer.name,
+                    totalPoints: loyaltyDiscount.toString(),
+                    redemptions: redemptions.map((r) => ({
+                        id: r.id,
+                        points: r.pointsAwarded.toString(),
+                        loyalityPoint: {
+                            id: r.loyalityPoint.id,
+                            name: r.loyalityPoint.name,
+                        },
+                    })),
+                };
             }
         }
 
@@ -1332,10 +1378,8 @@ export class OrdersService {
         // RESPONSE SHAPING
         // ================================
 
-        const fakeBillId = crypto.randomUUID();
 
         return {
-            id: fakeBillId,
             sessionId,
             restaurantId,
             status: 'DRAFT',
@@ -1349,8 +1393,6 @@ export class OrdersService {
             notes: dto.notes ?? null,
 
             items: Array.from(grouped.entries()).map(([menuItemId, v]) => ({
-                id: crypto.randomUUID(),
-                billId: fakeBillId,
                 menuItemId,
                 name: v.name,
                 quantity: v.quantity,
@@ -1370,6 +1412,10 @@ export class OrdersService {
                 customerPhone: session.customerPhone,
                 table: session.table,
             },
+
+            // ✅ ADD THESE TWO
+            coupon: appliedCoupon,
+            loyalty: appliedLoyalty,
         };
     }
 

@@ -17,7 +17,7 @@ export class CouponsController {
         private couponsService: CouponsService,
     ) { }
 
-    @RequireRestaurantFeature(RestaurantFeature.COUPONS)
+    // @RequireRestaurantFeature(RestaurantFeature.COUPONS)
     @Post('coupons')
     @ApiOperation({ summary: 'Create coupon' })
     @ApiParam({ name: 'restaurantId' })

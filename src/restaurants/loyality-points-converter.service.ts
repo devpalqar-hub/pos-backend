@@ -61,6 +61,13 @@ export class LoyalityPointsConverterService {
         // ================================
         // CREATE
         // ================================
+        console.log('Creating converter with data:', {
+            restaurantId,
+            points: dto.points,
+            value: dto.value,
+            currency: dto.currency ?? 'USD',
+            isActive: shouldActivate,
+        });
         const converter = await this.prisma.loyalityPointsConverter.create({
             data: {
                 restaurantId,
