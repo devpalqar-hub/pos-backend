@@ -55,6 +55,7 @@ export class CustomersService {
             where.OR = [
                 { name: { contains: search } },
                 { phone: { contains: search } },
+                { email: { contains: search } },
             ];
         }
 

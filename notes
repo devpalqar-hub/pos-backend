@@ -1,11 +1,12 @@
 get bill - amount after lp, coupoun, tax and discount
-get loyality points of user based on their email, phone, or id
-list customers = add filter based on their email also.
-
-
 generate bill - add customer name, email, phone. create user if user not exist
 
 urgent
-bill generate for biller
+remove batch api. - 
+
+
+done
+bill generate for biller - cleared
 session/sessionId. - no amount is appearing
-remove batch api. 
+get loyality points of user based on their email, phone, or id
+list customers = add filter based on their email also.

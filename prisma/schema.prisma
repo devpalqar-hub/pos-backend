@@ -92,6 +92,7 @@ enum BatchStatus {
   IN_PROGRESS // Chef actively working on items
   READY // All items prepared, awaiting service
   SERVED // All items delivered to customer
+  CANCELLED // Cancelled before or during preparation
 }
 
 enum OrderItemStatus {
