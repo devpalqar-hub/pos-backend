@@ -48,12 +48,14 @@ const MANAGE_ROLES = [
     UserRole.SUPER_ADMIN,
     UserRole.OWNER,
     UserRole.RESTAURANT_ADMIN,
+    UserRole.BILLER
 ];
 
 const WAITER_AND_ABOVE = [
     UserRole.SUPER_ADMIN,
     UserRole.OWNER,
     UserRole.RESTAURANT_ADMIN,
+    UserRole.BILLER,
     UserRole.WAITER,
 ];
 

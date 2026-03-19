@@ -4,3 +4,8 @@ list customers = add filter based on their email also.
 
 
 generate bill - add customer name, email, phone. create user if user not exist
+
+urgent
+bill generate for biller
+session/sessionId. - no amount is appearing
+remove batch api. 
