@@ -950,20 +950,141 @@ export class OrdersService {
             }
         }
 
+        // ================================
+        // STEP 2: COUPON LOGIC
+        // ================================
+
+        const subtotal = Array.from(grouped.values()).reduce((sum, i) => sum + i.totalPrice, 0);
+
+        let couponDiscount = 0;
+
+        if (dto.couponName) {
+            if (!actor) {
+                throw new ForbiddenException('Coupons require authenticated user');
+            }
+
+            const coupon = await this.prisma.coupon.findFirst({
+                where: {
+                    code: dto.couponName,
+                    restaurantId,
+                    isActive: true,
+                },
+            });
+
+            if (!coupon) {
+                throw new NotFoundException('Coupon not found');
+            }
+
+            const now = new Date();
+
+            if (now < coupon.validFrom || now > coupon.validUntil) {
+                throw new BadRequestException('Coupon expired or not yet active');
+            }
+
+            if (coupon.minOrderAmount && subtotal < Number(coupon.minOrderAmount)) {
+                throw new BadRequestException(
+                    `Minimum order amount ${coupon.minOrderAmount} required`,
+                );
+            }
+
+            if (coupon.discountType === 'PERCENTAGE') {
+                couponDiscount = subtotal * (Number(coupon.discountValue) / 100);
+            } else {
+                couponDiscount = Number(coupon.discountValue);
+            }
+
+            if (coupon.maxDiscount) {
+                couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
+            }
+        }
+
+
+
+        // ================================
+        // STEP 3: LOYALTY POINTS
+        // ================================
+
+        let loyaltyDiscount = 0;
+
+        if (dto.claimedLoyalityPoints) {
+            if (!actor) {
+                throw new ForbiddenException('Loyalty points require authenticated user');
+            }
+
+            const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                where: {
+                    customerId: actor.id,
+                    loyalityPoint: {
+                        restaurantId,
+                    },
+                },
+            });
+
+            if (redemptions.length === 0) {
+                throw new BadRequestException('No loyalty points available');
+            }
+
+            for (const r of redemptions) {
+                loyaltyDiscount += Number(r.pointsAwarded);
+            }
+        }
+
+
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
             select: { taxRate: true },
         });
         const taxRate = Number(restaurant?.taxRate ?? 0);
-        const subtotal = Array.from(grouped.values()).reduce((sum, i) => sum + i.totalPrice, 0);
-        const discountAmount = Number(dto.discountAmount ?? 0);
-        const taxableAmount = Math.max(0, subtotal - discountAmount);
+        const manualDiscount = Number(dto.discountAmount ?? 0);
+        const totalDiscount = manualDiscount + couponDiscount + loyaltyDiscount;
+
+        const taxableAmount = Math.max(0, subtotal - totalDiscount);
+
         const taxAmount = parseFloat(((taxableAmount * taxRate) / 100).toFixed(2));
         const totalAmount = parseFloat((taxableAmount + taxAmount).toFixed(2));
 
         const billNumber = await this.generateUniqueBillNumber(restaurantId);
+        let customerId: string | null = null;
 
         const bill = await this.prisma.$transaction(async (tx) => {
+
+            // ================================
+            // STEP X: CUSTOMER CREATE / FETCH
+            // ================================
+
+            if (dto.customerPhone || dto.customerEmail) {
+                let customer = await tx.customer.findFirst({
+                    where: {
+                        restaurantId,
+                        OR: [
+                            dto.customerPhone ? { phone: dto.customerPhone } : undefined,
+                            dto.customerEmail ? { email: dto.customerEmail } : undefined,
+                        ].filter(Boolean) as any,
+                    },
+                });
+
+                if (!customer) {
+                    customer = await tx.customer.create({
+                        data: {
+                            restaurantId,
+                            phone: dto.customerPhone ?? '',
+                            email: dto.customerEmail ?? null,
+                            name: dto.customerName ?? null,
+                        },
+                    });
+                } else {
+                    // Optional: update latest details (recommended)
+                    customer = await tx.customer.update({
+                        where: { id: customer.id },
+                        data: {
+                            name: dto.customerName ?? customer.name,
+                            email: dto.customerEmail ?? customer.email,
+                        },
+                    });
+                }
+
+                customerId = customer.id;
+            }
             const createdBill = await tx.bill.create({
                 data: {
                     sessionId,
@@ -972,10 +1093,11 @@ export class OrdersService {
                     subtotal,
                     taxRate,
                     taxAmount,
-                    discountAmount,
+                    discountAmount: totalDiscount,
                     totalAmount,
                     notes: dto.notes ?? null,
                     generatedById: actor.id,
+                    customerId: customerId,
                     items: {
                         create: Array.from(grouped.entries()).map(([menuItemId, v]) => ({
                             menuItemId,
@@ -1000,7 +1122,7 @@ export class OrdersService {
                     status: 'BILLED' as any,
                     subtotal,
                     taxAmount,
-                    discountAmount,
+                    discountAmount: totalDiscount,
                     totalAmount,
                 },
             });
@@ -1060,6 +1182,195 @@ export class OrdersService {
         }
 
         return bill;
+    }
+
+    async previewBill(
+        actor: User,
+        restaurantId: string,
+        sessionId: string,
+        dto: GenerateBillDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const session = await this.prisma.orderSession.findFirst({
+            where: { id: sessionId, restaurantId },
+            include: {
+                table: { select: { id: true, name: true } },
+            },
+        });
+
+        if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
+        if (session.status !== 'OPEN') {
+            throw new BadRequestException(`Session is already "${session.status}"`);
+        }
+
+        // ================================
+        // ITEMS
+        // ================================
+
+        const items = await this.prisma.orderItem.findMany({
+            where: {
+                batch: { sessionId },
+                status: { not: 'CANCELLED' as any },
+            },
+            include: {
+                menuItem: { select: { id: true, name: true } },
+            },
+        });
+
+        if (items.length === 0) {
+            throw new BadRequestException('No items in session');
+        }
+
+        const grouped = new Map<
+            string,
+            { name: string; quantity: number; unitPrice: number; totalPrice: number }
+        >();
+
+        for (const item of items) {
+            const existing = grouped.get(item.menuItemId);
+            if (existing) {
+                existing.quantity += item.quantity;
+                existing.totalPrice += Number(item.totalPrice);
+            } else {
+                grouped.set(item.menuItemId, {
+                    name: item.menuItem.name,
+                    quantity: item.quantity,
+                    unitPrice: Number(item.unitPrice),
+                    totalPrice: Number(item.totalPrice),
+                });
+            }
+        }
+
+        const subtotal = Array.from(grouped.values()).reduce(
+            (sum, i) => sum + i.totalPrice,
+            0,
+        );
+
+        // ================================
+        // COUPON
+        // ================================
+
+        let couponDiscount = 0;
+
+        if (dto.couponName) {
+            const coupon = await this.prisma.coupon.findFirst({
+                where: {
+                    code: dto.couponName,
+                    restaurantId,
+                    isActive: true,
+                },
+            });
+
+            if (!coupon) throw new NotFoundException('Coupon not found');
+
+            const now = new Date();
+
+            if (now < coupon.validFrom || now > coupon.validUntil) {
+                throw new BadRequestException('Coupon expired or not yet active');
+            }
+
+            if (coupon.minOrderAmount && subtotal < Number(coupon.minOrderAmount)) {
+                throw new BadRequestException(
+                    `Minimum order amount ${coupon.minOrderAmount} required`,
+                );
+            }
+
+            if (coupon.discountType === 'PERCENTAGE') {
+                couponDiscount = subtotal * (Number(coupon.discountValue) / 100);
+            } else {
+                couponDiscount = Number(coupon.discountValue);
+            }
+
+            if (coupon.maxDiscount) {
+                couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
+            }
+        }
+
+        // ================================
+        // LOYALTY
+        // ================================
+
+        let loyaltyDiscount = 0;
+
+        if (dto.claimedLoyalityPoints) {
+            const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                where: {
+                    customerId: actor.id,
+                    loyalityPoint: { restaurantId },
+                },
+            });
+
+            for (const r of redemptions) {
+                loyaltyDiscount += Number(r.pointsAwarded);
+            }
+        }
+
+        // ================================
+        // FINAL CALCULATION
+        // ================================
+
+        const manualDiscount = Number(dto.discountAmount ?? 0);
+
+        const totalDiscount = Math.min(
+            subtotal,
+            manualDiscount + couponDiscount + loyaltyDiscount,
+        );
+
+        const restaurant = await this.prisma.restaurant.findUnique({
+            where: { id: restaurantId },
+            select: { taxRate: true },
+        });
+
+        const taxRate = Number(restaurant?.taxRate ?? 0);
+
+        const taxableAmount = Math.max(0, subtotal - totalDiscount);
+        const taxAmount = parseFloat(((taxableAmount * taxRate) / 100).toFixed(2));
+        const totalAmount = parseFloat((taxableAmount + taxAmount).toFixed(2));
+
+        // ================================
+        // RESPONSE SHAPING
+        // ================================
+
+        const fakeBillId = crypto.randomUUID();
+
+        return {
+            id: fakeBillId,
+            sessionId,
+            restaurantId,
+            status: 'DRAFT',
+
+            subtotal: subtotal.toString(),
+            taxRate: taxRate.toString(),
+            taxAmount: taxAmount.toString(),
+            discountAmount: totalDiscount.toString(),
+            totalAmount: totalAmount.toString(),
+
+            notes: dto.notes ?? null,
+
+            items: Array.from(grouped.entries()).map(([menuItemId, v]) => ({
+                id: crypto.randomUUID(),
+                billId: fakeBillId,
+                menuItemId,
+                name: v.name,
+                quantity: v.quantity,
+                unitPrice: v.unitPrice.toString(),
+                totalPrice: v.totalPrice.toString(),
+                menuItem: {
+                    id: menuItemId,
+                    name: v.name,
+                },
+            })),
+
+            session: {
+                id: session.id,
+                sessionNumber: session.sessionNumber,
+                channel: session.channel,
+                customerName: session.customerName,
+                customerPhone: session.customerPhone,
+                table: session.table,
+            },
+        };
     }
 
     // =========================================================================

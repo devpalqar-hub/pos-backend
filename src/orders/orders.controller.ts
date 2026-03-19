@@ -457,6 +457,7 @@ export class OrdersController {
         return this.ordersService.generateBill(actor, restaurantId, sessionId, dto);
     }
 
+
     /**
      * GET /restaurants/:restaurantId/sessions/:sessionId/bill
      */
@@ -471,6 +472,28 @@ export class OrdersController {
         @Param('sessionId', ParseUUIDPipe) sessionId: string,
     ) {
         return this.ordersService.getBillForSession(actor, restaurantId, sessionId);
+    }
+
+    @Get('restaurants/:restaurantId/sessions/:sessionId/bill/preview')
+    @Roles(...ALL_ORDER_ROLES)
+    @ApiOperation({ summary: 'Preview bill before generating' })
+    @ApiParam({ name: 'restaurantId' })
+    @ApiParam({ name: 'sessionId' })
+    async previewBill(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+        @Param('sessionId') sessionId: string,
+        @Query() dto: GenerateBillDto,
+    ) {
+        const data = await this.ordersService.previewBill(actor, restaurantId, sessionId, dto);
+
+        return {
+            success: true,
+            statusCode: 200,
+            message: 'Request successful',
+            data,
+            timestamp: new Date().toISOString(),
+        };
     }
 
     // =========================================================================
