@@ -13,6 +13,7 @@ import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { StockActionDto, StockAction } from './dto/stock-action.dto';
 import { User, UserRole, ItemType, PriceRuleType } from '@prisma/client'
+import { OrdersGateway } from 'src/orders/orders.gateway';
 
 // ─── Full include clause ──────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ export class MenuService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
+    private readonly gateway: OrdersGateway, // Replace 'any' with the actual gateway type, e.g., MenuGateway
   ) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
@@ -503,6 +505,15 @@ export class MenuService {
       where: { id },
       data: updateData,
       include: ITEM_INCLUDE,
+    });
+    // 🔥 Emit stock change event
+    this.gateway.emitMenuItemStockChanged(restaurantId, {
+      menuItemId: updated.id,
+      name: updated.name,
+      itemType: updated.itemType,
+      stockCount: updated.stockCount ?? null,
+      isOutOfStock: updated.isOutOfStock,
+      action: dto.action,
     });
 
     this.logger.log(

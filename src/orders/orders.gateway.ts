@@ -281,6 +281,24 @@ export class OrdersGateway
         this.server.to(`kitchen:${restaurantId}`).emit('menuItem:outofstock', payload);
     }
 
+    emitMenuItemStockChanged(
+        restaurantId: string,
+        data: {
+            menuItemId: string;
+            name: string;
+            itemType: string;
+            stockCount?: number | null;
+            isOutOfStock: boolean;
+            action: string;
+        },
+    ): void {
+        // Restaurant-wide (POS, admin UI)
+        this.server.to(`restaurant:${restaurantId}`).emit('menuItem:stock:changed', data);
+
+        // Kitchen also needs this
+        this.server.to(`kitchen:${restaurantId}`).emit('menuItem:stock:changed', data);
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private async validateRestaurantAccess(

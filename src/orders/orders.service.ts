@@ -1190,6 +1190,7 @@ export class OrdersService {
             status: 'BILLED',
             billNumber,
         });
+        console.log(`Bill ${billNumber} generated and events emitted successfully`);
 
         this.logger.log(`Bill ${billNumber} generated for session ${session.sessionNumber}`);
         return bill;
