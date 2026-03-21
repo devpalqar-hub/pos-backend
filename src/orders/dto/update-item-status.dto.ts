@@ -6,7 +6,7 @@ export enum OrderItemStatus {
     PREPARING = 'PREPARING',
     PREPARED = 'PREPARED',
     SERVED = 'SERVED',
-    CANCELLED = 'CANCELLED',
+    CANCELLED = 'CANCELLED', // ✅ ADD THIS
 }
 
 export class UpdateItemStatusDto {

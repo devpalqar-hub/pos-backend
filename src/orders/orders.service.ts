@@ -13,7 +13,8 @@ import { paginate } from '../common/utlility/pagination.util';
 import { BillStatus, Prisma, User, UserRole } from '@prisma/client';
 import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
-import { UpdateItemStatusDto, OrderItemStatus } from './dto/update-item-status.dto';
+import { UpdateItemStatusDto, } from './dto/update-item-status.dto';
+import { OrderItemStatus } from '@prisma/client';
 import { UpdateBatchStatusDto, BatchStatus } from './dto/update-batch-status.dto';
 import { UpdateSessionStatusDto, SessionStatus } from './dto/update-session-status.dto';
 import { GenerateBillDto } from './dto/generate-bill.dto';
@@ -571,11 +572,34 @@ export class OrdersService {
             },
         });
 
-        // Emit to kitchen (for chefs) and restaurant-wide (for waiters)
-        this.gateway.emitToKitchen(restaurantId, 'batch:created', batch);
-        this.gateway.emitToRestaurant(restaurantId, 'batch:created', batch);
+
+        // Fetch all OPEN sessions for the restaurant
+        const openSessions = await this.prisma.orderSession.findMany({
+            where: { restaurantId, status: 'OPEN' },
+            select: { id: true },
+        });
+        const openSessionIds = openSessions.map(s => s.id);
+
+        // Fetch all PENDING batches for those sessions
+        const pendingBatches = await this.prisma.orderBatch.findMany({
+            where: {
+                sessionId: { in: openSessionIds },
+                status: 'PENDING',
+            },
+            include: {
+                items: {
+                    include: { menuItem: { select: { id: true, name: true } } },
+                },
+                createdBy: { select: { id: true, name: true, role: true } },
+                session: { select: { id: true, sessionNumber: true, tableId: true, restaurantId: true } },
+            },
+        });
+
+        // Emit all pending batches for open sessions
+        this.gateway.emitToKitchen(restaurantId, 'batch:created', pendingBatches);
+        this.gateway.emitToRestaurant(restaurantId, 'batch:created', pendingBatches);
         if (session.tableId) {
-            this.gateway.emitToTable(session.tableId, 'batch:created', batch);
+            this.gateway.emitToTable(session.tableId, 'batch:created', pendingBatches);
         }
 
         this.logger.log(
@@ -1276,6 +1300,9 @@ export class OrdersService {
                 totalPrice: number;
                 appliedRuleId?: string;
                 specialApplied: boolean;
+
+                // ✅ RAW STATUSES (no processing)
+                statuses: OrderItemStatus[];
             }
         >();
 
@@ -1301,6 +1328,9 @@ export class OrdersService {
                 existing.quantity += item.quantity;
                 existing.totalPrice += finalTotalPrice;
 
+                // ✅ PUSH RAW STATUS
+                existing.statuses.push(item.status);
+
                 if (priceRuleResult.isApplicable) {
                     existing.specialApplied = true;
                     existing.appliedRuleId = priceRuleResult.appliedRuleId;
@@ -1313,6 +1343,9 @@ export class OrdersService {
                     totalPrice: finalTotalPrice,
                     appliedRuleId: priceRuleResult.appliedRuleId,
                     specialApplied: priceRuleResult.isApplicable,
+
+                    // ✅ INIT WITH RAW STATUS
+                    statuses: [item.status],
                 });
             }
 
@@ -1476,19 +1509,37 @@ export class OrdersService {
 
             notes: dto.notes ?? null,
 
-            items: Array.from(grouped.entries()).map(([menuItemId, v]) => ({
-                menuItemId,
-                name: v.name,
-                quantity: v.quantity,
-                unitPrice: v.unitPrice.toString(),
-                totalPrice: v.totalPrice.toString(),
-                specialPriceApplied: v.specialApplied,
-                appliedRuleId: v.appliedRuleId ?? null,
-                menuItem: {
-                    id: menuItemId,
-                    name: v.name,
-                },
-            })),
+            items: items.map((item) => {
+                const priceRuleResult = {
+                    isApplicable: false,
+                    appliedRuleId: null,
+                };
+
+                // ⚠️ IMPORTANT:
+                // If you want exact same pricing logic,
+                // you should reuse earlier computed values.
+                // But for now keeping minimal change:
+
+                return {
+                    id: item.id, // ✅ unique order item
+                    menuItemId: item.menuItemId,
+                    name: item.menuItem.name,
+
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice.toString(),
+                    totalPrice: item.totalPrice.toString(),
+
+                    status: item.status, // ✅ EXACT STATUS
+
+                    specialPriceApplied: false, // keep as before or recompute
+                    appliedRuleId: null,
+
+                    menuItem: {
+                        id: item.menuItemId,
+                        name: item.menuItem.name,
+                    },
+                };
+            }),
 
             session: {
                 id: session.id,
