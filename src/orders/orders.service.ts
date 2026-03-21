@@ -641,6 +641,7 @@ export class OrdersService {
             status: dto.status,
             sessionId: batch.sessionId,
         });
+        console.log("batch status changed successfully emitted to kitchen and restaurant");
         if (batch.session.tableId) {
             this.gateway.emitToTable(batch.session.tableId, 'batch:status:changed', {
                 batchId,
@@ -935,19 +936,60 @@ export class OrdersService {
         }
 
         // Aggregate by menuItem
-        const grouped = new Map<string, { name: string; quantity: number; unitPrice: number; totalPrice: number }>();
+        const grouped = new Map<
+            string,
+            {
+                name: string;
+                quantity: number;
+                unitPrice: number;
+                totalPrice: number;
+                specialApplied?: boolean;
+                appliedRuleId?: string;
+            }
+        >
+        let isAnySpecialPriceApplied = false;
+        let appliedPriceRuleId: string | null = null;
         for (const item of items) {
+            // 🔥 Apply price rule
+            const priceRuleResult = await evaluatePriceRule(
+                item.menuItemId,
+                restaurantId,
+            );
+
+            const finalUnitPrice = priceRuleResult.isApplicable
+                ? Number(priceRuleResult.specialPrice)
+                : Number(item.unitPrice);
+
+            const finalTotalPrice = finalUnitPrice * item.quantity;
+
             const existing = grouped.get(item.menuItemId);
+
             if (existing) {
                 existing.quantity += item.quantity;
-                existing.totalPrice += Number(item.totalPrice);
+                existing.totalPrice += finalTotalPrice;
+
+                if (priceRuleResult.isApplicable) {
+                    existing.specialApplied = true;
+                    existing.appliedRuleId = priceRuleResult.appliedRuleId;
+                }
             } else {
                 grouped.set(item.menuItemId, {
                     name: item.menuItem.name,
                     quantity: item.quantity,
-                    unitPrice: Number(item.unitPrice),
-                    totalPrice: Number(item.totalPrice),
+                    unitPrice: finalUnitPrice,
+                    totalPrice: finalTotalPrice,
+                    specialApplied: priceRuleResult.isApplicable,
+                    appliedRuleId: priceRuleResult.appliedRuleId,
                 });
+            }
+
+            // 🔥 Bill-level tracking
+            if (priceRuleResult.isApplicable) {
+                isAnySpecialPriceApplied = true;
+
+                if (!appliedPriceRuleId) {
+                    appliedPriceRuleId = priceRuleResult.appliedRuleId!;
+                }
             }
         }
 
@@ -1098,6 +1140,8 @@ export class OrdersService {
                     notes: dto.notes ?? null,
                     generatedById: actor.id,
                     customerId: customerId,
+                    SpecialPriceApplied: isAnySpecialPriceApplied,
+                    priceruleId: appliedPriceRuleId,
                     items: {
                         create: Array.from(grouped.entries()).map(([menuItemId, v]) => ({
                             menuItemId,

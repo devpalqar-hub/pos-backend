@@ -334,7 +334,7 @@ export class OrdersController {
      * PATCH /orders/batches/:batchId/status
      * Manual batch status override (chef / waiter / admin).
      */
-    @Patch('orders/batches/:batchId/status')
+    @Patch('restaurants/:restaurantId/sessions/:sessionId/batches/:batchId/status')
     @Roles(...ALL_ORDER_ROLES)
     @ApiOperation({
         summary: 'Update batch status (manual override)',
@@ -344,6 +344,7 @@ export class OrdersController {
     })
     @ApiParam({ name: 'batchId', description: 'Batch UUID' })
     updateBatchStatus(
+
         @CurrentUser() actor: User,
         @Param('batchId', ParseUUIDPipe) batchId: string,
         @Body() dto: UpdateBatchStatusDto,
@@ -359,7 +360,7 @@ export class OrdersController {
      * PATCH /orders/items/:itemId/status
      * Chef marks PREPARING/PREPARED; Waiter marks SERVED; either may CANCEL.
      */
-    @Patch('orders/items/:itemId/status')
+    @Patch('restaurants/:restaurantId/sessions/:sessionId/batches/:batchId/items/:itemId/status')
     @Roles(...ALL_ORDER_ROLES)
     @ApiOperation({
         summary: 'Update order item status',
@@ -375,6 +376,7 @@ export class OrdersController {
         @Param('itemId', ParseUUIDPipe) itemId: string,
         @Body() dto: UpdateItemStatusDto,
     ) {
+        console.log(`Received request to update item ${itemId} status to ${dto.status} by user ${actor.id}`);
         return this.ordersService.updateItemStatus(actor, itemId, dto);
     }
 
