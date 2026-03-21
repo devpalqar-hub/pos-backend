@@ -20,6 +20,7 @@ import { GenerateBillDto } from './dto/generate-bill.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { generateShortId } from './utils/id-generator';
 import { OrdersGateway } from './orders.gateway';
+import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
 
 // ─── Include clauses ──────────────────────────────────────────────────────────
 
@@ -1020,12 +1021,11 @@ export class OrdersService {
                 },
             });
 
-            if (redemptions.length === 0) {
-                throw new BadRequestException('No loyalty points available');
-            }
 
-            for (const r of redemptions) {
-                loyaltyDiscount += Number(r.pointsAwarded);
+            if (redemptions.length !== 0) {
+                for (const r of redemptions) {
+                    loyaltyDiscount += Number(r.pointsAwarded);
+                }
             }
         }
 
@@ -1224,21 +1224,60 @@ export class OrdersService {
 
         const grouped = new Map<
             string,
-            { name: string; quantity: number; unitPrice: number; totalPrice: number }
+            {
+                name: string;
+                quantity: number;
+                unitPrice: number;
+                totalPrice: number;
+                appliedRuleId?: string;
+                specialApplied: boolean;
+            }
         >();
 
+        let isAnySpecialPriceApplied = false;
+        let appliedPriceRuleId: string | null = null;
+
         for (const item of items) {
+            // 🔥 Evaluate price rule
+            const priceRuleResult = await evaluatePriceRule(
+                item.menuItemId,
+                restaurantId,
+            );
+
+            const finalUnitPrice = priceRuleResult.isApplicable
+                ? priceRuleResult.specialPrice!
+                : Number(item.unitPrice);
+
+            const finalTotalPrice = finalUnitPrice * item.quantity;
+
             const existing = grouped.get(item.menuItemId);
+
             if (existing) {
                 existing.quantity += item.quantity;
-                existing.totalPrice += Number(item.totalPrice);
+                existing.totalPrice += finalTotalPrice;
+
+                if (priceRuleResult.isApplicable) {
+                    existing.specialApplied = true;
+                    existing.appliedRuleId = priceRuleResult.appliedRuleId;
+                }
             } else {
                 grouped.set(item.menuItemId, {
                     name: item.menuItem.name,
                     quantity: item.quantity,
-                    unitPrice: Number(item.unitPrice),
-                    totalPrice: Number(item.totalPrice),
+                    unitPrice: finalUnitPrice,
+                    totalPrice: finalTotalPrice,
+                    appliedRuleId: priceRuleResult.appliedRuleId,
+                    specialApplied: priceRuleResult.isApplicable,
                 });
+            }
+
+            // 🔥 Track bill-level flags
+            if (priceRuleResult.isApplicable) {
+                isAnySpecialPriceApplied = true;
+
+                if (!appliedPriceRuleId) {
+                    appliedPriceRuleId = priceRuleResult.appliedRuleId!;
+                }
             }
         }
 
@@ -1398,6 +1437,8 @@ export class OrdersService {
                 quantity: v.quantity,
                 unitPrice: v.unitPrice.toString(),
                 totalPrice: v.totalPrice.toString(),
+                specialPriceApplied: v.specialApplied,
+                appliedRuleId: v.appliedRuleId ?? null,
                 menuItem: {
                     id: menuItemId,
                     name: v.name,

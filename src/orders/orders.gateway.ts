@@ -76,16 +76,23 @@ export class OrdersGateway
          * Socket.io middleware — runs before handleConnection.
          * Validates JWT and attaches decoded payload to socket.data.user.
          */
+
         server.use(async (socket: Socket, next) => {
             try {
                 const rawToken: string =
                     socket.handshake.auth?.token ||
                     socket.handshake.headers?.authorization ||
+                    socket.handshake.query?.token ||
                     '';
 
-                const token = rawToken.startsWith('Bearer ')
-                    ? rawToken.slice(7)
-                    : rawToken;
+                this.logger.debug({
+                    auth: socket.handshake.auth,
+                    headers: socket.handshake.headers,
+                    query: socket.handshake.query,
+                });
+
+                const token = rawToken.replace(/^Bearer\s+/i, '').trim();
+                this.logger.debug({ rawToken, cleanedToken: token });
 
                 if (!token) return next(new Error('UNAUTHORIZED: No token provided'));
 

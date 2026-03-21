@@ -119,6 +119,32 @@ export class PriceRulesService {
     }
   }
 
+  private overrideTimePreserveUTC(dateStr?: string, time?: string): Date | null {
+    if (!dateStr) return null;
+    if (!time) return new Date(dateStr);
+
+    const date = new Date(dateStr);
+
+    // Extract original seconds + milliseconds
+    const seconds = date.getUTCSeconds();
+    const milliseconds = date.getUTCMilliseconds();
+
+    const [hours, minutes] = time.split(':').map(Number);
+
+    // Construct new UTC date explicitly
+    const newDate = new Date(Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      hours,
+      minutes,
+      seconds,
+      milliseconds
+    ));
+
+    return newDate;
+  }
+
   // ─── Create ───────────────────────────────────────────────────────────────
 
   async create(
@@ -139,8 +165,8 @@ export class PriceRulesService {
         specialPrice: dto.specialPrice as any,
         startTime: dto.startTime ?? null,
         endTime: dto.endTime ?? null,
-        startDate: dto.startDate ? new Date(dto.startDate) : null,
-        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        startDate: this.overrideTimePreserveUTC(dto.startDate, dto.startTime),
+        endDate: this.overrideTimePreserveUTC(dto.endDate, dto.endTime),
         priority: dto.priority ?? 0,
         isActive: dto.isActive ?? true,
         restaurantId,
@@ -156,6 +182,7 @@ export class PriceRulesService {
       include: RULE_INCLUDE,
     });
 
+    console.log('Created price rule:', rule);
     return rule;
   }
 
