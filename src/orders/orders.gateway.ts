@@ -47,13 +47,13 @@ import { PrismaService } from '../prisma/prisma.service';
  *   bill:paid               — bill fully paid
  *   payment:recorded        — payment added (any amount)
  *   table:status:changed    — table AVAILABLE / OCCUPIED / etc.
- *   menuItem:outofstock     — menu item marked as out of stock (payload: { menuItemId })
+ *   menuItem:stock:changed    — menu item stock status changed (payload: { menuItemId })
  *   error                   — action/validation errors
  *
  * Usage:
  *   When a menu item is marked as out of stock, call:
- *     ordersGateway.emitMenuItemOutOfStock(restaurantId, menuItemId)
- *   This will emit 'menuItem:outofstock' to both restaurant and kitchen rooms with payload { menuItemId }.
+ *     ordersGateway.emitMenuItemStockChanged(restaurantId, menuItemId)
+ *   This will emit 'menuItem:stock:changed' to both restaurant and kitchen rooms with payload { menuItemId }.
  */
 @WebSocketGateway({
     namespace: 'orders',
@@ -271,15 +271,7 @@ export class OrdersGateway
         this.server.to(`table:${tableId}`).emit('table:status:changed', payload);
     }
 
-    /**
-     * Emit event when a menu item is marked out of stock.
-     * Notifies restaurant and kitchen rooms.
-     */
-    emitMenuItemOutOfStock(restaurantId: string, menuItemId: string): void {
-        const payload = { menuItemId };
-        this.server.to(`restaurant:${restaurantId}`).emit('menuItem:outofstock', payload);
-        this.server.to(`kitchen:${restaurantId}`).emit('menuItem:outofstock', payload);
-    }
+
 
     emitMenuItemStockChanged(
         restaurantId: string,
