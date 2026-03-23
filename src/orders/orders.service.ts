@@ -1574,6 +1574,7 @@ export class OrdersService {
                     customerName: customer.name,
                     totalPoints: loyaltyDiscount.toString(),
                     convertedAmount: loyaltyDiscount.toString(), // ✅ money value
+                    conversionRate: conversionRate.toString(), // ✅ conversion rate
                     redemptions: redemptions.map((r) => ({
                         id: r.id,
                         points: r.pointsAwarded.toString(),
