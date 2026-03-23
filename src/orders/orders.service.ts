@@ -1099,6 +1099,11 @@ export class OrdersService {
                     restaurantId,
                 },
             });
+            if (dto.claimedLoyalityPoints && !customer) {
+                throw new BadRequestException(
+                    'Customer must exist to redeem loyalty points',
+                );
+            }
             if (dto.claimedLoyalityPoints) {
                 const redemptions = await this.prisma.loyalityPointRedemption.findMany({
                     where: {
@@ -1115,9 +1120,35 @@ export class OrdersService {
                 });
 
 
-                for (const r of redemptions) {
-                    loyaltyDiscount += Number(r.pointsAwarded);
+                let converter = await this.prisma.loyalityPointsConverter.findFirst({
+                    where: {
+                        restaurantId,
+                        isActive: true,
+                    },
+                });
+
+                if (!converter) {
+                    throw new BadRequestException('Loyalty converter not configured');
                 }
+
+                const totalPoints = redemptions.reduce(
+                    (sum, r) => sum + Number(r.pointsAwarded),
+                    0,
+                );
+
+                // Convert points → money
+                const conversionRate =
+                    Number(converter.value) / Number(converter.points);
+
+                loyaltyDiscount = parseFloat(
+                    (totalPoints * conversionRate).toFixed(2),
+                );
+
+                appliedLoyalty = {
+                    totalPoints,
+                    convertedAmount: loyaltyDiscount,
+                    conversionRate,
+                };
             }
         }
 
@@ -1130,11 +1161,16 @@ export class OrdersService {
         const manualDiscount = Number(dto.discountAmount ?? 0);
         const totalDiscount = manualDiscount + couponDiscount + loyaltyDiscount;
 
-        const taxableAmount = Math.max(0, subtotal - totalDiscount);
+        // Step 1: Tax on full subtotal
+        const taxAmount = parseFloat(((subtotal * taxRate) / 100).toFixed(2));
 
-        const taxAmount = parseFloat(((taxableAmount * taxRate) / 100).toFixed(2));
-        const totalAmount = parseFloat((taxableAmount + taxAmount).toFixed(2));
+        // Step 2: Gross amount (before discount)
+        const grossAmount = subtotal + taxAmount;
 
+        // Step 3: Apply discounts AFTER tax
+        const totalAmount = parseFloat(
+            Math.max(0, grossAmount - totalDiscount).toFixed(2),
+        );
         const billNumber = await this.generateUniqueBillNumber(restaurantId);
         let customerId: string | null = null;
 
@@ -1155,6 +1191,9 @@ export class OrdersService {
                     customerPhone: dto.customerPhone ?? null,
                     customerName: dto.customerName ?? null,
                     discountAmount: totalDiscount,
+                    coupounDiscountAmount: couponDiscount,
+                    loyalityPointDiscountAmount: loyaltyDiscount,
+                    couponId: appliedCoupon?.id ?? null,
                     totalAmount,
                     notes: dto.notes ?? null,
                     generatedById: actor.id,
@@ -1175,6 +1214,23 @@ export class OrdersService {
                     items: true,
                     payments: true,
                     generatedBy: { select: { id: true, name: true } },
+
+                    coupon: true,
+                    loyalityPointRedemption: true,
+
+                    session: {
+                        include: {
+                            batches: {
+                                include: {
+                                    items: {
+                                        include: {
+                                            menuItem: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
                 },
             });
 
@@ -1212,7 +1268,11 @@ export class OrdersService {
         console.log(`Bill ${billNumber} generated and events emitted successfully`);
 
         this.logger.log(`Bill ${billNumber} generated for session ${session.sessionNumber}`);
-        return bill;
+        return {
+            ...bill,
+            coupon: appliedCoupon,
+            loyalty: appliedLoyalty,
+        };
     }
 
     async getBillForSession(
