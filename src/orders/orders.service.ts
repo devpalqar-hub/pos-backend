@@ -970,6 +970,8 @@ export class OrdersService {
                 totalPrice: number;
                 specialApplied?: boolean;
                 appliedRuleId?: string;
+                // ✅ RAW STATUSES (no processing)
+                statuses: OrderItemStatus[];
             }
         >
         let isAnySpecialPriceApplied = false;
@@ -993,6 +995,9 @@ export class OrdersService {
                 existing.quantity += item.quantity;
                 existing.totalPrice += finalTotalPrice;
 
+                // ✅ PUSH RAW STATUS
+                existing.statuses.push(item.status);
+
                 if (priceRuleResult.isApplicable) {
                     existing.specialApplied = true;
                     existing.appliedRuleId = priceRuleResult.appliedRuleId;
@@ -1003,8 +1008,11 @@ export class OrdersService {
                     quantity: item.quantity,
                     unitPrice: finalUnitPrice,
                     totalPrice: finalTotalPrice,
-                    specialApplied: priceRuleResult.isApplicable,
                     appliedRuleId: priceRuleResult.appliedRuleId,
+                    specialApplied: priceRuleResult.isApplicable,
+
+                    // ✅ INIT WITH RAW STATUS
+                    statuses: [item.status],
                 });
             }
 
@@ -1018,19 +1026,19 @@ export class OrdersService {
             }
         }
 
+        const subtotal = Array.from(grouped.values()).reduce(
+            (sum, i) => sum + i.totalPrice,
+            0,
+        );
+
         // ================================
         // STEP 2: COUPON LOGIC
         // ================================
 
-        const subtotal = Array.from(grouped.values()).reduce((sum, i) => sum + i.totalPrice, 0);
-
         let couponDiscount = 0;
+        let appliedCoupon: any = null; // ✅ ADD
 
         if (dto.couponName) {
-            if (!actor) {
-                throw new ForbiddenException('Coupons require authenticated user');
-            }
-
             const coupon = await this.prisma.coupon.findFirst({
                 where: {
                     code: dto.couponName,
@@ -1039,9 +1047,7 @@ export class OrdersService {
                 },
             });
 
-            if (!coupon) {
-                throw new NotFoundException('Coupon not found');
-            }
+            if (!coupon) throw new NotFoundException('Coupon not found');
 
             const now = new Date();
 
@@ -1064,8 +1070,18 @@ export class OrdersService {
             if (coupon.maxDiscount) {
                 couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
             }
-        }
 
+            // ✅ STORE FOR RESPONSE
+            appliedCoupon = {
+                id: coupon.id,
+                code: coupon.code,
+                name: coupon.name,
+                discountType: coupon.discountType,
+                discountValue: coupon.discountValue.toString(),
+                maxDiscount: coupon.maxDiscount?.toString() ?? null,
+                appliedDiscount: couponDiscount.toString(),
+            };
+        }
 
 
         // ================================
@@ -1073,23 +1089,32 @@ export class OrdersService {
         // ================================
 
         let loyaltyDiscount = 0;
-
-        if (dto.claimedLoyalityPoints) {
-            if (!actor) {
-                throw new ForbiddenException('Loyalty points require authenticated user');
-            }
-
-            const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+        let appliedLoyalty: any = null; // ✅ ADD
+        let customer: any;
+        if (dto.customerEmail || dto.customerPhone) {
+            customer = await this.prisma.customer.findFirst({
                 where: {
-                    customerId: actor.id,
-                    loyalityPoint: {
-                        restaurantId,
-                    },
+                    email: dto.customerEmail ?? undefined,
+                    phone: dto.customerPhone ?? undefined,
+                    restaurantId,
                 },
             });
+            if (dto.claimedLoyalityPoints) {
+                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                    where: {
+                        customerId: customer.id,
+                        loyalityPoint: {
+                            restaurantId,
+                        },
+                    },
+                    include: {
+                        loyalityPoint: {
+                            select: { id: true, name: true },
+                        },
+                    },
+                });
 
 
-            if (redemptions.length !== 0) {
                 for (const r of redemptions) {
                     loyaltyDiscount += Number(r.pointsAwarded);
                 }
@@ -1118,40 +1143,6 @@ export class OrdersService {
             // ================================
             // STEP X: CUSTOMER CREATE / FETCH
             // ================================
-
-            if (dto.customerPhone || dto.customerEmail) {
-                let customer = await tx.customer.findFirst({
-                    where: {
-                        restaurantId,
-                        OR: [
-                            dto.customerPhone ? { phone: dto.customerPhone } : undefined,
-                            dto.customerEmail ? { email: dto.customerEmail } : undefined,
-                        ].filter(Boolean) as any,
-                    },
-                });
-
-                if (!customer) {
-                    customer = await tx.customer.create({
-                        data: {
-                            restaurantId,
-                            phone: dto.customerPhone ?? '',
-                            email: dto.customerEmail ?? null,
-                            name: dto.customerName ?? null,
-                        },
-                    });
-                } else {
-                    // Optional: update latest details (recommended)
-                    customer = await tx.customer.update({
-                        where: { id: customer.id },
-                        data: {
-                            name: dto.customerName ?? customer.name,
-                            email: dto.customerEmail ?? customer.email,
-                        },
-                    });
-                }
-
-                customerId = customer.id;
-            }
             const createdBill = await tx.bill.create({
                 data: {
                     sessionId,
@@ -1160,6 +1151,9 @@ export class OrdersService {
                     subtotal,
                     taxRate,
                     taxAmount,
+                    customerEmail: dto.customerEmail ?? null,
+                    customerPhone: dto.customerPhone ?? null,
+                    customerName: dto.customerName ?? null,
                     discountAmount: totalDiscount,
                     totalAmount,
                     notes: dto.notes ?? null,
@@ -1262,16 +1256,29 @@ export class OrdersService {
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
+        const allowedRoles = [
+            UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.BILLER,
+        ];
+        if (!(allowedRoles as UserRole[]).includes(actor.role)) {
+            throw new ForbiddenException('Only BILLER and above can generate bills');
+        }
+
         const session = await this.prisma.orderSession.findFirst({
             where: { id: sessionId, restaurantId },
             include: {
                 table: { select: { id: true, name: true } },
+                bill: true
             },
         });
 
         if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
         if (session.status !== 'OPEN') {
             throw new BadRequestException(`Session is already "${session.status}"`);
+        }
+        if (session.bill) {
+            throw new ConflictException(
+                `Bill ${session.bill.billNumber} already exists for this session. Use PATCH to update discount.`,
+            );
         }
 
 
