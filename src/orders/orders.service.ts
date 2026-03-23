@@ -596,11 +596,15 @@ export class OrdersService {
             },
         });
 
-        // Emit all pending batches for open sessions
-        this.gateway.emitToKitchen(restaurantId, 'batch:created', pendingBatches);
-        this.gateway.emitToRestaurant(restaurantId, '', pendingBatches);
+        // ✅ ONLY emit the newly created batch
+        this.gateway.emitToKitchen(restaurantId, 'batch:created', batch);
+
+        // restaurant UI (optional)
+        this.gateway.emitToRestaurant(restaurantId, 'batch:created', batch);
+
+        // table UI (FIXED: you had wrong emit here)
         if (session.tableId) {
-            this.gateway.emitToTable(session.tableId, 'batch:created', pendingBatches);
+            this.gateway.emitToTable(session.tableId, 'batch:created', batch);
         }
 
         this.logger.log(

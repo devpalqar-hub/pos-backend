@@ -175,13 +175,13 @@ export class OrdersGateway
         return { joined: `restaurant:${data.restaurantId}` };
     }
 
-    /** Join the kitchen room — chefs receive all pending batch/item events. */
     @SubscribeMessage('join:kitchen')
     async handleJoinKitchen(
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { restaurantId: string },
     ) {
         const user = client.data.user;
+
         const hasAccess = await this.validateRestaurantAccess(user, data.restaurantId);
         if (!hasAccess) {
             client.emit('error', { message: 'Access denied' });
@@ -190,6 +190,44 @@ export class OrdersGateway
 
         await client.join(`kitchen:${data.restaurantId}`);
         this.logger.debug(`${user.name} joined kitchen:${data.restaurantId}`);
+
+        // ✅ STEP 1: fetch pending batches
+        const pendingBatches = await this.prisma.orderBatch.findMany({
+            where: {
+                session: {
+                    restaurantId: data.restaurantId,
+                    status: 'OPEN',
+                },
+                status: 'PENDING',
+            },
+            include: {
+                items: {
+                    include: {
+                        menuItem: { select: { id: true, name: true } },
+                    },
+                },
+                createdBy: { select: { id: true, name: true, role: true } },
+                session: {
+                    select: {
+                        id: true,
+                        sessionNumber: true,
+                        tableId: true,
+                        restaurantId: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'asc' }, // ✅ important for sequential UX
+        });
+
+        // ✅ STEP 2: emit sequentially ONLY to this client
+        (async () => {
+            for (const batch of pendingBatches) {
+                client.emit('batch:created', batch);
+
+                await new Promise((res) => setTimeout(res, 1000)); // ✅ 1 second delay
+            }
+        })();
+
         return { joined: `kitchen:${data.restaurantId}` };
     }
 
@@ -291,6 +329,22 @@ export class OrdersGateway
         this.server.to(`kitchen:${restaurantId}`).emit('menuItem:stock:changed', data);
     }
 
+    async emitBatchesSequentially(
+        restaurantId: string,
+        event: string,
+        batches: any[],
+        delay = 10, // tune this
+    ) {
+        for (const batch of batches) {
+            this.server.to(`kitchen:${restaurantId}`).emit(event, batch);
+
+            // optional backpressure control
+            if (delay > 0) {
+                await new Promise((res) => setTimeout(res, delay));
+            }
+        }
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private async validateRestaurantAccess(
@@ -309,4 +363,6 @@ export class OrdersGateway
 
         return user.restaurantId === restaurantId;
     }
+
+
 }
