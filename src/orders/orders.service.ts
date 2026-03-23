@@ -1544,9 +1544,29 @@ export class OrdersService {
                     },
                 });
 
-                for (const r of redemptions) {
-                    loyaltyDiscount += Number(r.pointsAwarded);
+                const converter = await this.prisma.loyalityPointsConverter.findFirst({
+                    where: {
+                        restaurantId,
+                        isActive: true,
+                    },
+                });
+
+                if (!converter) {
+                    throw new BadRequestException('Loyalty converter not configured');
                 }
+
+                const totalPoints = redemptions.reduce(
+                    (sum, r) => sum + Number(r.pointsAwarded),
+                    0,
+                );
+
+                // Convert points → money
+                const conversionRate =
+                    Number(converter.value) / Number(converter.points);
+
+                loyaltyDiscount = parseFloat(
+                    (totalPoints * conversionRate).toFixed(2),
+                );
 
                 // ✅ STORE FOR RESPONSE
                 appliedLoyalty = {
