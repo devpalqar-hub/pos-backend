@@ -314,6 +314,7 @@ export class BookingService {
                 subtotal,
                 taxRate: 0,
                 taxAmount: 0,
+                grossAmount: subtotal,
                 discountAmount: totalDiscount,
                 totalAmount: finalTotal,
 

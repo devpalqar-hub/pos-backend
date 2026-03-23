@@ -64,6 +64,7 @@ export class BillService {
                 sessionId: dto.sessionId,
                 billNumber,
                 subtotal,
+                grossAmount: subtotal,
                 taxRate: dto.taxRate,
                 taxAmount,
                 discountAmount: discount,

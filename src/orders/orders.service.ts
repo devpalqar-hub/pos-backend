@@ -1185,6 +1185,7 @@ export class OrdersService {
                     restaurantId,
                     billNumber,
                     subtotal,
+                    grossAmount: grossAmount,
                     taxRate,
                     taxAmount,
                     customerEmail: dto.customerEmail ?? null,
