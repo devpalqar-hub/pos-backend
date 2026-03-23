@@ -22,6 +22,7 @@ import { AddPaymentDto } from './dto/add-payment.dto';
 import { generateShortId } from './utils/id-generator';
 import { OrdersGateway } from './orders.gateway';
 import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
+import { table } from 'console';
 
 // ─── Include clauses ──────────────────────────────────────────────────────────
 
@@ -597,7 +598,7 @@ export class OrdersService {
 
         // Emit all pending batches for open sessions
         this.gateway.emitToKitchen(restaurantId, 'batch:created', pendingBatches);
-        this.gateway.emitToRestaurant(restaurantId, 'batch:created', pendingBatches);
+        this.gateway.emitToRestaurant(restaurantId, '', pendingBatches);
         if (session.tableId) {
             this.gateway.emitToTable(session.tableId, 'batch:created', pendingBatches);
         }
@@ -1273,6 +1274,7 @@ export class OrdersService {
             throw new BadRequestException(`Session is already "${session.status}"`);
         }
 
+
         // ================================
         // ITEMS
         // ================================
@@ -1421,9 +1423,9 @@ export class OrdersService {
         // ================================
         let loyaltyDiscount = 0;
         let appliedLoyalty: any = null; // ✅ ADD
-
+        let customer: any;
         if (dto.customerEmail || dto.customerPhone) {
-            const customer = await this.prisma.customer.findFirst({
+            customer = await this.prisma.customer.findFirst({
                 where: {
                     email: dto.customerEmail ?? undefined,
                     phone: dto.customerPhone ?? undefined,
@@ -1432,7 +1434,33 @@ export class OrdersService {
             });
 
             if (!customer) {
-                throw new NotFoundException('Customer not found for provided contact info');
+                customer = await this.prisma.customer.create({
+                    data: {
+                        restaurantId,
+                        email: dto.customerEmail ?? null,
+                        phone: dto.customerPhone ?? '',
+                        name: dto.customerName ?? null,
+                    },
+                });
+            }
+
+            if (dto.customerName && !customer.name) {
+                customer = await this.prisma.customer.update({
+                    where: { id: customer.id },
+                    data: { name: dto.customerName },
+                });
+            }
+            if (dto.customerEmail && !customer.email) {
+                customer = await this.prisma.customer.update({
+                    where: { id: customer.id },
+                    data: { email: dto.customerEmail },
+                });
+            }
+            if (dto.customerPhone && !customer.phone) {
+                customer = await this.prisma.customer.update({
+                    where: { id: customer.id },
+                    data: { phone: dto.customerPhone },
+                });
             }
 
             if (dto.claimedLoyalityPoints) {
@@ -1545,8 +1573,9 @@ export class OrdersService {
                 id: session.id,
                 sessionNumber: session.sessionNumber,
                 channel: session.channel,
-                customerName: session.customerName,
-                customerPhone: session.customerPhone,
+                customerName: dto.customerName || session.customerName || null,
+                customerPhone: dto.customerPhone || session.customerPhone || null,
+                customerEmail: dto.customerEmail || session.customerEmail || null,
                 table: session.table,
             },
 
