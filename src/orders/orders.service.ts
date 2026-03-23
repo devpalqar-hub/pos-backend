@@ -1568,24 +1568,29 @@ export class OrdersService {
         // ================================
         // FINAL CALCULATION
         // ================================
-
-        const manualDiscount = Number(dto.discountAmount ?? 0);
-
-        const totalDiscount = Math.min(
-            subtotal,
-            manualDiscount + couponDiscount + loyaltyDiscount,
-        );
-
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
             select: { taxRate: true },
         });
 
+        const manualDiscount = Number(dto.discountAmount ?? 0);
         const taxRate = Number(restaurant?.taxRate ?? 0);
+        // Step 1: tax on subtotal
+        const taxAmount = parseFloat(((subtotal * taxRate) / 100).toFixed(2));
 
-        const taxableAmount = Math.max(0, subtotal - totalDiscount);
-        const taxAmount = parseFloat(((taxableAmount * taxRate) / 100).toFixed(2));
-        const totalAmount = parseFloat((taxableAmount + taxAmount).toFixed(2));
+        // Step 2: gross
+        const grossAmount = subtotal + taxAmount;
+
+        // Step 3: total discount (clamped)
+        const totalDiscount = Math.min(
+            grossAmount,
+            manualDiscount + couponDiscount + loyaltyDiscount,
+        );
+
+        // Step 4: final total
+        const totalAmount = parseFloat(
+            (grossAmount - totalDiscount).toFixed(2),
+        );
 
         // ================================
         // RESPONSE SHAPING
@@ -1600,7 +1605,10 @@ export class OrdersService {
             subtotal: subtotal.toString(),
             taxRate: taxRate.toString(),
             taxAmount: taxAmount.toString(),
+            grossAmount: grossAmount.toString(),
             discountAmount: totalDiscount.toString(),
+            coupounDiscountAmount: couponDiscount.toString(),
+            loyalityPointDiscountAmount: loyaltyDiscount.toString(),
             totalAmount: totalAmount.toString(),
 
             notes: dto.notes ?? null,
