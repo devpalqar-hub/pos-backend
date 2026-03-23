@@ -1573,6 +1573,7 @@ export class OrdersService {
                     customerId: customer.id,
                     customerName: customer.name,
                     totalPoints: loyaltyDiscount.toString(),
+                    convertedAmount: loyaltyDiscount.toString(), // ✅ money value
                     redemptions: redemptions.map((r) => ({
                         id: r.id,
                         points: r.pointsAwarded.toString(),
