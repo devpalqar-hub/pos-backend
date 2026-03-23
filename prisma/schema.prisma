@@ -645,6 +645,10 @@ model Bill {
   totalAmount         Decimal @db.Decimal(10, 2)
   SpecialPriceApplied Boolean @default(false)
 
+  customerName  String? @db.VarChar(255)
+  customerPhone String? @db.VarChar(30)
+  customerEmail String? @db.VarChar(255)
+
   notes         String?   @db.Text
   generatedById String?
   paidAt        DateTime?
