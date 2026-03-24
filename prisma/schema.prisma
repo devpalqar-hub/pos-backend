@@ -1379,11 +1379,11 @@ model TriggerCampaignTracker {
 }
 
 // ─── Coupouns ────────────────────────────────────────────────────────────────────
-
+//coupuon name is unique per restaurant and not unique globally because different restaurant can have same coupon name but not same restaurant. 
 model Coupon {
   id           String  @id @default(uuid())
   restaurantId String
-  code         String  @unique @db.VarChar(50)
+  code         String  @db.VarChar(50)
   name         String  @db.VarChar(255)
   description  String? @db.Text
 
@@ -1408,6 +1408,7 @@ model Coupon {
   usages     CouponUsage[]
   bill       Bill[]
 
+  @@unique([restaurantId, code])
   @@index([restaurantId])
   @@map("coupons")
 }
