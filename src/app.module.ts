@@ -34,6 +34,7 @@ import { CartModule } from './cart/cart.module';
 import { RestaurantFeaturesModule } from './restaurant-features/restaurant-features.module';
 import { BookingModule } from './booking/booking.module';
 import { RestaurantFeatureGuard } from './common/guards/feature.guard';
+import { BillModule } from './bill/bill.module';
 
 @Module({
   imports: [
@@ -75,7 +76,8 @@ import { RestaurantFeatureGuard } from './common/guards/feature.guard';
     TriggerCampaignsModule,
     CartModule,
     RestaurantFeaturesModule,
-    BookingModule
+    BookingModule,
+    BillModule
   ],
   controllers: [AppController],
   providers: [

@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
-import { BillStatus, Prisma, User, UserRole } from '@prisma/client';
+import { BillStatus, ItemType, Prisma, User, UserRole } from '@prisma/client';
 import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
 import { UpdateItemStatusDto, } from './dto/update-item-status.dto';
@@ -524,19 +524,58 @@ export class OrdersService {
             const menuItem = await this.prisma.menuItem.findFirst({
                 where: { id: item.menuItemId, restaurantId, isActive: true },
             });
+
             if (!menuItem) {
                 throw new NotFoundException(
                     `Menu item ${item.menuItemId} not found or inactive in this restaurant`,
                 );
             }
+
             if (!menuItem.isAvailable) {
-                throw new BadRequestException(`Menu item "${menuItem.name}" is not available`);
-            }
-            if (menuItem.isOutOfStock) {
-                throw new BadRequestException(`Menu item "${menuItem.name}" is out of stock`);
+                throw new BadRequestException(
+                    `Menu item "${menuItem.name}" is not available`,
+                );
             }
 
-            const unitPrice = await this.getEffectivePriceForItem(restaurantId, item.menuItemId);
+            if (menuItem.isOutOfStock) {
+                throw new BadRequestException(
+                    `Menu item "${menuItem.name}" is out of stock`,
+                );
+            }
+
+            // ✅ STOCK VALIDATION + DEDUCTION (only for STOCKABLE items)
+            if (menuItem.itemType === ItemType.STOCKABLE) {
+                const availableStock = menuItem.stockCount ?? 0;
+
+                if (availableStock <= 0) {
+                    throw new BadRequestException(
+                        `Menu item "${menuItem.name}" is out of stock`,
+                    );
+                }
+
+                if (item.quantity > availableStock) {
+                    throw new BadRequestException(
+                        `Only ${availableStock} units of "${menuItem.name}" available, but ${item.quantity} requested`,
+                    );
+                }
+
+                const newStock = availableStock - item.quantity;
+
+                await this.prisma.menuItem.update({
+                    where: { id: item.menuItemId },
+                    data: {
+                        stockCount: newStock,
+                        isOutOfStock: newStock === 0,
+                        outOfStockAt: newStock === 0 ? new Date() : null,
+                    },
+                });
+            }
+
+            const unitPrice = await this.getEffectivePriceForItem(
+                restaurantId,
+                item.menuItemId,
+            );
+
             resolvedItems.push({
                 menuItemId: item.menuItemId,
                 quantity: item.quantity,
