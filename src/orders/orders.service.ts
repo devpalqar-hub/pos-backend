@@ -1192,6 +1192,7 @@ export class OrdersService {
                     grossAmount: grossAmount,
                     taxRate,
                     taxAmount,
+                    status: BillStatus.PAID,
                     customerEmail: dto.customerEmail ?? null,
                     customerPhone: dto.customerPhone ?? null,
                     customerName: dto.customerName ?? null,
@@ -1497,14 +1498,17 @@ export class OrdersService {
         let appliedLoyalty: any = null; // ✅ ADD
         let customer: any;
         if (dto.customerEmail || dto.customerPhone) {
+            // here either email, phone or restaurantId can be used. if no email exists use phone, if no phone exist use restaurantId
             customer = await this.prisma.customer.findFirst({
                 where: {
-                    email: dto.customerEmail ?? undefined,
-                    phone: dto.customerPhone ?? undefined,
-                    restaurantId,
+                    OR: [
+                        { email: dto.customerEmail ?? undefined },
+                        { phone: dto.customerPhone ?? undefined },
+                    ]
                 },
             });
-
+            console.log("Customer lookup with email:", dto.customerEmail, "phone:", dto.customerPhone, "restaurantId:", restaurantId);
+            console.log("Customer lookup result:", customer);
             if (!customer) {
                 customer = await this.prisma.customer.create({
                     data: {
