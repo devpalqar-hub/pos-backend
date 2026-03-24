@@ -16,14 +16,26 @@ export class CouponsService {
     ) { }
 
     async create(restaurantId: string, dto: CreateCouponDto) {
-        return this.prisma.coupon.create({
-            data: {
+        const coupoun = await this.prisma.coupon.findFirst({
+            where: {
                 restaurantId,
-                ...dto,
-                validFrom: new Date(dto.validFrom),
-                validUntil: new Date(dto.validUntil),
-            },
+                code: dto.code
+            }
         })
+
+        if (coupoun) {
+            throw new BadRequestException('Coupon code already exists for this restaurant')
+        }
+        else {
+            return this.prisma.coupon.create({
+                data: {
+                    restaurantId,
+                    ...dto,
+                    validFrom: new Date(dto.validFrom),
+                    validUntil: new Date(dto.validUntil),
+                },
+            })
+        }
     }
 
     async findAll(
