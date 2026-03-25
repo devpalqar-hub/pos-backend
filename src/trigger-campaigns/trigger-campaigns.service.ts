@@ -52,7 +52,9 @@ export class TriggerCampaignsService {
                 rules: {
                     create: (dto.rules ?? []).map((r) => ({
                         condition: r.condition as unknown as TriggerRuleCondition,
-                        value: r.value ?? null,
+                        value: Array.isArray(r.value)
+                            ? JSON.stringify(r.value)
+                            : r.value ?? null,
                     })),
                 },
                 channels: {
@@ -145,7 +147,9 @@ export class TriggerCampaignsService {
                     data: dto.rules.map((r) => ({
                         triggerCampaignId: id,
                         condition: r.condition as unknown as TriggerRuleCondition,
-                        value: r.value ?? null,
+                        value: Array.isArray(r.value)
+                            ? JSON.stringify(r.value)
+                            : r.value ?? null,
                     })),
                 });
             }
@@ -302,8 +306,9 @@ export class TriggerCampaignsService {
     //  Scheduler — evaluate trigger campaigns every 5 minutes
     // ═══════════════════════════════════════════════════════════════════════════
 
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_MINUTE)
     async evaluateTriggerCampaigns() {
+        this.logger.log('CRON: evaluateTriggerCampaigns triggered');
         const now = new Date();
 
         // Expire campaigns that have passed their expiration date
@@ -315,6 +320,8 @@ export class TriggerCampaignsService {
             },
             data: { status: TriggerCampaignStatus.EXPIRED },
         });
+
+        this.logger.log('CRON: Expired campaigns updated');
 
         // Find all ACTIVE trigger campaigns
         const campaigns = await this.prisma.triggerCampaign.findMany({
@@ -328,8 +335,11 @@ export class TriggerCampaignsService {
             },
         });
 
+        this.logger.log(`CRON: Found ${campaigns.length} active trigger campaigns`);
+
         for (const campaign of campaigns) {
             try {
+                this.logger.log(`CRON: Evaluating campaign ${campaign.id}`);
                 await this.evaluateSingleCampaign(campaign);
             } catch (err) {
                 this.logger.error(
@@ -338,6 +348,7 @@ export class TriggerCampaignsService {
                 );
             }
         }
+        this.logger.log('CRON: evaluateTriggerCampaigns completed');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -346,15 +357,22 @@ export class TriggerCampaignsService {
 
     private async evaluateSingleCampaign(campaign: any) {
         const restaurantId = campaign.restaurantId;
+        this.logger.log(`START evaluateSingleCampaign | campaignId=${campaign.id}`);
 
         // Get all active customers
+        this.logger.log(`Fetching customers for restaurantId=${restaurantId}`);
         const customers = await this.prisma.customer.findMany({
             where: { restaurantId, isActive: true },
         });
+        this.logger.log(`Customers fetched count=${customers.length}`);
 
-        if (customers.length === 0) return;
+        if (customers.length === 0) {
+            this.logger.log(`No customers found, exiting`);
+            return;
+        }
 
-        // Pre-fetch order data for the restaurant
+        // Pre-fetch order data
+        this.logger.log(`Fetching order sessions`);
         const sessions = await this.prisma.orderSession.findMany({
             where: {
                 restaurantId,
@@ -368,8 +386,10 @@ export class TriggerCampaignsService {
                 totalAmount: true,
             },
         });
+        this.logger.log(`Order sessions fetched count=${sessions.length}`);
 
-        // Build per-phone order stats
+        // Build phoneStats
+        this.logger.log(`Building phoneStats`);
         type PhoneStats = {
             orderCount: number;
             totalSpend: number;
@@ -381,6 +401,7 @@ export class TriggerCampaignsService {
 
         for (const s of sessions) {
             if (!s.customerPhone) continue;
+
             const curr = phoneStats.get(s.customerPhone) ?? {
                 orderCount: 0,
                 totalSpend: 0,
@@ -388,76 +409,104 @@ export class TriggerCampaignsService {
                 orderDates: [],
                 channels: new Set<string>(),
             };
+
             curr.orderCount++;
             curr.totalSpend += Number(s.totalAmount ?? 0);
             curr.orderDates.push(s.createdAt);
+
             if (!curr.lastOrderDate || s.createdAt > curr.lastOrderDate) {
                 curr.lastOrderDate = s.createdAt;
             }
+
             curr.channels.add(s.channel);
             phoneStats.set(s.customerPhone, curr);
         }
+        this.logger.log(`phoneStats built size=${phoneStats.size}`);
 
-        // Pre-fetch order items per phone (for ORDERED_ITEMS rule)
+        // Ordered items
+        this.logger.log(`Fetching orderedItemsByPhone`);
         const orderedItemsByPhone = await this.getOrderedItemsByPhone(restaurantId);
+        this.logger.log(`orderedItemsByPhone size=${orderedItemsByPhone.size}`);
 
-        // Pre-fetch loyalty points per customer
+        // Loyalty
+        this.logger.log(`Fetching loyaltyMap`);
         const loyaltyMap = await this.getLoyaltyPointsMap(restaurantId);
+        this.logger.log(`loyaltyMap size=${loyaltyMap.size}`);
 
-        // Pre-fetch existing trackers for this campaign
+        // Trackers
+        this.logger.log(`Fetching existing trackers`);
         const existingTrackers = await this.prisma.triggerCampaignTracker.findMany({
             where: { triggerCampaignId: campaign.id },
         });
+        this.logger.log(`existingTrackers count=${existingTrackers.length}`);
+
         const trackerMap = new Map(
             existingTrackers.map((t) => [t.customerId, t]),
         );
 
-        // Get settings for sending
+        // Settings
+        this.logger.log(`Fetching marketing settings & restaurant`);
         const settings = await this.prisma.marketingSettings.findUnique({
             where: { restaurantId },
         });
         const restaurant = await this.prisma.restaurant.findUnique({
             where: { id: restaurantId },
         });
-        if (!restaurant) return;
+
+        this.logger.log(`Settings found=${!!settings}, Restaurant found=${!!restaurant}`);
+
+        if (!restaurant) {
+            this.logger.warn(`Restaurant not found, exiting`);
+            return;
+        }
 
         const selectedChannels = campaign.channels.map((c: any) => c.channel);
+        this.logger.log(`Selected channels=${JSON.stringify(selectedChannels)}`);
+
         const now = new Date();
 
+        // Customer loop
+        this.logger.log(`Processing customers loop start`);
         for (const customer of customers) {
-            // 1. Check tracker limits
+            this.logger.log(`--- Customer START id=${customer.id} ---`);
+
             const tracker = trackerMap.get(customer.id);
+            this.logger.log(`Tracker found=${!!tracker}`);
 
             if (tracker) {
-                // Check max trigger count
                 if (
                     campaign.maxTriggersPerCustomer !== null &&
                     tracker.triggerCount >= campaign.maxTriggersPerCustomer
                 ) {
+                    this.logger.log(`Skipped due to maxTriggersPerCustomer`);
                     continue;
                 }
 
-                // Check repeat delay
                 if (tracker.lastTriggeredAt) {
                     const daysSinceLast =
                         (now.getTime() - tracker.lastTriggeredAt.getTime()) / (1000 * 60 * 60 * 24);
+
                     if (daysSinceLast < campaign.repeatDelayDays) {
+                        this.logger.log(`Skipped due to repeatDelayDays`);
                         continue;
                     }
                 }
             }
 
-            // 2. Evaluate rules
             const stats = phoneStats.get(customer.phone) ?? {
                 orderCount: 0,
                 totalSpend: 0,
-                lastOrderDate: null as Date | null,
-                orderDates: [] as Date[],
+                lastOrderDate: null,
+                orderDates: [],
                 channels: new Set<string>(),
             };
-            const customerOrderedItems = orderedItemsByPhone.get(customer.phone) ?? new Set<string>();
+
+            const customerOrderedItems =
+                orderedItemsByPhone.get(customer.phone) ?? new Set<string>();
+
             const loyaltyPoints = loyaltyMap.get(customer.id) ?? 0;
 
+            this.logger.log(`Evaluating rules`);
             const eligible = this.evaluateRules(
                 campaign.rules,
                 campaign.ruleOperator,
@@ -466,45 +515,58 @@ export class TriggerCampaignsService {
                 loyaltyPoints,
             );
 
+            this.logger.log(`Eligibility=${eligible}`);
             if (!eligible) continue;
 
-            // 3. Send message via all channels
             const customerName = customer.name || 'Customer';
             const restaurantName = restaurant.name;
+
+            this.logger.log(`Customer eligible, sending messages`);
 
             for (const ch of selectedChannels) {
                 let success = false;
                 let errorMsg: string | null = null;
 
+                this.logger.log(`Channel=${ch} start`);
+
                 try {
                     if (ch === MarketingChannel.EMAIL) {
+                        this.logger.log(`EMAIL config check`);
                         if (!settings?.smtpHost || !settings?.smtpUser || !settings?.smtpPassword) {
                             throw new Error('SMTP not configured');
                         }
                         if (!customer.email) throw new Error('Customer has no email');
+
+                        this.logger.log(`Sending EMAIL to ${customer.email}`);
                         await this.sendEmail(settings, customer.email, campaign, customerName, restaurantName);
                     } else if (ch === MarketingChannel.SMS) {
+                        this.logger.log(`SMS config check`);
                         if (!settings?.twilioAccountSid || !settings?.twilioAuthToken) {
                             throw new Error('Twilio not configured');
                         }
                         if (!customer.phone) throw new Error('Customer has no phone');
+
+                        this.logger.log(`Sending SMS to ${customer.phone}`);
                         await this.sendSms(settings, customer.phone, campaign, customerName, restaurantName);
                     } else if (ch === MarketingChannel.WHATSAPP) {
+                        this.logger.log(`WHATSAPP config check`);
                         if (!settings?.waPhoneNumberId || !settings?.waAccessToken) {
                             throw new Error('WhatsApp not configured');
                         }
                         if (!customer.phone) throw new Error('Customer has no phone');
+
+                        this.logger.log(`Sending WHATSAPP to ${customer.phone}`);
                         await this.sendWhatsapp(settings, customer.phone, campaign, customerName, restaurantName);
                     }
+
                     success = true;
+                    this.logger.log(`Channel ${ch} SUCCESS`);
                 } catch (err) {
                     errorMsg = err.message;
-                    this.logger.warn(
-                        `Trigger campaign ${campaign.id} — failed to send ${ch} to customer ${customer.id}: ${errorMsg}`,
-                    );
+                    this.logger.error(`Channel ${ch} FAILED: ${errorMsg}`);
                 }
 
-                // Log the send attempt
+                this.logger.log(`Logging result to DB`);
                 await this.prisma.triggerCampaignLog.create({
                     data: {
                         triggerCampaignId: campaign.id,
@@ -517,7 +579,7 @@ export class TriggerCampaignsService {
                 });
             }
 
-            // 4. Upsert tracker
+            this.logger.log(`Upserting tracker`);
             await this.prisma.triggerCampaignTracker.upsert({
                 where: {
                     triggerCampaignId_customerId: {
@@ -536,13 +598,17 @@ export class TriggerCampaignsService {
                     lastTriggeredAt: now,
                 },
             });
+
+            this.logger.log(`--- Customer END id=${customer.id} ---`);
         }
+
+        this.logger.log(`END evaluateSingleCampaign | campaignId=${campaign.id}`);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     //  Internal: Rule evaluation
     // ═══════════════════════════════════════════════════════════════════════════
-
+    targetItems
     private evaluateRules(
         rules: { condition: TriggerRuleCondition; value: string | null }[],
         operator: RuleGroupOperator,
@@ -586,7 +652,18 @@ export class TriggerCampaignsService {
                 case TriggerRuleCondition.ORDERED_ITEMS: {
                     if (!rule.value) return false;
                     try {
-                        const targetItems: string[] = JSON.parse(rule.value);
+                        let targetItems: string[] = [];
+
+                        if (Array.isArray(rule.value)) {
+                            targetItems = rule.value;
+                        } else if (typeof rule.value === 'string') {
+                            try {
+                                targetItems = JSON.parse(rule.value);
+                            } catch {
+                                targetItems = [rule.value]; // fallback for single string
+                            }
+                        }
+
                         return targetItems.some((itemId) => orderedItems.has(itemId));
                     } catch {
                         return false;
@@ -691,6 +768,11 @@ export class TriggerCampaignsService {
         customerName: string,
         restaurantName: string,
     ) {
+
+        const senderEmail = settings.smtpFromEmail;
+        const receiverEmail = toEmail;
+        this.logger.log(`EMAIL: Sending from ${senderEmail} to ${receiverEmail}`);
+
         const transporter = nodemailer.createTransport({
             host: settings.smtpHost,
             port: settings.smtpPort ?? 587,
@@ -714,8 +796,8 @@ export class TriggerCampaignsService {
             : undefined;
 
         await transporter.sendMail({
-            from: `"${settings.smtpFromName ?? restaurantName}" <${settings.smtpFromEmail}>`,
-            to: toEmail,
+            from: `"${settings.smtpFromName ?? restaurantName}" <${senderEmail}>`,
+            to: receiverEmail,
             subject,
             html: htmlBody,
             text: textBody,

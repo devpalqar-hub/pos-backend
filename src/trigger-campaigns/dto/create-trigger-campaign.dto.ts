@@ -55,8 +55,7 @@ export class TriggerCampaignRuleDto {
         example: 'MONDAY',
     })
     @IsOptional()
-    @IsString()
-    value?: string;
+    value?: string | string[];
 }
 
 export class CreateTriggerCampaignDto {

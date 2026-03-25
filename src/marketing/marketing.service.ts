@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as nodemailer from 'nodemailer';
-import axios from 'axios';
+import axios, { all } from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   User,
@@ -489,7 +489,7 @@ export class MarketingService {
     const settings = await this.prisma.marketingSettings.findUnique({
       where: { restaurantId: campaign.restaurantId },
     });
-
+    console.log(settings, "settings")
     // Mark as RUNNING
     await this.prisma.campaign.update({
       where: { id: campaignId },
@@ -1054,5 +1054,13 @@ export class MarketingService {
     ) {
       throw new ForbiddenException('Only OWNER, RESTAURANT_ADMIN and SUPER_ADMIN can manage marketing');
     }
+  }
+
+
+  async allcustomer(restaurantId: string) {
+    const allCustomers = await this.prisma.customer.findMany({
+      where: { restaurantId },
+    });
+    return allCustomers;
   }
 }

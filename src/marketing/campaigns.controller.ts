@@ -35,10 +35,13 @@ import { User, UserRole, CampaignStatus } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/marketing/campaigns')
 export class CampaignsController {
-  constructor(private readonly marketingService: MarketingService) {}
+  constructor(private readonly marketingService: MarketingService) { }
 
   // ─── Create ───────────────────────────────────────────────────────────────
-
+  // @Get('allcustomer')
+  // async allcustomer(@Param('restaurantId', ParseUUIDPipe) restaurantId: string) {
+  //   return this.marketingService.allcustomer(restaurantId);
+  // }
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
   @HttpCode(HttpStatus.CREATED)
