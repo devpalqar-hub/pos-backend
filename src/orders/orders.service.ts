@@ -1142,16 +1142,16 @@ export class OrdersService {
                     restaurantId,
                 },
             });
-            // if (!customer) {
-            //     await this.prisma.customer.create({
-            //         data: {
-            //             restaurantId,
-            //             name: dto.customerName ?? 'Guest',
-            //             email: dto.customerEmail ?? null,
-            //             phone: dto.customerPhone ?? null,
-            //         }
-            //     })
-            // }
+            if (!customer) {
+                await this.prisma.customer.create({
+                    data: {
+                        restaurantId,
+                        name: dto.customerName ?? 'Guest',
+                        email: dto.customerEmail ?? null,
+                        phone: dto.customerPhone ?? '',
+                    }
+                })
+            }
             if (dto.claimedLoyalityPoints && !customer) {
                 throw new BadRequestException(
                     'Customer must exist to redeem loyalty points',
