@@ -1189,18 +1189,55 @@ export class OrdersService {
                     0,
                 );
 
-                // Convert points → money
                 const conversionRate =
                     Number(converter.value) / Number(converter.points);
 
-                loyaltyDiscount = parseFloat(
+                const maxPossibleDiscount = parseFloat(
                     (totalPoints * conversionRate).toFixed(2),
                 );
 
+                // grossAmount is calculated after this block in previewBill,
+                // so we use subtotal + estimated tax as a safe cap here
+                const taxRateTemp = Number(
+                    (await this.prisma.restaurant.findUnique({
+                        where: { id: restaurantId },
+                        select: { taxRate: true },
+                    }))?.taxRate ?? 0,
+                );
+                const grossAmountTemp = parseFloat(
+                    (subtotal + (subtotal * taxRateTemp) / 100).toFixed(2),
+                );
+                const manualDiscountTemp = Number(dto.discountAmount ?? 0);
+
+                const remainingAfterOtherDiscounts = Math.max(
+                    0,
+                    grossAmountTemp - manualDiscountTemp - couponDiscount,
+                );
+
+                loyaltyDiscount = parseFloat(
+                    Math.min(maxPossibleDiscount, remainingAfterOtherDiscounts).toFixed(2),
+                );
+
+                const pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                const pointsRemaining = totalPoints - pointsConsumed;
+
+                // ✅ STORE FOR RESPONSE
                 appliedLoyalty = {
+                    customerId: customer.id,
+                    customerName: customer.name,
                     totalPoints,
-                    convertedAmount: loyaltyDiscount,
-                    conversionRate,
+                    pointsConsumed,
+                    pointsRemaining,
+                    convertedAmount: loyaltyDiscount.toString(),
+                    conversionRate: conversionRate.toString(),
+                    redemptions: redemptions.map((r) => ({
+                        id: r.id,
+                        points: r.pointsAwarded.toString(),
+                        loyalityPoint: {
+                            id: r.loyalityPoint.id,
+                            name: r.loyalityPoint.name,
+                        },
+                    })),
                 };
             }
         }
@@ -1621,17 +1658,44 @@ export class OrdersService {
                 const conversionRate =
                     Number(converter.value) / Number(converter.points);
 
-                loyaltyDiscount = parseFloat(
+                const maxPossibleDiscount = parseFloat(
                     (totalPoints * conversionRate).toFixed(2),
                 );
+
+                // grossAmount is calculated after this block in previewBill,
+                // so we use subtotal + estimated tax as a safe cap here
+                const taxRateTemp = Number(
+                    (await this.prisma.restaurant.findUnique({
+                        where: { id: restaurantId },
+                        select: { taxRate: true },
+                    }))?.taxRate ?? 0,
+                );
+                const grossAmountTemp = parseFloat(
+                    (subtotal + (subtotal * taxRateTemp) / 100).toFixed(2),
+                );
+                const manualDiscountTemp = Number(dto.discountAmount ?? 0);
+
+                const remainingAfterOtherDiscounts = Math.max(
+                    0,
+                    grossAmountTemp - manualDiscountTemp - couponDiscount,
+                );
+
+                loyaltyDiscount = parseFloat(
+                    Math.min(maxPossibleDiscount, remainingAfterOtherDiscounts).toFixed(2),
+                );
+
+                const pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                const pointsRemaining = totalPoints - pointsConsumed;
 
                 // ✅ STORE FOR RESPONSE
                 appliedLoyalty = {
                     customerId: customer.id,
                     customerName: customer.name,
-                    totalPoints: loyaltyDiscount.toString(),
-                    convertedAmount: loyaltyDiscount.toString(), // ✅ money value
-                    conversionRate: conversionRate.toString(), // ✅ conversion rate
+                    totalPoints,
+                    pointsConsumed,
+                    pointsRemaining,
+                    convertedAmount: loyaltyDiscount.toString(),
+                    conversionRate: conversionRate.toString(),
                     redemptions: redemptions.map((r) => ({
                         id: r.id,
                         points: r.pointsAwarded.toString(),
