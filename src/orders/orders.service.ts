@@ -812,6 +812,7 @@ export class OrdersService {
         };
 
         this.gateway.emitToKitchen(restaurantId, 'item:status:changed', payload);
+        this.gateway.emitToBilling(restaurantId, 'item:status:changed', payload);
         this.gateway.emitToRestaurant(restaurantId, 'item:status:changed', payload);
         if (item.batch.session.tableId) {
             this.gateway.emitToTable(item.batch.session.tableId, 'item:status:changed', payload);
