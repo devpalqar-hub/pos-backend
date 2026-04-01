@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
-import { BillStatus, ItemType, Prisma, User, UserRole } from '@prisma/client';
+import { BillStatus, ItemType, Prisma, TableStatus, User, UserRole } from '@prisma/client';
 import { CreateSessionDto, OrderChannel } from './dto/create-session.dto';
 import { CreateBatchDto } from './dto/create-batch.dto';
 import { UpdateItemStatusDto, } from './dto/update-item-status.dto';
@@ -1335,6 +1335,14 @@ export class OrdersService {
                     taxAmount,
                     discountAmount: totalDiscount,
                     totalAmount,
+                },
+            });
+
+            await tx.table.update({
+                where: { id: session.tableId ?? undefined },
+                data: {
+                    status: TableStatus.AVAILABLE,
+
                 },
             });
 
