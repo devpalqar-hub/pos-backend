@@ -1338,14 +1338,6 @@ export class OrdersService {
                 },
             });
 
-            await tx.table.update({
-                where: { id: session.tableId ?? undefined },
-                data: {
-                    status: TableStatus.AVAILABLE,
-
-                },
-            });
-
             await tx.orderSessionUpdateTime.create({
                 data: {
                     orderSessionId: session.id,
@@ -1358,6 +1350,24 @@ export class OrdersService {
 
             return createdBill;
         });
+
+        const sessions = await this.prisma.orderSession.findMany({
+            where: {
+                restaurantId,
+                tableId: session.tableId,
+                status: {
+                    notIn: [SessionStatus.PAID, SessionStatus.BILLED],
+                },
+            },
+        });
+
+        // If there are no sessions with status other than PAID, mark the table as available
+        if (sessions.length === 0) {
+            await this.prisma.table.update({
+                where: { id: session.tableId! },
+                data: { status: TableStatus.AVAILABLE },
+            });
+        }
 
         this.gateway.emitToBilling(restaurantId, 'bill:generated', bill);
         this.gateway.emitToRestaurant(restaurantId, 'session:status:changed', {
