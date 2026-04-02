@@ -164,32 +164,43 @@ export class CustomersAuthService {
         if (!restaurant) {
             throw new NotFoundException('Restaurant not found');
         }
+        let customer;
 
-        const existing = await this.prisma.customer.findFirst({
+        customer = await this.prisma.customer.findFirst({
             where: {
                 restaurantId,
-                email: dto.email,
+                OR: [
+                    { phone: dto.phone },
+                    { email: dto.email },
+                ]
             },
+
         });
 
-        if (existing) {
-            throw new ConflictException(
-                'Customer already exists in this restaurant',
-            );
+        if (customer) {
+            if (!customer.email) {
+                await this.prisma.customer.update({
+                    where: { id: customer.id },
+                    data: {
+                        email: dto.email,
+                    },
+                });
+            }
         }
-
-        const customer = await this.prisma.customer.create({
-            data: {
-                restaurantId,
-                email: dto.email,
-                phone: dto.phone,
-                name: dto.name,
-                carts: {
-                    create: { restaurantId },
+        else {
+            customer = await this.prisma.customer.create({
+                data: {
+                    restaurantId,
+                    email: dto.email,
+                    phone: dto.phone,
+                    name: dto.name,
+                    carts: {
+                        create: { restaurantId },
+                    },
+                    is_registered: false
                 },
-                is_registered: false
-            },
-        });
+            });
+        }
 
         const otp = this.generateOtp();
 

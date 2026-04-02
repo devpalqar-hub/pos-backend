@@ -248,6 +248,7 @@ model User {
   createdBatches    OrderBatch[]   @relation("BatchCreatedBy")
   generatedBills    Bill[]         @relation("BillGeneratedBy")
   processedPayments Payment[]      @relation("PaymentProcessedBy")
+  vendors           Vendor[]
 
   @@map("users")
 }
@@ -319,6 +320,7 @@ model Restaurant {
   carts                    Cart[]
   features                 RestaurantFeatureFlag[]
   loyalityPointsConverters LoyalityPointsConverter[]
+  vendors                  Vendor[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -1493,4 +1495,63 @@ model RestaurantFeatureFlag {
   @@unique([restaurantId, feature])
   @@index([restaurantId])
   @@map("restaurant_feature_flags")
+}
+
+// ─── Vendor Category ─────────────────────────────────────────────
+// Represents WHAT vendor sells (Vegetables, Grains, Dairy, etc.)
+
+model VendorCategory {
+  id          String  @id @default(uuid())
+  name        String  @db.VarChar(100) // e.g. "Vegetables"
+  description String? @db.VarChar(255)
+
+  restaurantId String // optional → if categories are restaurant-specific
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Relations ────────────────────────────────────────────────
+  vendors Vendor[] @relation("VendorToCategory")
+
+  @@unique([name, restaurantId]) // avoid duplicates per restaurant
+  @@index([restaurantId])
+  @@map("vendor_categories")
+}
+
+// ─── Vendor ─────────────────────────────────────────────────────
+// Represents supplier entity
+
+model Vendor {
+  id String @id @default(uuid())
+
+  name  String  @db.VarChar(255)
+  phone String? @db.VarChar(20)
+  email String? @db.VarChar(255)
+
+  contactPerson String? @db.VarChar(255)
+  address       String? @db.Text
+
+  gstNumber String? @db.VarChar(50) // India-specific
+  panNumber String? @db.VarChar(50)
+
+  isActive Boolean @default(true)
+
+  restaurantId String
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Relations ────────────────────────────────────────────────
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  categories VendorCategory[] @relation("VendorToCategory")
+  user       User?            @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@index([restaurantId])
+  @@index([name])
+  @@map("vendors")
 }

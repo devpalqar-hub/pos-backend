@@ -19,9 +19,21 @@ export class CustomersService {
     async create(actor: User, restaurantId: string, dto: CreateCustomerDto) {
         await this.assertRestaurantAccess(actor, restaurantId, 'manage');
 
+        //atleast phone and name or email and name should be there 
+        if (!dto.name || !dto.phone) {
+            throw new ForbiddenException('Name and phone are required');
+        }
+
+
         // Phone must be unique within the restaurant
-        const existing = await this.prisma.customer.findUnique({
-            where: { restaurantId_phone: { restaurantId, phone: dto.phone } },
+        const existing = await this.prisma.customer.findFirst({
+            where: {
+                restaurantId,
+                OR: [
+                    { phone: dto.phone },
+                    { email: dto.email },
+                ],
+            },
         });
         if (existing) {
             throw new ConflictException(
@@ -33,6 +45,7 @@ export class CustomersService {
             data: {
                 restaurantId,
                 phone: dto.phone,
+                email: dto.email ?? null,
                 name: dto.name ?? null,
                 is_registered: true
             },

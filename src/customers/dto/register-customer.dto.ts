@@ -13,7 +13,6 @@ export class RegisterCustomerDto {
         example: 'John Doe',
         required: false,
     })
-    @IsOptional()
     @IsString()
     name?: string;
 

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsEmail,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -15,15 +16,23 @@ export class CreateCustomerDto {
   @IsString()
   @IsNotEmpty({ message: 'Phone number is required' })
   @MaxLength(30)
+  @IsOptional()
   phone: string;
+
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'Customer email',
+  })
+  @IsOptional()
+  @IsEmail()
+  email: string;
 
   @ApiPropertyOptional({
     description: 'Customer name (optional)',
     example: 'John Doe',
     maxLength: 255,
   })
-  @IsOptional()
   @IsString()
   @MaxLength(255)
-  name?: string;
+  name: string;
 }
