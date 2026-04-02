@@ -991,6 +991,10 @@ export class OrdersService {
             );
         }
 
+        const hasCustomerDataInRequest = Boolean(
+            dto.customerName?.trim() || dto.customerEmail?.trim() || dto.customerPhone?.trim(),
+        );
+
         // Collect all non-cancelled items from all batches
         const items = await this.prisma.orderItem.findMany({
             where: {
@@ -1135,7 +1139,7 @@ export class OrdersService {
         let loyaltyDiscount = 0;
         let appliedLoyalty: any = null; // ✅ ADD
         let customer: any;
-        if (dto.customerEmail || dto.customerPhone) {
+        if (hasCustomerDataInRequest) {
             customer = await this.prisma.customer.findFirst({
                 where: {
                     email: dto.customerEmail ?? undefined,
@@ -1452,6 +1456,10 @@ export class OrdersService {
             );
         }
 
+        const hasCustomerDataInRequest = Boolean(
+            dto.customerName?.trim() || dto.customerEmail?.trim() || dto.customerPhone?.trim(),
+        );
+
 
         // ================================
         // ITEMS
@@ -1602,7 +1610,7 @@ export class OrdersService {
         let loyaltyDiscount = 0;
         let appliedLoyalty: any = null; // ✅ ADD
         let customer: any;
-        if (dto.customerEmail || dto.customerPhone) {
+        if (hasCustomerDataInRequest) {
             // here either email, phone or restaurantId can be used. if no email exists use phone, if no phone exist use restaurantId
             customer = await this.prisma.customer.findFirst({
                 where: {
@@ -1811,9 +1819,15 @@ export class OrdersService {
                 id: session.id,
                 sessionNumber: session.sessionNumber,
                 channel: session.channel,
-                customerName: dto.customerName || session.customerName || null,
-                customerPhone: dto.customerPhone || session.customerPhone || null,
-                customerEmail: dto.customerEmail || session.customerEmail || null,
+                customerName: hasCustomerDataInRequest
+                    ? dto.customerName || session.customerName || null
+                    : null,
+                customerPhone: hasCustomerDataInRequest
+                    ? dto.customerPhone || session.customerPhone || null
+                    : null,
+                customerEmail: hasCustomerDataInRequest
+                    ? dto.customerEmail || session.customerEmail || null
+                    : null,
                 table: session.table,
             },
 
