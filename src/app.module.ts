@@ -37,6 +37,7 @@ import { RestaurantFeatureGuard } from './common/guards/feature.guard';
 import { BillModule } from './bill/bill.module';
 import { VendorModule } from './vendor/vendor.module';
 import { VendorCategoryModule } from './vendor-category/vendor-category.module';
+import { VendorPaymentModule } from './vendor-payment/vendor-payment.module';
 
 @Module({
   imports: [
@@ -81,7 +82,8 @@ import { VendorCategoryModule } from './vendor-category/vendor-category.module';
     BookingModule,
     BillModule,
     VendorModule,
-    VendorCategoryModule
+    VendorCategoryModule,
+    VendorPaymentModule
   ],
   controllers: [AppController],
   providers: [

@@ -11,6 +11,11 @@ datasource db {
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
+enum VendorPaymentType {
+  INVOICE // Payment against a vendor invoice (default)
+  ADVANCE // Advance payment before receiving goods/services
+  PARTIAL // Partial payment for an invoice, with more payments expected
+}
 
 enum RestaurantFeature {
   POS
@@ -217,6 +222,11 @@ enum TriggerRuleCondition {
   MIN_SPEND_AMOUNT // value: minimum spend amount
 }
 
+enum VendorPaymentStatus {
+  PENDING // not paid
+  PAID // fully settled
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -244,11 +254,12 @@ model User {
   createdRestaurants Restaurant[] @relation("RestaurantCreatedBy")
 
   // ── Order backward relations ──────────────────────────────────────────────
-  openedSessions    OrderSession[] @relation("SessionOpenedBy")
-  createdBatches    OrderBatch[]   @relation("BatchCreatedBy")
-  generatedBills    Bill[]         @relation("BillGeneratedBy")
-  processedPayments Payment[]      @relation("PaymentProcessedBy")
+  openedSessions    OrderSession[]  @relation("SessionOpenedBy")
+  createdBatches    OrderBatch[]    @relation("BatchCreatedBy")
+  generatedBills    Bill[]          @relation("BillGeneratedBy")
+  processedPayments Payment[]       @relation("PaymentProcessedBy")
   vendors           Vendor[]
+  vendorPayments    VendorPayment[]
 
   @@map("users")
 }
@@ -321,6 +332,7 @@ model Restaurant {
   features                 RestaurantFeatureFlag[]
   loyalityPointsConverters LoyalityPointsConverter[]
   vendors                  Vendor[]
+  vendorPayments           VendorPayment[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -873,7 +885,8 @@ model Expense {
   expenseCategoryId String?
   expenseCategory   ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id])
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  vendorPayments VendorPayment[]
 
   @@index([restaurantId])
   @@index([expenseType])
@@ -1547,11 +1560,52 @@ model Vendor {
   // ── Relations ────────────────────────────────────────────────
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
-  categories VendorCategory[] @relation("VendorToCategory")
-  user       User?            @relation(fields: [userId], references: [id])
-  userId     String?
+  categories     VendorCategory[] @relation("VendorToCategory")
+  user           User?            @relation(fields: [userId], references: [id])
+  userId         String?
+  vendorPayments VendorPayment[]
 
   @@index([restaurantId])
   @@index([name])
   @@map("vendors")
+}
+
+model VendorPayment {
+  id String @id @default(uuid())
+
+  // ── Relations ────────────────────────────────────────────────
+  vendorId     String
+  restaurantId String
+
+  vendor     Vendor     @relation(fields: [vendorId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  // ── Financial Fields ─────────────────────────────────────────
+  totalAmount Decimal @db.Decimal(10, 2) // total bill amount
+  paidAmount  Decimal @default(0) @db.Decimal(10, 2)
+  dueAmount   Decimal @db.Decimal(10, 2)
+
+  // ── Payment Status ───────────────────────────────────────────
+  status        VendorPaymentStatus @default(PENDING)
+  type          VendorPaymentType   @default(INVOICE) // INVOICE, ADVANCE, PARTIAL
+  // ── Payment Details ──────────────────────────────────────────
+  paymentMethod PaymentMethod? // CASH, UPI, BANK_TRANSFER
+  referenceNo   String?             @db.VarChar(100) // txn id / cheque no
+  notes         String?             @db.Text
+
+  // ── Dates ────────────────────────────────────────────────────
+  paidAt DateTime? // when fully paid
+
+  // ── Audit ────────────────────────────────────────────────────
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  expenseId   String? // Link to Expense record if this payment is for an expense
+  Expense     Expense? @relation(fields: [expenseId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([restaurantId])
+  @@index([status])
+  @@map("vendor_payments")
 }
