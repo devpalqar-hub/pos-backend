@@ -1101,4 +1101,90 @@ export class AnalyticsService {
             trend_data: trendData,
         };
     }
+
+
+    // ─── Waiter Analytics ───────────────────────────────────────────
+
+    async getWaiterAnalytics(
+        actor: User,
+        restaurantId: string,
+        date1: string,
+        date2?: string,
+        waiterId?: string,
+        waiterName?: string,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        if (!date1) {
+            throw new Error('date1 is required');
+        }
+
+        const startDate = new Date(date1);
+        startDate.setHours(0, 0, 0, 0);
+
+        const endDate = date2 ? new Date(date2) : new Date(date1);
+        endDate.setHours(23, 59, 59, 999);
+
+        const waiters = await this.prisma.user.findMany({
+            where: {
+                restaurantId,
+                role: UserRole.WAITER,
+                ...(waiterId && { id: waiterId }),
+                ...(waiterName && {
+                    name: { contains: waiterName },
+                }),
+            },
+            include: {
+                openedSessions: {
+                    where: {
+                        restaurantId,
+                        createdAt: {
+                            gte: startDate,
+                            lte: endDate,
+                        },
+                    },
+                    include: {
+                        bill: true,
+                    },
+                },
+            },
+        });
+
+        const result = waiters.map((waiter) => {
+            const sessions = waiter.openedSessions;
+
+            const totalSessions = sessions.length;
+
+            const bills = sessions
+                .map((s) => s.bill)
+                .filter((b) => b !== null);
+
+            const totalBills = bills.length;
+
+            const totalRevenue = bills.reduce(
+                (sum, b) => sum + Number(b!.totalAmount),
+                0,
+            );
+
+            const avgOrderValue =
+                totalBills > 0 ? totalRevenue / totalBills : 0;
+
+            return {
+                waiterId: waiter.id,
+                waiterName: waiter.name,
+                totalSessions,
+                totalBills,
+                totalRevenue: this.round2(totalRevenue),
+                avgOrderValue: this.round2(avgOrderValue),
+            };
+        });
+
+        // Optional: sort by performance
+        result.sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+        return result;
+    }
+
 }
+
+

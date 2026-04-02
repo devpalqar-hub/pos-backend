@@ -533,7 +533,7 @@ export class PayrollService {
         dto: ProcessPayrollDto,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'manage');
-
+        console.log(staffProfileId);
         const profile = await this.prisma.staff.findFirst({
             where: {
                 id: staffProfileId,
@@ -542,7 +542,7 @@ export class PayrollService {
             },
             include: STAFF_INCLUDE,
         });
-
+        console.log('Processing salary for profile:', profile);
         if (!profile) {
             throw new NotFoundException(
                 `Staff profile ${staffProfileId} not found in restaurant ${restaurantId}`,

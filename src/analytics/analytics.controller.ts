@@ -405,4 +405,64 @@ SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
             ),
         };
     }
+
+    // ─── Waiter Analytics ───────────────────────────────────────────
+
+    @Get('waiter-performance/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
+    @ApiOperation({
+        summary: 'Get Waiter Performance Analytics',
+        description: `
+Returns waiter-wise performance:
+
+### Metrics:
+- totalSessions
+- totalBills
+- totalRevenue
+- avgOrderValue
+
+### Filters:
+- date1 (required)
+- date2 (optional)
+- waiterId (optional)
+- waiterName (optional)
+
+### Behavior:
+- If only date1 → single day analytics
+- If date1 + date2 → date range analytics
+    `,
+    })
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'date1', required: true, type: String })
+    @ApiQuery({ name: 'date2', required: false, type: String })
+    @ApiQuery({ name: 'waiterId', required: false, type: String })
+    @ApiQuery({ name: 'waiterName', required: false, type: String })
+    async getWaiterAnalytics(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('date1') date1: string,
+        @Query('date2') date2?: string,
+        @Query('waiterId') waiterId?: string,
+        @Query('waiterName') waiterName?: string,
+    ) {
+        if (!date1) {
+            throw new Error('date1 query param is required');
+        }
+
+        return {
+            message: 'Waiter analytics fetched successfully',
+            data: await this.analyticsService.getWaiterAnalytics(
+                actor,
+                restaurantId,
+                date1,
+                date2,
+                waiterId,
+                waiterName,
+            ),
+        };
+    }
 }

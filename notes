@@ -1,58 +1,19 @@
-get bill - amount after lp, coupoun, tax and discount
-generate bill - add customer name, email, phone. create user if user not exist
+vendor management - 
+payroll processing il expense creation.  -- done
+analytics for which staff took the most orders. --- done
 
-urgent
-remove batch api. - 
-
-
-done
-bill generate for biller - cleared
-session/sessionId. - no amount is appearing
-get loyality points of user based on their email, phone, or id
-list customers = add filter based on their email also.
+customer details can be null, remove name "guest". create customer if combination of name email and name phone is there.
 
 
-{
-    "success": true,
-    "statusCode": 200,
-    "message": "Request successful",
-    "data": {
-        "id": "c9e51f56-4b79-400a-b3de-4314c722df32",
-        "sessionId": "e64b217d-a07a-40f2-b8c2-90176b8f2042",
-        "restaurantId": "c5f50dda-222a-445b-a41d-4f1a31914cf9",
-        "status": "DRAFT",
-        "subtotal": "120",
-        "taxRate": "8.5",
-        "taxAmount": "5.95",
-        "discountAmount": "50",
-        "totalAmount": "75.95",
-        "notes": "Staff discount applied",
-        "items": [
-            {
-                "id": "808b6c69-435f-44ec-a4c0-3b500289c70a",
-                "billId": "c9e51f56-4b79-400a-b3de-4314c722df32",
-                "menuItemId": "1b0ac955-406c-449f-8005-adcb4d4f4b47",
-                "name": "mineral water",
-                "quantity": 6,
-                "unitPrice": "20",
-                "totalPrice": "120",
-                "menuItem": {
-                    "id": "1b0ac955-406c-449f-8005-adcb4d4f4b47",
-                    "name": "mineral water"
-                }
-            }
-        ],
-        "session": {
-            "id": "e64b217d-a07a-40f2-b8c2-90176b8f2042",
-            "sessionNumber": "LNRAER",
-            "channel": "DINE_IN",
-            "customerName": null,
-            "customerPhone": null,
-            "table": {
-                "id": "132993b9-6bdd-4c1e-912d-6dc2f29ac0dc",
-                "name": "Table 1"
-            }
-        }
-    },
-    "timestamp": "2026-03-19T10:54:51.645Z"
-}
+vendor crud 
+ |
+ m to m
+ |
+vendor product categories
+
+
+edit expense to add vendor Id.
+add description field on expense.
+
+due payments for vendors.
+
