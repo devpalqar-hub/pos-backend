@@ -48,7 +48,7 @@ export class VendorPaymentService {
         const dueAmount = expenseTotalAmount - (alreadyPaidAmount + requestedPaidAmount);
         const status = dueAmount === 0
             ? VendorPaymentStatus.PAID
-            : VendorPaymentStatus.PARTIAL;
+            : VendorPaymentStatus.PENDING;
 
         return this.prisma.vendorPayment.create({
             data: {
@@ -56,7 +56,8 @@ export class VendorPaymentService {
                 totalAmount: expense.amount,
                 paidAmount: dto.paidAmount,
                 dueAmount,
-                status: VendorPaymentStatus.PAID,
+                status,
+                paidAt: status === VendorPaymentStatus.PAID ? new Date() : null,
                 createdById: userId,
             },
             include: {
