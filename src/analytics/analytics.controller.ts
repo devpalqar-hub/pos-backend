@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User, UserRole } from '@prisma/client';
+import { User, UserRole, ExpenseType } from '@prisma/client';
 
 @ApiTags('Analytics')
 @ApiBearerAuth('Bearer')
@@ -180,6 +180,66 @@ Returns a detailed P&L analytics summary including:
             month ? parseInt(month) : undefined,
             months ? parseInt(months) : undefined,
         )
+    }
+
+    @Get('expenses-overtime/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+        UserRole.WAITER,
+        UserRole.CHEF,
+        UserRole.BILLER,
+    )
+    @ApiOperation({
+        summary: 'Get expenses over time with filters',
+        description:
+            'Returns day-wise expense trend between startDate and endDate. startDate is required. If endDate is omitted, analytics is calculated for that single day.',
+    })
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({
+        name: 'startDate',
+        required: true,
+        type: String,
+        description: 'Start date in YYYY-MM-DD format',
+    })
+    @ApiQuery({
+        name: 'endDate',
+        required: false,
+        type: String,
+        description: 'Optional end date in YYYY-MM-DD format. Defaults to startDate when omitted.',
+    })
+    @ApiQuery({
+        name: 'expenseType',
+        required: false,
+        enum: ExpenseType,
+        description: 'Optional expense type filter',
+    })
+    @ApiQuery({
+        name: 'expenseCategoryId',
+        required: false,
+        type: String,
+        description: 'Optional expense category UUID filter',
+    })
+    @ApiResponse({ status: 200, description: 'Expenses over time analytics fetched successfully.' })
+    @ApiResponse({ status: 400, description: 'Invalid query params. startDate is required.' })
+    @ApiResponse({ status: 403, description: 'Insufficient permissions.' })
+    getExpensesOverTime(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('startDate') startDate: string,
+        @Query('endDate') endDate?: string,
+        @Query('expenseType') expenseType?: ExpenseType,
+        @Query('expenseCategoryId') expenseCategoryId?: string,
+    ) {
+        return this.analyticsService.getExpensesOverTime(
+            actor,
+            restaurantId,
+            startDate,
+            endDate,
+            expenseType,
+            expenseCategoryId,
+        );
     }
 
     @Get('coupons/analytics/:restaurantId')

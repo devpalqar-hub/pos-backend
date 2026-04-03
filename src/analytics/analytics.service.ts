@@ -2,9 +2,10 @@ import {
     Injectable,
     NotFoundException,
     ForbiddenException,
+    BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, UserRole, BillStatus, PayrollStatus, DayOfWeek } from '@prisma/client';
+import { User, UserRole, BillStatus, PayrollStatus, DayOfWeek, ExpenseType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -644,6 +645,90 @@ export class AnalyticsService {
 
             monthly_trend: monthlyTrend,
         }
+    }
+
+    async getExpensesOverTime(
+        actor: User,
+        restaurantId: string,
+        startDate: string,
+        endDate?: string,
+        expenseType?: ExpenseType,
+        expenseCategoryId?: string,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        if (!startDate) {
+            throw new BadRequestException('startDate is required');
+        }
+
+        const start = new Date(startDate);
+        if (Number.isNaN(start.getTime())) {
+            throw new BadRequestException('Invalid startDate format. Use YYYY-MM-DD');
+        }
+        start.setHours(0, 0, 0, 0);
+
+        const end = endDate ? new Date(endDate) : new Date(start);
+        if (Number.isNaN(end.getTime())) {
+            throw new BadRequestException('Invalid endDate format. Use YYYY-MM-DD');
+        }
+        end.setHours(23, 59, 59, 999);
+
+        if (end < start) {
+            throw new BadRequestException('endDate cannot be before startDate');
+        }
+
+        const expenses = await this.prisma.expense.findMany({
+            where: {
+                restaurantId,
+                isActive: true,
+                date: {
+                    gte: start,
+                    lte: end,
+                },
+                ...(expenseType && { expenseType }),
+                ...(expenseCategoryId && { expenseCategoryId }),
+            },
+            select: {
+                date: true,
+                amount: true,
+            },
+            orderBy: {
+                date: 'asc',
+            },
+        });
+
+        const byDate: Record<string, { total: number; count: number }> = {};
+
+        expenses.forEach((expense) => {
+            const dateKey = new Date(expense.date).toISOString().split('T')[0];
+            if (!byDate[dateKey]) {
+                byDate[dateKey] = { total: 0, count: 0 };
+            }
+            byDate[dateKey].total += Number(expense.amount);
+            byDate[dateKey].count += 1;
+        });
+
+        const trend = Object.entries(byDate).map(([date, value]) => ({
+            date,
+            totalAmount: this.round2(value.total),
+            expenseCount: value.count,
+        }));
+
+        const totalAmount = this.round2(
+            expenses.reduce((sum, expense) => sum + Number(expense.amount), 0),
+        );
+
+        return {
+            startDate: start.toISOString().split('T')[0],
+            endDate: end.toISOString().split('T')[0],
+            filters: {
+                expenseType: expenseType || null,
+                expenseCategoryId: expenseCategoryId || null,
+            },
+            totalAmount,
+            totalExpenses: expenses.length,
+            trend,
+        };
     }
 
     // -----------Coupoun---------------------------------------
