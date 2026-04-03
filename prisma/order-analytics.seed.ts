@@ -2,6 +2,8 @@ import { PrismaClient, OrderChannel, BillStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const RESTAURANT_ID = 'c5f50dda-222a-445b-a41d-4f1a31914cf9';
+
 function randomBetween(min: number, max: number) {
     return Math.random() * (max - min) + min;
 }
@@ -16,7 +18,9 @@ async function main() {
     // ─────────────────────────────────────────────
     // Restaurant
     // ─────────────────────────────────────────────
-    const restaurant = await prisma.restaurant.findFirst();
+    const restaurant = await prisma.restaurant.findFirst({
+        where: { id: RESTAURANT_ID },
+    });
     if (!restaurant) throw new Error('No restaurant found');
 
     const restaurantId = restaurant.id;
