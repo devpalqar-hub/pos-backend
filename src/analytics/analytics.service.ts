@@ -649,10 +649,13 @@ export class AnalyticsService {
     // -----------Coupoun---------------------------------------
 
     async performance(
+        actor: User,
         restaurantId: string,
         startYear?: number,
         endYear?: number
     ) {
+
+        await this.assertRestaurantAccess(actor, restaurantId);
 
         const whereCoupon: any = { restaurantId };
         const whereUsage: any = { coupon: { restaurantId } };
@@ -694,10 +697,13 @@ export class AnalyticsService {
     }
 
     async usageTrend(
+        actor: User,
         restaurantId: string,
         startYear?: number,
         endYear?: number
     ) {
+
+        await this.assertRestaurantAccess(actor, restaurantId);
 
         const where: any = {
             coupon: { restaurantId }
@@ -772,6 +778,34 @@ export class AnalyticsService {
         const previousStart = new Date(startDateObj);
         previousStart.setDate(previousStart.getDate() - days);
 
+        const previousPerformance = await this.prisma.billItem.groupBy({
+            by: ['menuItemId'],
+            where: {
+                bill: {
+                    restaurantId,
+                    status: 'PAID',
+                    createdAt: {
+                        gte: previousStart,
+                        lt: startDateObj,
+                    },
+                },
+            },
+            _sum: {
+                quantity: true,
+                totalPrice: true,
+            },
+        });
+
+        const previousByItemId = new Map(
+            previousPerformance.map((row) => [
+                row.menuItemId,
+                {
+                    quantity: Number(row._sum.quantity || 0),
+                    totalPrice: Number(row._sum.totalPrice || 0),
+                },
+            ]),
+        );
+
         // Most Selling Item
 
         const mostSelling = await this.prisma.billItem.groupBy({
@@ -808,7 +842,10 @@ export class AnalyticsService {
             mostSellingItem = {
                 name: item?.name,
                 units_sold: mostSelling[0]._sum.quantity || 0,
-                growth: 0,
+                growth: this.pctChange(
+                    previousByItemId.get(mostSelling[0].menuItemId)?.quantity || 0,
+                    Number(mostSelling[0]._sum.quantity || 0),
+                ),
             };
         }
 
@@ -920,7 +957,10 @@ export class AnalyticsService {
                     category: menu?.category?.name,
                     units_sold: item._sum.quantity || 0,
                     total_revenue: Number(item._sum.totalPrice || 0),
-                    growth_percentage: 0,
+                    growth_percentage: this.pctChange(
+                        previousByItemId.get(item.menuItemId)?.totalPrice || 0,
+                        Number(item._sum.totalPrice || 0),
+                    ),
                 };
             }),
         );
@@ -1112,6 +1152,8 @@ export class AnalyticsService {
         date2?: string,
         waiterId?: string,
         waiterName?: string,
+        page = 1,
+        limit = 10,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
@@ -1179,12 +1221,326 @@ export class AnalyticsService {
             };
         });
 
-        // Optional: sort by performance
         result.sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-        return result;
+        const start = (page - 1) * limit;
+        const paginated = result.slice(start, start + limit);
+
+        return {
+            total: result.length,
+            page,
+            limit,
+            data: paginated,
+        };
     }
 
+    async getCustomerRetention(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const customers = await this.prisma.customer.findMany({
+            where: { restaurantId, isActive: true },
+            include: {
+                orderSessions: {
+                    select: { createdAt: true },
+                },
+            },
+        });
+
+        const totalCustomers = customers.length;
+
+        let returningCustomers = 0;
+        let churnedCustomers = 0;
+
+        const now = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+
+        customers.forEach((c) => {
+            if (c.orderSessions.length > 1) returningCustomers++;
+
+            const lastVisit = c.orderSessions
+                .map((s) => s.createdAt)
+                .sort((a, b) => b.getTime() - a.getTime())[0];
+
+            if (!lastVisit || lastVisit < thirtyDaysAgo) churnedCustomers++;
+        });
+
+        return {
+            totalCustomers,
+            returningCustomers,
+            retentionRate:
+                totalCustomers > 0
+                    ? Number(((returningCustomers / totalCustomers) * 100).toFixed(2))
+                    : 0,
+            churnedCustomers,
+        };
+    }
+
+
+    async getAOV(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const [agg, count] = await Promise.all([
+            this.prisma.bill.aggregate({
+                where: { restaurantId, status: 'PAID' },
+                _sum: { totalAmount: true },
+            }),
+            this.prisma.bill.count({
+                where: { restaurantId, status: 'PAID' },
+            }),
+        ]);
+
+        const totalRevenue = Number(agg._sum.totalAmount || 0);
+
+        return {
+            totalRevenue,
+            totalOrders: count,
+            averageOrderValue: count > 0 ? totalRevenue / count : 0,
+        };
+    }
+
+
+    async getRevenueByChannel(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const sessions = await this.prisma.orderSession.findMany({
+            where: { restaurantId },
+            include: { bill: true },
+        });
+
+        const map: Record<string, number> = {};
+
+        sessions.forEach((s) => {
+            if (!s.bill || s.bill.status !== 'PAID') return;
+
+            const channel = s.channel;
+            map[channel] = (map[channel] || 0) + Number(s.bill.totalAmount);
+        });
+
+        return Object.entries(map).map(([channel, revenue]) => ({
+            channel,
+            revenue,
+        }));
+    }
+
+
+    async getTopCustomers(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const bills = await this.prisma.bill.findMany({
+            where: { restaurantId, status: BillStatus.PAID },
+            include: { customer: true },
+        });
+
+        const map: Record<string, any> = {};
+
+        bills.forEach((b) => {
+            if (!b.customerId) return;
+
+            if (!map[b.customerId]) {
+                map[b.customerId] = {
+                    customerId: b.customerId,
+                    name: b.customer?.name,
+                    totalSpend: 0,
+                    visitCount: 0,
+                };
+            }
+
+            map[b.customerId].totalSpend += Number(b.totalAmount);
+            map[b.customerId].visitCount += 1;
+        });
+
+        return Object.values(map)
+            .sort((a, b) => b.totalSpend - a.totalSpend)
+            .slice(0, 10);
+    }
+
+    async getOrderTimeDistribution(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const sessions = await this.prisma.orderSession.findMany({
+            where: { restaurantId },
+            select: { createdAt: true },
+        });
+
+        const map: Record<number, number> = {};
+
+        sessions.forEach((s) => {
+            const hour = new Date(s.createdAt).getHours();
+            map[hour] = (map[hour] || 0) + 1;
+        });
+
+        return Object.entries(map).map(([hour, count]) => ({
+            hour: `${hour}:00`,
+            orders: count,
+        }));
+    }
+
+    async getPreparationTimeAnalytics(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const items = await this.prisma.orderItem.findMany({
+            where: {
+                batch: {
+                    is: {
+                        session: {
+                            is: {
+                                restaurantId,
+                            },
+                        },
+                    },
+                },
+                preparedAt: { not: null },
+            },
+            include: {
+                menuItem: true,
+                batch: {
+                    include: {
+                        session: true,
+                    },
+                },
+            },
+        });
+
+        const map: Record<string, { totalTime: number; count: number; name: string }> = {};
+
+        items.forEach((i) => {
+            const createdAt = i.createdAt;
+            const preparedAt = i.preparedAt;
+
+            if (!preparedAt) return;
+
+            const diff = (new Date(preparedAt).getTime() - new Date(createdAt).getTime()) / 60000; // mins
+
+            if (!map[i.menuItemId]) {
+                map[i.menuItemId] = {
+                    totalTime: 0,
+                    count: 0,
+                    name: i.menuItem?.name || 'Unknown',
+                };
+            }
+
+            map[i.menuItemId].totalTime += diff;
+            map[i.menuItemId].count += 1;
+        });
+
+        return Object.values(map).map((item) => ({
+            itemName: item.name,
+            avgPrepTimeMins:
+                item.count > 0 ? Number((item.totalTime / item.count).toFixed(2)) : 0,
+        }));
+    }
+
+    async getKitchenBottlenecks(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const items = await this.prisma.orderItem.findMany({
+            where: {
+                preparedAt: { not: null },
+                batch: {
+                    is: {
+                        session: {
+                            is: {
+                                restaurantId,
+                            },
+                        },
+                    },
+                },
+            },
+            include: { menuItem: true },
+        });
+
+        if (!items.length) {
+            return { slowest_items: [], peak_kitchen_hours: [] };
+        }
+
+        const map: Record<string, { total: number; count: number; name: string }> = {};
+
+        items.forEach((i) => {
+            const diff =
+                (new Date(i.preparedAt!).getTime() - new Date(i.createdAt).getTime()) /
+                60000;
+
+            if (!map[i.menuItemId]) {
+                map[i.menuItemId] = {
+                    total: 0,
+                    count: 0,
+                    name: i.menuItem?.name || 'Unknown',
+                };
+            }
+
+            map[i.menuItemId].total += diff;
+            map[i.menuItemId].count++;
+        });
+
+        const slowest_items = Object.values(map)
+            .map((i) => ({
+                itemName: i.name,
+                avgPrepTime: i.total / i.count,
+            }))
+            .sort((a, b) => b.avgPrepTime - a.avgPrepTime)
+            .slice(0, 5);
+
+        // Peak hours (same as before)
+        const sessions = await this.prisma.orderSession.findMany({
+            where: { restaurantId },
+            select: { createdAt: true },
+        });
+
+        const hourMap: Record<number, number> = {};
+
+        sessions.forEach((s) => {
+            const h = new Date(s.createdAt).getHours();
+            hourMap[h] = (hourMap[h] || 0) + 1;
+        });
+
+        const peak_kitchen_hours = Object.entries(hourMap)
+            .map(([h, c]) => ({ hour: `${h}:00`, orders: c }))
+            .sort((a, b) => b.orders - a.orders)
+            .slice(0, 5);
+
+        return { slowest_items, peak_kitchen_hours };
+    }
+
+
+    async getOrderFulfillmentTime(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const items = await this.prisma.orderItem.findMany({
+            where: {
+                servedAt: { not: null },
+                batch: {
+                    is: {
+                        session: {
+                            is: {
+                                restaurantId,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!items.length) {
+            return {
+                avgFulfillmentTimeMins: 0,
+                totalOrders: 0,
+            };
+        }
+
+        let total = 0;
+
+        items.forEach((i) => {
+            total +=
+                (new Date(i.servedAt!).getTime() - new Date(i.createdAt).getTime()) /
+                60000;
+        });
+
+        return {
+            avgFulfillmentTimeMins: Number((total / items.length).toFixed(2)),
+            totalOrders: items.length,
+        };
+    }
 }
 
 

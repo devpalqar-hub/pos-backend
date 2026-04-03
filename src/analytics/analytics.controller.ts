@@ -186,11 +186,13 @@ Returns a detailed P&L analytics summary including:
     @ApiQuery({ name: 'startYear', required: false, type: Number })
     @ApiQuery({ name: 'endYear', required: false, type: Number })
     performance(
+        @CurrentUser() actor: User,
         @Param('restaurantId') restaurantId: string,
         @Query('startYear') startYear?: string,
         @Query('endYear') endYear?: string
     ) {
         return this.analyticsService.performance(
+            actor,
             restaurantId,
             startYear ? parseInt(startYear) : undefined,
             endYear ? parseInt(endYear) : undefined
@@ -201,11 +203,13 @@ Returns a detailed P&L analytics summary including:
     @ApiQuery({ name: 'startYear', required: false, type: Number })
     @ApiQuery({ name: 'endYear', required: false, type: Number })
     trend(
+        @CurrentUser() actor: User,
         @Param('restaurantId') restaurantId: string,
         @Query('startYear') startYear?: string,
         @Query('endYear') endYear?: string
     ) {
         return this.analyticsService.usageTrend(
+            actor,
             restaurantId,
             startYear ? parseInt(startYear) : undefined,
             endYear ? parseInt(endYear) : undefined
@@ -462,6 +466,286 @@ Returns waiter-wise performance:
                 date2,
                 waiterId,
                 waiterName,
+            ),
+        };
+    }
+
+
+    @Get('customer-retention/:restaurantId')
+    @ApiOperation({
+        summary: 'Get customer retention analytics',
+        description:
+            'Returns customer retention metrics for a restaurant, including retained vs returning customer behavior for recent periods.',
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        type: String,
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({ status: 200, description: 'Customer retention analytics fetched successfully.' })
+    @ApiResponse({ status: 403, description: 'Insufficient permissions for this restaurant.' })
+    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    getCustomerRetention(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return this.analyticsService.getCustomerRetention(actor, restaurantId);
+    }
+
+    @Get('aov/:restaurantId')
+    @ApiOperation({
+        summary: 'Get average order value (AOV) analytics',
+        description:
+            'Returns average order value analytics for paid orders in the restaurant.',
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        type: String,
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({ status: 200, description: 'AOV analytics fetched successfully.' })
+    @ApiResponse({ status: 403, description: 'Insufficient permissions for this restaurant.' })
+    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    getAOV(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return this.analyticsService.getAOV(actor, restaurantId);
+    }
+
+    @Get('revenue-by-channel/:restaurantId')
+    @ApiOperation({
+        summary: 'Get revenue by channel analytics',
+        description:
+            'Returns revenue split across sales channels such as dine-in, takeaway, and delivery integrations when available.',
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        type: String,
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({ status: 200, description: 'Revenue-by-channel analytics fetched successfully.' })
+    @ApiResponse({ status: 403, description: 'Insufficient permissions for this restaurant.' })
+    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    getRevenueByChannel(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return this.analyticsService.getRevenueByChannel(actor, restaurantId);
+    }
+
+    @Get('top-customers/:restaurantId')
+    @ApiOperation({
+        summary: 'Get top customers analytics',
+        description:
+            'Returns top-performing customers for a restaurant based on spend and/or order frequency metrics.',
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        type: String,
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({ status: 200, description: 'Top customers analytics fetched successfully.' })
+    @ApiResponse({ status: 403, description: 'Insufficient permissions for this restaurant.' })
+    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    getTopCustomers(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return this.analyticsService.getTopCustomers(actor, restaurantId);
+    }
+
+    @Get('order-time-distribution/:restaurantId')
+    @ApiOperation({
+        summary: 'Get order time distribution analytics',
+        description:
+            'Returns order distribution by time windows (for example hourly/daypart) to identify demand peaks.',
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        type: String,
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({ status: 200, description: 'Order time distribution analytics fetched successfully.' })
+    @ApiResponse({ status: 403, description: 'Insufficient permissions for this restaurant.' })
+    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    getOrderTimeDistribution(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return this.analyticsService.getOrderTimeDistribution(actor, restaurantId);
+    }
+
+
+    @Get('prep-time/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
+    @ApiOperation({
+        summary: 'Get average preparation time per menu item',
+        description: `
+Analyzes kitchen efficiency by calculating **average preparation time per item**.
+
+### What it shows:
+- Average time taken to prepare each menu item
+- Helps identify slow/complex dishes
+
+### How it's calculated:
+\`preparedAt - createdAt\` (in minutes)
+
+### Use cases:
+- Optimize kitchen workflow
+- Adjust menu pricing for slow items
+- Identify training needs for chefs
+`,
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Preparation time analytics fetched successfully',
+        schema: {
+            example: {
+                message: 'Preparation time analytics fetched successfully',
+                data: [
+                    { itemName: 'Chicken Biryani', avgPrepTimeMins: 18.5 },
+                    { itemName: 'Veg Fried Rice', avgPrepTimeMins: 12.2 },
+                    { itemName: 'Paneer Butter Masala', avgPrepTimeMins: 15.7 }
+                ],
+            },
+        },
+    })
+    getPrepTime(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return {
+            message: 'Preparation time analytics fetched successfully',
+            data: this.analyticsService.getPreparationTimeAnalytics(
+                actor,
+                restaurantId,
+            ),
+        };
+    }
+
+    @Get('kitchen-bottlenecks/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
+    @ApiOperation({
+        summary: 'Detect kitchen bottlenecks and peak load hours',
+        description: `
+Provides **deep kitchen insights** to identify operational issues.
+
+### Includes:
+
+#### 1. Slowest Items
+- Items taking longest average preparation time
+- Indicates bottlenecks in kitchen workflow
+
+#### 2. Peak Kitchen Hours
+- Hours with highest order load
+- Helps in staff planning & load balancing
+
+### Use cases:
+- Identify problematic dishes
+- Optimize staffing during peak hours
+- Improve kitchen throughput
+`,
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Kitchen bottleneck analytics fetched successfully',
+        schema: {
+            example: {
+                message: 'Kitchen bottleneck analytics fetched successfully',
+                data: {
+                    slowest_items: [
+                        { itemName: 'Grilled Fish', avgPrepTime: 25.4 },
+                        { itemName: 'Mutton Curry', avgPrepTime: 22.1 }
+                    ],
+                    peak_kitchen_hours: [
+                        { hour: '13:00', orders: 45 },
+                        { hour: '20:00', orders: 60 }
+                    ]
+                }
+            },
+        },
+    })
+    getKitchenBottlenecks(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return {
+            message: 'Kitchen bottleneck analytics fetched successfully',
+            data: this.analyticsService.getKitchenBottlenecks(
+                actor,
+                restaurantId,
+            ),
+        };
+    }
+
+
+    @Get('order-fulfillment/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
+    @ApiOperation({
+        summary: 'Get average order fulfillment time',
+        description: `
+Measures **end-to-end order completion time**.
+
+### What it shows:
+- Average time from order creation → served to customer
+- Total number of fulfilled orders
+
+### How it's calculated:
+\`servedAt - createdAt\`
+
+### Why it matters:
+- Measures service efficiency
+- Impacts customer satisfaction
+- Helps define SLA targets
+`,
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        description: 'Restaurant UUID',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Order fulfillment analytics fetched successfully',
+        schema: {
+            example: {
+                message: 'Order fulfillment analytics fetched successfully',
+                data: {
+                    avgFulfillmentTimeMins: 28.6,
+                    totalOrders: 320
+                }
+            },
+        },
+    })
+    getFulfillmentTime(
+        @CurrentUser() actor: User,
+        @Param('restaurantId') restaurantId: string,
+    ) {
+        return {
+            message: 'Order fulfillment analytics fetched successfully',
+            data: this.analyticsService.getOrderFulfillmentTime(
+                actor,
+                restaurantId,
             ),
         };
     }
