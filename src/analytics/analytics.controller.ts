@@ -619,13 +619,13 @@ Analyzes kitchen efficiency by calculating **average preparation time per item**
             },
         },
     })
-    getPrepTime(
+    async getPrepTime(
         @CurrentUser() actor: User,
         @Param('restaurantId') restaurantId: string,
     ) {
         return {
             message: 'Preparation time analytics fetched successfully',
-            data: this.analyticsService.getPreparationTimeAnalytics(
+            data: await this.analyticsService.getPreparationTimeAnalytics(
                 actor,
                 restaurantId,
             ),
@@ -682,13 +682,13 @@ Provides **deep kitchen insights** to identify operational issues.
             },
         },
     })
-    getKitchenBottlenecks(
+    async getKitchenBottlenecks(
         @CurrentUser() actor: User,
         @Param('restaurantId') restaurantId: string,
     ) {
         return {
             message: 'Kitchen bottleneck analytics fetched successfully',
-            data: this.analyticsService.getKitchenBottlenecks(
+            data: await this.analyticsService.getKitchenBottlenecks(
                 actor,
                 restaurantId,
             ),
@@ -737,13 +737,13 @@ Measures **end-to-end order completion time**.
             },
         },
     })
-    getFulfillmentTime(
+    async getFulfillmentTime(
         @CurrentUser() actor: User,
         @Param('restaurantId') restaurantId: string,
     ) {
         return {
             message: 'Order fulfillment analytics fetched successfully',
-            data: this.analyticsService.getOrderFulfillmentTime(
+            data: await this.analyticsService.getOrderFulfillmentTime(
                 actor,
                 restaurantId,
             ),

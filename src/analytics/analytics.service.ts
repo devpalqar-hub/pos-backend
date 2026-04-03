@@ -1520,7 +1520,7 @@ export class AnalyticsService {
                 },
             },
         });
-
+        console.log('Items with servedAt:', items.length);
         if (!items.length) {
             return {
                 avgFulfillmentTimeMins: 0,
@@ -1535,7 +1535,7 @@ export class AnalyticsService {
                 (new Date(i.servedAt!).getTime() - new Date(i.createdAt).getTime()) /
                 60000;
         });
-
+        console.log('Total fulfillment time (mins):', total);
         return {
             avgFulfillmentTimeMins: Number((total / items.length).toFixed(2)),
             totalOrders: items.length,
