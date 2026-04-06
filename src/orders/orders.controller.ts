@@ -330,6 +330,42 @@ export class OrdersController {
     }
 
 
+
+    @Get('restaurants/:restaurantId/analytics/revenue/timeline')
+    @Roles(...ALL_ORDER_ROLES)
+    @ApiOperation({
+        summary: 'Revenue timeline analytics',
+        description: 'Returns revenue grouped by period and channel',
+    })
+    @ApiParam({
+        name: 'restaurantId',
+        description: 'Restaurant UUID',
+    })
+    @ApiQuery({
+        name: 'period',
+        required: true,
+        enum: ['day', 'week', 'month', 'year'],
+    })
+    @ApiQuery({
+        name: 'value',
+        required: false,
+        description: `
+day   → YYYY-MM-DD
+month → 1-12
+year  → YYYY
+week  → ignored
+`,
+    })
+    getRevenueTimeline(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('period') period: 'day' | 'week' | 'month' | 'year',
+        @Query('value') value?: string,
+    ) {
+        return this.ordersService.getRevenueTimeline(actor, restaurantId, period, value);
+    }
+
+
     /**
      * PATCH /orders/batches/:batchId/status
      * Manual batch status override (chef / waiter / admin).

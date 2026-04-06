@@ -201,7 +201,7 @@ export class OrdersService {
     ): Promise<number> {
         const item = await this.prisma.menuItem.findFirst({
             where: { id: menuItemId, restaurantId },
-            select: { price: true },
+            select: { price: true, discountedPrice: true },
         });
         if (!item) throw new NotFoundException(`Menu item ${menuItemId} not found`);
 
@@ -234,7 +234,9 @@ export class OrdersService {
             }
             return true;
         });
-
+        if (!matchingRules.length && item.discountedPrice) {
+            return Number(item.discountedPrice);
+        }
         if (!matchingRules.length) return Number(item.price);
 
         matchingRules.sort((a, b) => {
@@ -1796,6 +1798,7 @@ export class OrdersService {
 
                 return {
                     id: item.id, // ✅ unique order item
+                    batchId: item.batchId,
                     menuItemId: item.menuItemId,
                     name: item.menuItem.name,
 
@@ -2508,6 +2511,163 @@ export class OrdersService {
 
             if (dataset && index >= 0 && index < dataset.data.length) {
                 dataset.data[index] = orders;
+            }
+        }
+
+        return {
+            period,
+            labels,
+            datasets,
+        };
+    }
+
+
+    async getRevenueTimeline(
+        actor: User,
+        restaurantId: string,
+        period: 'day' | 'week' | 'month' | 'year',
+        value?: string,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const now = new Date();
+
+        let startDate: Date;
+        let endDate: Date;
+        let groupBy: string;
+        let labels: string[] = [];
+
+        // ---------------- DAY ----------------
+        if (period === 'day') {
+            const target = value ? new Date(value) : new Date();
+
+            if (isNaN(target.getTime())) {
+                throw new BadRequestException('Invalid date format (YYYY-MM-DD)');
+            }
+
+            startDate = new Date(target);
+            startDate.setHours(0, 0, 0, 0);
+
+            endDate = new Date(target);
+            endDate.setHours(23, 59, 59, 999);
+
+            groupBy = 'HOUR(createdAt)';
+            labels = Array.from({ length: 24 }, (_, i) =>
+                i.toString().padStart(2, '0') + ':00',
+            );
+        }
+
+        // ---------------- WEEK ----------------
+        else if (period === 'week') {
+            const today = new Date();
+
+            const day = today.getDay();
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+
+            startDate = new Date(today.setDate(diff));
+            startDate.setHours(0, 0, 0, 0);
+
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            endDate.setHours(23, 59, 59, 999);
+
+            groupBy = 'DAYOFWEEK(createdAt)';
+            labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        }
+
+        // ---------------- MONTH ----------------
+        else if (period === 'month') {
+            const month = value ? Number(value) - 1 : now.getMonth();
+
+            if (month < 0 || month > 11) {
+                throw new BadRequestException('Month must be between 1-12');
+            }
+
+            const year = now.getFullYear();
+
+            startDate = new Date(year, month, 1);
+            endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+            groupBy = 'DAY(createdAt)';
+            const days = endDate.getDate();
+            labels = Array.from({ length: days }, (_, i) => (i + 1).toString());
+        }
+
+        // ---------------- YEAR ----------------
+        else if (period === 'year') {
+            const year = value ? Number(value) : now.getFullYear();
+
+            if (isNaN(year)) {
+                throw new BadRequestException('Invalid year');
+            }
+
+            startDate = new Date(year, 0, 1);
+            endDate = new Date(year, 11, 31, 23, 59, 59);
+
+            groupBy = 'MONTH(createdAt)';
+            labels = [
+                'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+            ];
+        }
+
+        else {
+            throw new BadRequestException('Invalid period');
+        }
+
+        // ---------------- QUERY ----------------
+        const result: any[] = await this.prisma.$queryRawUnsafe(`
+        SELECT 
+            label,
+            channel,
+            SUM(totalAmount) as revenue
+        FROM (
+            SELECT 
+                ${groupBy} AS label,
+                channel,
+                totalAmount
+            FROM order_sessions
+            WHERE restaurantId = '${restaurantId}'
+              AND totalAmount IS NOT NULL
+              AND createdAt BETWEEN '${startDate.toISOString()}' AND '${endDate.toISOString()}'
+        ) t
+        GROUP BY label, channel
+        ORDER BY label
+    `);
+
+        const channels = ['DINE_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH'];
+
+        const datasets = channels.map((channel) => ({
+            label: channel,
+            data: Array(labels.length).fill(0),
+        }));
+
+        // ---------------- MAP ----------------
+        for (const row of result) {
+            const label = Number(row.label);
+            const revenue = Number(row.revenue);
+
+            let index = 0;
+
+            switch (period) {
+                case 'day':
+                    index = label;
+                    break;
+                case 'week':
+                    index = (label + 5) % 7;
+                    break;
+                case 'month':
+                    index = label - 1;
+                    break;
+                case 'year':
+                    index = label - 1;
+                    break;
+            }
+
+            const dataset = datasets.find(d => d.label === row.channel);
+
+            if (dataset && index >= 0 && index < dataset.data.length) {
+                dataset.data[index] = Number(revenue.toFixed(2)); // currency safe
             }
         }
 

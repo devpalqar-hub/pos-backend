@@ -1,24 +1,2 @@
-vendor management - 
-payroll processing il expense creation.  -- done
-analytics for which staff took the most orders. --- done
-
-customer details can be null, remove name "guest". create customer if combination of name email and name phone is there.
-
-
-vendor crud 
- |
- m to m
- |
-vendor product categories
-
-
-edit expense to add vendor Id.
-add description field on expense.
-
-due payments for vendors.
-
-
-
-Refund and void rate
-Discount rate vs gross sales
-Net sales after tax and discount
+order's revenu line graph
+batch id on items of preview bill
