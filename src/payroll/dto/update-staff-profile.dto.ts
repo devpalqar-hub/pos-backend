@@ -42,6 +42,16 @@ export class UpdateStaffProfileDto {
     phone?: string;
 
     @ApiPropertyOptional({
+        description: 'Profile image URL of the staff member',
+        example: 'https://cdn.example.com/staff/john-doe.jpg',
+        maxLength: 1000,
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(1000)
+    profileImage?: string;
+
+    @ApiPropertyOptional({
         description: 'Job role / designation of the staff member (stored in lowercase)',
         example: 'chef',
         maxLength: 255,

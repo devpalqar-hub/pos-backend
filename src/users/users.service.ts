@@ -234,11 +234,6 @@ export class UsersService {
 
         this.assertCanEditUser(actor, target);
 
-        // Only Super Admin can change roles
-        if (dto.role !== undefined && actor.role !== UserRole.SUPER_ADMIN) {
-            throw new ForbiddenException('Only Super Admin can change user roles');
-        }
-
         // Only Super Admin / Owner can toggle isActive
         if (
             dto.isActive !== undefined &&

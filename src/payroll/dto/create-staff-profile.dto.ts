@@ -22,7 +22,7 @@ export class CreateStaffProfileDto {
     @IsString()
     @IsNotEmpty({ message: 'Name is required' })
     @MaxLength(255)
-    name: string;
+    name!: string;
 
     @ApiProperty({
         description: 'Unique email address of the staff member',
@@ -30,7 +30,7 @@ export class CreateStaffProfileDto {
     })
     @IsEmail({}, { message: 'Please provide a valid email address' })
     @IsNotEmpty({ message: 'Email is required' })
-    email: string;
+    email!: string;
 
     @ApiPropertyOptional({
         description: 'Phone number of the staff member',
@@ -41,6 +41,16 @@ export class CreateStaffProfileDto {
     @IsString()
     @MaxLength(30)
     phone?: string;
+
+    @ApiPropertyOptional({
+        description: 'Profile image URL of the staff member',
+        example: 'https://cdn.example.com/staff/john-doe.jpg',
+        maxLength: 1000,
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(1000)
+    profileImage?: string;
 
     @ApiPropertyOptional({
         description: 'Job role / designation of the staff member (stored in lowercase)',
@@ -60,7 +70,7 @@ export class CreateStaffProfileDto {
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)
     @Type(() => Number)
-    monthlySalary: number;
+    monthlySalary!: number;
 
     @ApiProperty({
         description: 'Number of allowed paid leave days per month',
@@ -69,7 +79,7 @@ export class CreateStaffProfileDto {
     @IsNumber()
     @Min(0)
     @Type(() => Number)
-    paidLeaveDays: number;
+    paidLeaveDays!: number;
 
     @ApiProperty({
         description: 'Expected daily working hours',
@@ -78,7 +88,7 @@ export class CreateStaffProfileDto {
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)
     @Type(() => Number)
-    dailyWorkHours: number;
+    dailyWorkHours!: number;
 
     @ApiProperty({
         description: 'Number of working days per month',
@@ -87,7 +97,7 @@ export class CreateStaffProfileDto {
     @IsNumber()
     @Min(1)
     @Type(() => Number)
-    noOfWorkingDays: number;
+    noOfWorkingDays!: number;
 
     @ApiProperty({
         description: 'Working days of the week',
@@ -97,5 +107,5 @@ export class CreateStaffProfileDto {
     })
     @IsArray()
     @IsEnum(DayOfWeek, { each: true, message: 'Each working day must be a valid day of the week' })
-    workingDays: DayOfWeek[];
+    workingDays!: DayOfWeek[];
 }

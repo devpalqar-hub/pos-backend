@@ -50,6 +50,7 @@ export class PayrollService {
                 name: dto.name,
                 email: dto.email,
                 phone: dto.phone ?? null,
+                profileImage: dto.profileImage ?? null,
                 jobRole: dto.jobRole ?? null,
                 restaurantId,
                 monthlySalary: dto.monthlySalary,
@@ -71,16 +72,19 @@ export class PayrollService {
         page = 1,
         limit = 10,
         search?: string,
+        jobRole?: string,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'view');
 
         const where: any = {
             isActive: true,
             restaurantId,
+            ...(jobRole && { jobRole: { equals: jobRole } }),
             ...(search && {
                 OR: [
                     { name: { contains: search } },
                     { email: { contains: search } },
+
                 ],
             }),
         };
@@ -151,6 +155,7 @@ export class PayrollService {
                 ...(dto.name !== undefined && { name: dto.name }),
                 ...(dto.email !== undefined && { email: dto.email }),
                 ...(dto.phone !== undefined && { phone: dto.phone }),
+                ...(dto.profileImage !== undefined && { profileImage: dto.profileImage }),
                 ...(dto.jobRole !== undefined && { jobRole: dto.jobRole }),
                 ...(dto.monthlySalary !== undefined && { monthlySalary: dto.monthlySalary }),
                 ...(dto.paidLeaveDays !== undefined && { paidLeaveDays: dto.paidLeaveDays }),

@@ -170,9 +170,10 @@ export class PayrollController {
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by user name or email' })
+    @ApiQuery({ name: 'jobRole', required: false, type: String, description: 'Filter by exact job role' })
     @ApiOperation({
         summary: 'List all staff payroll profiles',
-        description: 'Returns paginated staff profiles with user info and working days. Supports search.',
+        description: 'Returns paginated staff profiles with user info and working days. Supports search and job role filter.',
     })
     @ApiResponse({ status: 200, description: 'Staff profiles returned.' })
     async findAllStaffProfiles(
@@ -181,6 +182,7 @@ export class PayrollController {
         @Query('page') page?: string,
         @Query('limit') limit?: string,
         @Query('search') search?: string,
+        @Query('jobRole') jobRole?: string,
     ) {
         return {
             message: 'Staff profiles fetched successfully',
@@ -190,6 +192,7 @@ export class PayrollController {
                 parseInt(page ?? '1'),
                 parseInt(limit ?? '10'),
                 search,
+                jobRole,
             ),
         };
     }

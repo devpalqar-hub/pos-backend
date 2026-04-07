@@ -29,7 +29,8 @@
     "seed:normal": "ts-node prisma/seed-campaign.ts",
     "seed:coupoun": "ts-node prisma/seed-coupons.ts",
     "seed:cleanup": "ts-node prisma/cleanup-analytics.seed.ts",
-    "seed:kitchen-analytics": "ts-node prisma/kitchen-analytics.seed.ts"
+    "seed:kitchen-analytics": "ts-node prisma/kitchen-analytics.seed.ts",
+    "seed:waiter-analytics": "ts-node prisma/waiter-analytics.seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
