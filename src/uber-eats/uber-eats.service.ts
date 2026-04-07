@@ -313,10 +313,11 @@ export class UberEatsService {
                 // Other event types — just log for now
                 status = UberEatsWebhookStatus.IGNORED;
             }
-        } catch (err) {
+        } catch (err: unknown) {
             status = UberEatsWebhookStatus.FAILED;
-            errorMsg = err.message;
-            this.logger.error(`UberEats order processing error: ${err.message}`, err.stack);
+            const error = err instanceof Error ? err : new Error(String(err));
+            errorMsg = error.message;
+            this.logger.error(`UberEats order processing error: ${error.message}`, error.stack);
         }
 
         await this.logWebhook(restaurantId, payload.event_id, eventType, rawBody, payload, status, sessionId, errorMsg);
@@ -639,8 +640,9 @@ export class UberEatsService {
                     errorMessage,
                 },
             });
-        } catch (logErr) {
-            this.logger.error(`UberEats: failed to write webhook log: ${logErr.message}`);
+        } catch (logErr: unknown) {
+            const error = logErr instanceof Error ? logErr : new Error(String(logErr));
+            this.logger.error(`UberEats: failed to write webhook log: ${error.message}`);
         }
     }
 

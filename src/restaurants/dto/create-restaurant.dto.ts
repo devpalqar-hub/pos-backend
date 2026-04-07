@@ -36,7 +36,7 @@ export class WorkingHoursEntryDto {
         example: DayOfWeek.MONDAY,
     })
     @IsEnum(DayOfWeek)
-    day: DayOfWeek;
+    day!: DayOfWeek;
 
     @ApiPropertyOptional({
         description: 'Opening time in 24-hr HH:MM format',
@@ -76,7 +76,7 @@ export class CreateRestaurantDto {
     @IsString()
     @IsNotEmpty({ message: 'Restaurant name is required' })
     @MaxLength(255)
-    name: string;
+    name!: string;
 
     @ApiPropertyOptional({
         description:
@@ -104,7 +104,7 @@ export class CreateRestaurantDto {
     })
     @IsUUID('4', { message: 'ownerId must be a valid UUID' })
     @IsNotEmpty({ message: 'ownerId is required' })
-    ownerId: string;
+    ownerId!: string;
 
     // ─── Contact ────────────────────────────────────────────────────────────────
 

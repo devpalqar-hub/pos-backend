@@ -5,11 +5,11 @@ import { IsBoolean, IsDecimal, IsOptional, IsString } from 'class-validator';
 export class CreateLoyalityPointsConverterDto {
     @ApiProperty({ example: '100' })
     @IsDecimal({ decimal_digits: '0,2' })
-    points: string;
+    points!: string;
 
     @ApiProperty({ example: '10' })
     @IsDecimal({ decimal_digits: '0,2' })
-    value: string;
+    value!: string;
 
     @ApiProperty({ example: 'INR', required: false })
     @IsOptional()

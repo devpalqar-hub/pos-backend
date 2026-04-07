@@ -12,6 +12,17 @@ import { UpdateLoyalityPointsConverterDto } from './dto/loyality-point-converter
 export class LoyalityPointsConverterService {
     constructor(private readonly prisma: PrismaService) { }
 
+    private async assertRestaurantExists(restaurantId: string) {
+        const restaurant = await this.prisma.restaurant.findUnique({
+            where: { id: restaurantId },
+            select: { id: true },
+        });
+
+        if (!restaurant) {
+            throw new NotFoundException('Restaurant not found');
+        }
+    }
+
     // ================================
     // ACCESS CONTROL (reuse your pattern)
     // ================================
@@ -29,6 +40,44 @@ export class LoyalityPointsConverterService {
         }
 
         // Optional: extend with restaurant ownership validation if needed
+    }
+
+    // ================================
+    // READ ALL CONVERTERS
+    // ================================
+    async getAllConverters(actor: User, restaurantId: string) {
+        await this.assertRestaurantExists(restaurantId);
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        return this.prisma.loyalityPointsConverter.findMany({
+            where: { restaurantId },
+            orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+        });
+    }
+
+    // ================================
+    // READ CONVERTER BY ID
+    // ================================
+    async getConverterById(
+        actor: User,
+        restaurantId: string,
+        converterId: string,
+    ) {
+        await this.assertRestaurantExists(restaurantId);
+        await this.assertRestaurantAccess(actor, restaurantId);
+
+        const converter = await this.prisma.loyalityPointsConverter.findFirst({
+            where: {
+                id: converterId,
+                restaurantId,
+            },
+        });
+
+        if (!converter) {
+            throw new NotFoundException('Converter not found');
+        }
+
+        return converter;
     }
 
     // ================================

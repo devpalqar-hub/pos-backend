@@ -65,7 +65,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class OrdersGateway
     implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
-    server: Server;
+    server!: Server;
 
     private readonly logger = new Logger(OrdersGateway.name);
 
@@ -75,7 +75,7 @@ export class OrdersGateway
         private readonly prisma: PrismaService,
     ) { }
 
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
+    // ─── Lifecycle ──-──────────────────────────────────────────────────────────
 
     afterInit(server: Server) {
         /**
