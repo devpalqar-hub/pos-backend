@@ -14,12 +14,13 @@ import { Type } from 'class-transformer';
 import { ExpenseType, PaymentMethod, VendorPaymentType } from '@prisma/client';
 
 export class CreateExpenseVendorPaymentDto {
-    @ApiProperty({
-        description: 'Vendor UUID',
+    @ApiPropertyOptional({
+        description: 'Vendor UUID (optional when expense vendorId is provided)',
         example: '5e57e31b-45fc-4f08-9013-86ebe696c2fa',
     })
+    @IsOptional()
     @IsUUID()
-    vendorId!: string;
+    vendorId?: string;
 
     @ApiProperty({
         description: 'Amount paid in this payment entry',
@@ -116,8 +117,16 @@ export class CreateExpenseDto {
     expenseCategoryId?: string;
 
     @ApiPropertyOptional({
+        description: 'Vendor UUID for this expense',
+        example: '5e57e31b-45fc-4f08-9013-86ebe696c2fa',
+    })
+    @IsOptional()
+    @IsUUID()
+    vendorId?: string;
+
+    @ApiPropertyOptional({
         description:
-            'Optional vendor payment details to create one vendor payment along with this expense.',
+            'Optional vendor payment details to create one vendor payment against the vendor-level payable balance.',
         type: CreateExpenseVendorPaymentDto,
     })
     @IsOptional()

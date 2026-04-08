@@ -16,36 +16,49 @@ export class VendorPaymentService {
 
     // ─── CREATE ─────────────────────────────────────────────
     async create(dto: CreateVendorPaymentDto, userId?: string) {
-        const expense = await this.prisma.expense.findUnique({
-            where: { id: dto.expenseId },
-            select: { id: true, restaurantId: true, amount: true },
+        const vendor = await this.prisma.vendor.findFirst({
+            where: {
+                id: dto.vendorId,
+                restaurantId: dto.restaurantId,
+                isActive: true,
+            },
+            select: { id: true },
         });
 
-        if (!expense) {
-            throw new NotFoundException('Expense not found');
+        if (!vendor) {
+            throw new NotFoundException('Vendor not found in this restaurant');
         }
 
-        if (expense.restaurantId !== dto.restaurantId) {
-            throw new BadRequestException('Expense does not belong to the provided restaurant');
-        }
+        const [totalExpensesAggregate, totalPaidAggregate] = await Promise.all([
+            this.prisma.expense.aggregate({
+                where: {
+                    vendorId: dto.vendorId,
+                    restaurantId: dto.restaurantId,
+                    isActive: true,
+                },
+                _sum: { amount: true },
+            }),
+            this.prisma.vendorPayment.aggregate({
+                where: {
+                    vendorId: dto.vendorId,
+                    restaurantId: dto.restaurantId,
+                },
+                _sum: { paidAmount: true },
+            }),
+        ]);
 
-        const aggregate = await this.prisma.vendorPayment.aggregate({
-            where: { expenseId: dto.expenseId },
-            _sum: { paidAmount: true },
-        });
-
-        const expenseTotalAmount = Number(expense.amount);
-        const alreadyPaidAmount = Number(aggregate._sum.paidAmount ?? 0);
+        const totalExpensesAmount = Number(totalExpensesAggregate._sum.amount ?? 0);
+        const alreadyPaidAmount = Number(totalPaidAggregate._sum.paidAmount ?? 0);
+        const remainingAmount = totalExpensesAmount - alreadyPaidAmount;
         const requestedPaidAmount = Number(dto.paidAmount);
-        const remainingAmount = expenseTotalAmount - alreadyPaidAmount;
 
         if (requestedPaidAmount > remainingAmount) {
             throw new BadRequestException(
-                `Overpayment not allowed. Remaining amount for this expense is ${remainingAmount.toFixed(2)}`,
+                `Overpayment not allowed. Remaining amount for this vendor is ${remainingAmount.toFixed(2)}`,
             );
         }
 
-        const dueAmount = expenseTotalAmount - (alreadyPaidAmount + requestedPaidAmount);
+        const dueAmount = totalExpensesAmount - (alreadyPaidAmount + requestedPaidAmount);
         const status = dueAmount === 0
             ? VendorPaymentStatus.PAID
             : VendorPaymentStatus.PENDING;
@@ -53,16 +66,14 @@ export class VendorPaymentService {
         return this.prisma.vendorPayment.create({
             data: {
                 ...dto,
-                totalAmount: expense.amount,
                 paidAmount: dto.paidAmount,
                 dueAmount,
                 status,
                 paidAt: status === VendorPaymentStatus.PAID ? new Date() : null,
                 createdById: userId,
-            },
+            } as any,
             include: {
                 vendor: true,
-                Expense: true,
             },
         });
     }
@@ -74,14 +85,12 @@ export class VendorPaymentService {
             limit = 10,
             fetchAll,
             vendorId,
-            expenseId,
             status,
             search,
         } = query;
 
         const where: any = {
             ...(vendorId && { vendorId }),
-            ...(expenseId && { expenseId }),
             ...(status && { status }),
             ...(search && {
                 OR: [
@@ -111,7 +120,6 @@ export class VendorPaymentService {
             where,
             include: {
                 vendor: true,
-                Expense: true,
             },
             orderBy: {
                 createdAt: 'desc',
@@ -125,7 +133,6 @@ export class VendorPaymentService {
             where: { id },
             include: {
                 vendor: true,
-                Expense: true,
             },
         });
 
@@ -137,27 +144,67 @@ export class VendorPaymentService {
     async update(id: string, dto: UpdateVendorPaymentDto) {
         const existingPayment = await this.findOne(id);
 
-        if (dto.expenseId) {
-            const expense = await this.prisma.expense.findUnique({
-                where: { id: dto.expenseId },
-                select: { id: true, restaurantId: true },
-            });
+        const vendorId = dto.vendorId ?? existingPayment.vendorId;
+        const restaurantId = dto.restaurantId ?? existingPayment.restaurantId;
+        const paidAmount = Number(dto.paidAmount ?? existingPayment.paidAmount);
 
-            if (!expense) {
-                throw new NotFoundException('Expense not found');
-            }
+        const vendor = await this.prisma.vendor.findFirst({
+            where: {
+                id: vendorId,
+                restaurantId,
+                isActive: true,
+            },
+            select: { id: true },
+        });
 
-            if (expense.restaurantId !== existingPayment.restaurantId) {
-                throw new BadRequestException('Expense does not belong to this payment restaurant');
-            }
+        if (!vendor) {
+            throw new NotFoundException('Vendor not found in this restaurant');
         }
+
+        const [totalExpensesAggregate, totalPaidOtherAggregate] = await Promise.all([
+            this.prisma.expense.aggregate({
+                where: {
+                    vendorId,
+                    restaurantId,
+                    isActive: true,
+                },
+                _sum: { amount: true },
+            }),
+            this.prisma.vendorPayment.aggregate({
+                where: {
+                    vendorId,
+                    restaurantId,
+                    NOT: { id },
+                },
+                _sum: { paidAmount: true },
+            }),
+        ]);
+
+        const totalExpensesAmount = Number(totalExpensesAggregate._sum.amount ?? 0);
+        const alreadyPaidByOthers = Number(totalPaidOtherAggregate._sum.paidAmount ?? 0);
+        const remainingAmount = totalExpensesAmount - alreadyPaidByOthers;
+
+        if (paidAmount > remainingAmount) {
+            throw new BadRequestException(
+                `Overpayment not allowed. Remaining amount for this vendor is ${remainingAmount.toFixed(2)}`,
+            );
+        }
+
+        const dueAmount = totalExpensesAmount - (alreadyPaidByOthers + paidAmount);
+        const status = dueAmount === 0
+            ? VendorPaymentStatus.PAID
+            : VendorPaymentStatus.PENDING;
 
         return this.prisma.vendorPayment.update({
             where: { id },
-            data: dto,
+            data: {
+                ...dto,
+                dueAmount,
+                status,
+                paidAt: status === VendorPaymentStatus.PAID ? new Date() : null,
+            },
             include: {
                 vendor: true,
-                Expense: true,
             },
         });
     }

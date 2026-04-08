@@ -19,10 +19,18 @@ export class ExpensesService {
     async create(actor: User, restaurantId: string, dto: CreateExpenseDto) {
         await this.assertRestaurantAccess(actor, restaurantId, 'manage');
 
-        if (dto.vendorPayment) {
+        const effectiveVendorId = dto.vendorId ?? dto.vendorPayment?.vendorId;
+
+        if (dto.vendorId && dto.vendorPayment?.vendorId && dto.vendorId !== dto.vendorPayment.vendorId) {
+            throw new BadRequestException(
+                'vendorId and vendorPayment.vendorId must match when both are provided',
+            );
+        }
+
+        if (effectiveVendorId) {
             const vendor = await this.prisma.vendor.findFirst({
                 where: {
-                    id: dto.vendorPayment.vendorId,
+                    id: effectiveVendorId,
                     restaurantId,
                     isActive: true,
                 },
@@ -32,18 +40,20 @@ export class ExpensesService {
             if (!vendor) {
                 throw new NotFoundException('Vendor not found in this restaurant');
             }
+        }
 
-            if (Number(dto.vendorPayment.paidAmount) > Number(dto.amount)) {
+        if (dto.vendorPayment) {
+            if (!effectiveVendorId) {
                 throw new BadRequestException(
-                    'Vendor payment paidAmount cannot be greater than expense amount',
+                    'vendorId is required on expense or vendorPayment when creating vendor payment',
                 );
             }
 
-            const dueAmount = Number(dto.amount) - Number(dto.vendorPayment.paidAmount);
-            const status =
-                dueAmount === 0
-                    ? VendorPaymentStatus.PAID
-                    : VendorPaymentStatus.PENDING;
+            if (Number(dto.vendorPayment.paidAmount) <= 0) {
+                throw new BadRequestException(
+                    'Vendor payment paidAmount must be greater than 0',
+                );
+            }
 
             return this.prisma.$transaction(async (tx) => {
                 const expense = await tx.expense.create({
@@ -56,14 +66,49 @@ export class ExpensesService {
                         date: dto.date ?? new Date(),
                         createdById: actor.id,
                         expenseCategoryId: dto.expenseCategoryId ?? null,
+                        vendorId: effectiveVendorId,
                     },
                 });
 
+                const [totalExpensesAggregate, totalPaidAggregate] = await Promise.all([
+                    tx.expense.aggregate({
+                        where: {
+                            vendorId: effectiveVendorId,
+                            restaurantId,
+                            isActive: true,
+                        },
+                        _sum: { amount: true },
+                    }),
+                    tx.vendorPayment.aggregate({
+                        where: {
+                            vendorId: effectiveVendorId,
+                            restaurantId,
+                        },
+                        _sum: { paidAmount: true },
+                    }),
+                ]);
+
+                const totalExpenses = Number(totalExpensesAggregate._sum.amount ?? 0);
+                const totalPaidBefore = Number(totalPaidAggregate._sum.paidAmount ?? 0);
+                const requestedPaidAmount = Number(dto.vendorPayment!.paidAmount);
+                const remainingAmount = totalExpenses - totalPaidBefore;
+
+                if (requestedPaidAmount > remainingAmount) {
+                    throw new BadRequestException(
+                        `Overpayment not allowed. Remaining amount for this vendor is ${remainingAmount.toFixed(2)}`,
+                    );
+                }
+
+                const dueAmount = totalExpenses - (totalPaidBefore + requestedPaidAmount);
+                const status =
+                    dueAmount === 0
+                        ? VendorPaymentStatus.PAID
+                        : VendorPaymentStatus.PENDING;
+
                 await tx.vendorPayment.create({
                     data: {
-                        vendorId: dto.vendorPayment!.vendorId,
+                        vendorId: effectiveVendorId,
                         restaurantId,
-                        totalAmount: dto.amount,
                         paidAmount: dto.vendorPayment!.paidAmount,
                         dueAmount,
                         status,
@@ -73,8 +118,7 @@ export class ExpensesService {
                         notes: dto.vendorPayment!.notes,
                         paidAt: status === VendorPaymentStatus.PAID ? new Date() : null,
                         createdById: actor.id,
-                        expenseId: expense.id,
-                    },
+                    } as any,
                 });
 
                 return expense;
@@ -91,6 +135,7 @@ export class ExpensesService {
                 date: dto.date ?? new Date(),
                 createdById: actor.id,
                 expenseCategoryId: dto.expenseCategoryId ?? null,
+                vendorId: effectiveVendorId ?? null,
             },
         });
     }
@@ -144,9 +189,82 @@ export class ExpensesService {
             where,
             include: {
                 expenseCategory: true,
+                vendor: true,
             },
             orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         });
+    }
+
+    async findByVendor(
+        actor: User,
+        restaurantId: string,
+        vendorId: string,
+        page = 1,
+        limit = 10,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        const vendor = await this.prisma.vendor.findFirst({
+            where: {
+                id: vendorId,
+                restaurantId,
+                isActive: true,
+            },
+            select: { id: true, name: true },
+        });
+
+        if (!vendor) {
+            throw new NotFoundException('Vendor not found in this restaurant');
+        }
+
+        const where = {
+            restaurantId,
+            vendorId,
+            isActive: true,
+        };
+
+        const [paginatedExpenses, totalExpensesAggregate, totalPaidAggregate] = await Promise.all([
+            paginate({
+                prismaModel: this.prisma.expense,
+                page,
+                limit,
+                where,
+                include: {
+                    expenseCategory: true,
+                    vendor: true,
+                },
+                orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+            }),
+            this.prisma.expense.aggregate({
+                where,
+                _sum: {
+                    amount: true,
+                },
+            }),
+            this.prisma.vendorPayment.aggregate({
+                where: {
+                    restaurantId,
+                    vendorId,
+                },
+                _sum: {
+                    paidAmount: true,
+                },
+            }),
+        ]);
+
+        const totalExpenses = Number(totalExpensesAggregate._sum.amount ?? 0);
+        const totalPaid = Number(totalPaidAggregate._sum.paidAmount ?? 0);
+        const totalRemainingToPay = Math.max(totalExpenses - totalPaid, 0);
+
+        return {
+            ...paginatedExpenses,
+            vendor,
+            totals: {
+                totalExpenses,
+                totalPaid,
+                totalRemainingToPay,
+            },
+        };
     }
 
     // ─── Get One ──────────────────────────────────────────────────────────────
@@ -158,6 +276,7 @@ export class ExpensesService {
             where: { id, restaurantId },
             include: {
                 expenseCategory: true,
+                vendor: true,
             },
         });
 
@@ -190,6 +309,21 @@ export class ExpensesService {
             );
         }
 
+        if (dto.vendorId !== undefined && dto.vendorId !== null) {
+            const vendor = await this.prisma.vendor.findFirst({
+                where: {
+                    id: dto.vendorId,
+                    restaurantId,
+                    isActive: true,
+                },
+                select: { id: true },
+            });
+
+            if (!vendor) {
+                throw new NotFoundException('Vendor not found in this restaurant');
+            }
+        }
+
         return this.prisma.expense.update({
             where: { id },
             data: {
@@ -199,6 +333,7 @@ export class ExpensesService {
                 ...(dto.description !== undefined && { description: dto.description }),
                 ...(dto.date !== undefined && { date: dto.date }),
                 ...(dto.expenseCategoryId !== undefined && { expenseCategoryId: dto.expenseCategoryId }),
+                ...(dto.vendorId !== undefined && { vendorId: dto.vendorId }),
             },
         });
     }

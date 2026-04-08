@@ -40,24 +40,20 @@ export class VendorPaymentController {
 Creates a vendor payable record.
 
 ### Behavior:
-- totalAmount is derived from linked expense.amount
 - paidAmount is the amount passed by user in request
-- dueAmount = expense.amount - sum(all paidAmount for this expense)
-- status becomes PARTIAL or PAID based on due amount
+- dueAmount = total vendor expenses - sum(all paidAmount for this vendor)
+- status becomes PENDING or PAID based on due amount
 
 ### Use case:
 Record invoice received from vendor
 
-### Expense link:
-- expenseId is required to map this vendor payment to an expense record.
- 
 ### Validation:
-- Overpayment is blocked if paidAmount exceeds the remaining payable amount for that expense.
+- Overpayment is blocked if paidAmount exceeds the remaining payable amount for that vendor.
     `,
     })
-    @ApiResponse({ status: 201, description: 'Vendor payment created with vendor and expense details' })
-    @ApiResponse({ status: 404, description: 'Expense not found (when expenseId is provided)' })
-    @ApiResponse({ status: 400, description: 'Expense does not belong to provided restaurant' })
+    @ApiResponse({ status: 201, description: 'Vendor payment created with vendor details' })
+    @ApiResponse({ status: 404, description: 'Vendor not found' })
+    @ApiResponse({ status: 400, description: 'Overpayment attempted' })
     create(@Body() dto: CreateVendorPaymentDto) {
         return this.service.create(dto);
     }
@@ -73,7 +69,6 @@ Supports pagination, filtering, and search.
 
 ### Filters:
 - vendorId
-- expenseId
 - status
 - search (vendor name, notes)
 
@@ -87,10 +82,9 @@ Supports pagination, filtering, and search.
     @ApiQuery({ name: 'limit', required: false })
     @ApiQuery({ name: 'fetchAll', required: false })
     @ApiQuery({ name: 'vendorId', required: false })
-    @ApiQuery({ name: 'expenseId', required: false })
     @ApiQuery({ name: 'status', required: false })
     @ApiQuery({ name: 'search', required: false })
-    @ApiResponse({ status: 200, description: 'Vendor payments list with vendor and expense details' })
+    @ApiResponse({ status: 200, description: 'Vendor payments list with vendor details' })
     findAll(@Query() query: VendorPaymentQueryDto) {
         return this.service.findAll(query);
     }
@@ -101,7 +95,7 @@ Supports pagination, filtering, and search.
     @Roles(UserRole.RESTAURANT_ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN)
     @ApiOperation({ summary: 'Get vendor payment by ID' })
     @ApiParam({ name: 'id', description: 'Vendor Payment ID' })
-    @ApiResponse({ status: 200, description: 'Vendor payment fetched with vendor and expense details' })
+    @ApiResponse({ status: 200, description: 'Vendor payment fetched with vendor details' })
     @ApiResponse({ status: 404, description: 'Vendor payment not found' })
     findOne(@Param('id') id: string) {
         return this.service.findOne(id);
@@ -116,14 +110,12 @@ Supports pagination, filtering, and search.
         description: `
 Update vendor payment details.
 
-⚠️ Avoid modifying financial fields (totalAmount) after creation.
-
-If expenseId is provided, it will relink this payment to the specified expense.
+Financial fields (paidAmount, dueAmount, status) are recalculated against vendor-level totals.
     `,
     })
-    @ApiResponse({ status: 200, description: 'Vendor payment updated with vendor and expense details' })
-    @ApiResponse({ status: 404, description: 'Vendor payment or expense not found' })
-    @ApiResponse({ status: 400, description: 'Expense does not belong to this payment restaurant' })
+    @ApiResponse({ status: 200, description: 'Vendor payment updated with vendor details' })
+    @ApiResponse({ status: 404, description: 'Vendor payment or vendor not found' })
+    @ApiResponse({ status: 400, description: 'Overpayment attempted' })
     update(
         @Param('id') id: string,
         @Body() dto: UpdateVendorPaymentDto,

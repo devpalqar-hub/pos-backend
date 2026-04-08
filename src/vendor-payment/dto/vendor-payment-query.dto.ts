@@ -18,10 +18,6 @@ export class VendorPaymentQueryDto {
     vendorId?: string;
 
     @IsOptional()
-    @IsUUID()
-    expenseId?: string;
-
-    @IsOptional()
     @IsEnum(VendorPaymentStatus)
     status?: VendorPaymentStatus;
 

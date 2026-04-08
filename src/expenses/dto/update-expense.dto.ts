@@ -65,4 +65,12 @@ export class UpdateExpenseDto {
     @IsOptional()
     @IsUUID()
     expenseCategoryId?: string;
+
+    @ApiPropertyOptional({
+        description: 'Vendor UUID for this expense',
+        example: '5e57e31b-45fc-4f08-9013-86ebe696c2fa',
+    })
+    @IsOptional()
+    @IsUUID()
+    vendorId?: string;
 }

@@ -64,10 +64,4 @@ export class CreateVendorPaymentDto {
     @IsString()
     notes?: string;
 
-    @ApiPropertyOptional({
-        description: 'Expense UUID this vendor payment belongs to',
-        example: '3c0d38f0-a78a-43e0-9ef3-a7f7371ea1e8',
-    })
-    @IsUUID()
-    expenseId!: string;
 }

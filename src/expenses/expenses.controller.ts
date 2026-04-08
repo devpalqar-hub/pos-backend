@@ -45,7 +45,7 @@ export class ExpensesController {
     @ApiOperation({
         summary: 'Create an expense',
         description:
-            'Create a new expense entry for the restaurant. Optionally include vendorPayment to create one vendor payment linked to this expense in the same request.',
+            'Create a new expense entry for the restaurant. Optionally include vendorPayment to create one vendor payment against vendor-level outstanding dues.',
     })
     @ApiResponse({ status: 201, description: 'Expense created.' })
     @ApiResponse({ status: 400, description: 'Validation error.' })
@@ -135,6 +135,42 @@ export class ExpensesController {
 
         return {
             message: 'Expenses fetched successfully',
+            data,
+        };
+    }
+
+    @Get('vendor/:vendorId')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'vendorId', description: 'Vendor UUID' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiOperation({
+        summary: 'List expenses by vendor',
+        description:
+            'Returns paginated expenses for one vendor along with common totals: totalExpenses, totalPaid, and totalRemainingToPay.',
+    })
+    @ApiResponse({ status: 200, description: 'Vendor expenses returned.' })
+    @ApiResponse({ status: 404, description: 'Vendor not found.' })
+    async findByVendor(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('vendorId', ParseUUIDPipe) vendorId: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+    ) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+
+        const data = await this.expensesService.findByVendor(
+            actor,
+            restaurantId,
+            vendorId,
+            pageNum,
+            limitNum,
+        );
+
+        return {
+            message: 'Vendor expenses fetched successfully',
             data,
         };
     }
