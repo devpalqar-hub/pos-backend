@@ -219,17 +219,24 @@ export class BookingService {
                 throw new ForbiddenException('Loyalty points require authenticated user');
             }
 
+            const now = new Date();
             const redemptions = await this.prisma.loyalityPointRedemption.findMany({
                 where: {
                     customerId: actor.id,
                     loyalityPoint: {
                         restaurantId,
+                        isActive: true,
+                        // Exclude loyalty points with endDate in the past
+                        OR: [
+                            { endDate: null }, // No end date (never expires)
+                            { endDate: { gte: now } }, // End date is in the future
+                        ],
                     },
                 },
             });
 
             if (redemptions.length === 0) {
-                throw new BadRequestException('No loyalty points available');
+                throw new BadRequestException('No valid loyalty points available');
             }
 
             for (const r of redemptions) {

@@ -44,7 +44,8 @@ export class ExpensesController {
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiOperation({
         summary: 'Create an expense',
-        description: 'Create a new expense entry for the restaurant.',
+        description:
+            'Create a new expense entry for the restaurant. Optionally include vendorPayment to create one vendor payment linked to this expense in the same request.',
     })
     @ApiResponse({ status: 201, description: 'Expense created.' })
     @ApiResponse({ status: 400, description: 'Validation error.' })

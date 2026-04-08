@@ -23,9 +23,11 @@ export class VendorService {
             data: {
                 ...vendorData,
                 restaurantId,
-                categories: {
-                    connect: categoryIds.map((id: string) => ({ id })),
-                },
+                ...(categoryIds.length > 0 && {
+                    categories: {
+                        connect: categoryIds.map((id: string) => ({ id })),
+                    },
+                }),
             },
             include: { categories: true },
         });

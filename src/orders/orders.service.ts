@@ -1140,6 +1140,7 @@ export class OrdersService {
 
         let loyaltyDiscount = 0;
         let appliedLoyalty: any = null; // ✅ ADD
+        let loyaltyPointsToConsume = 0;
         let customer: any;
         if (hasCustomerDataInRequest) {
             customer = await this.prisma.customer.findFirst({
@@ -1165,11 +1166,18 @@ export class OrdersService {
                 );
             }
             if (dto.claimedLoyalityPoints) {
+                const now = new Date();
                 const redemptions = await this.prisma.loyalityPointRedemption.findMany({
                     where: {
                         customerId: customer.id,
                         loyalityPoint: {
                             restaurantId,
+                            isActive: true,
+                            // Exclude loyalty points with endDate in the past
+                            OR: [
+                                { endDate: null }, // No end date (never expires)
+                                { endDate: { gte: now } }, // End date is in the future
+                            ],
                         },
                     },
                     include: {
@@ -1226,6 +1234,7 @@ export class OrdersService {
                 );
 
                 const pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                loyaltyPointsToConsume = pointsConsumed;
                 const pointsRemaining = totalPoints - pointsConsumed;
 
                 // ✅ STORE FOR RESPONSE
@@ -1269,7 +1278,7 @@ export class OrdersService {
             Math.max(0, grossAmount - totalDiscount).toFixed(2),
         );
         const billNumber = await this.generateUniqueBillNumber(restaurantId);
-        let customerId: string | null = null;
+        let customerId: string | null = customer?.id ?? null;
 
         const bill = await this.prisma.$transaction(async (tx) => {
 
@@ -1354,6 +1363,55 @@ export class OrdersService {
                     newValue: SessionStatus.BILLED
                 },
             });
+
+            // Consume only the exact number of loyalty points needed for this bill.
+            if (dto.claimedLoyalityPoints && customer?.id && loyaltyPointsToConsume > 0) {
+                const now = new Date();
+                const redemptionRows = await tx.loyalityPointRedemption.findMany({
+                    where: {
+                        customerId: customer.id,
+                        loyalityPoint: {
+                            restaurantId,
+                            isActive: true,
+                            OR: [{ endDate: null }, { endDate: { gte: now } }],
+                        },
+                    },
+                    orderBy: { redeemedAt: 'asc' },
+                    select: {
+                        id: true,
+                        pointsAwarded: true,
+                    },
+                });
+
+                let remainingPointsToConsume = loyaltyPointsToConsume;
+
+                for (const row of redemptionRows) {
+                    if (remainingPointsToConsume <= 0) break;
+
+                    const rowPoints = Number(row.pointsAwarded);
+                    const consumeFromRow = Math.min(rowPoints, remainingPointsToConsume);
+                    const updatedPoints = parseFloat((rowPoints - consumeFromRow).toFixed(2));
+
+                    if (updatedPoints <= 0) {
+                        await tx.loyalityPointRedemption.delete({ where: { id: row.id } });
+                    } else {
+                        await tx.loyalityPointRedemption.update({
+                            where: { id: row.id },
+                            data: { pointsAwarded: new Prisma.Decimal(updatedPoints) },
+                        });
+                    }
+
+                    remainingPointsToConsume = parseFloat(
+                        (remainingPointsToConsume - consumeFromRow).toFixed(2),
+                    );
+                }
+
+                if (remainingPointsToConsume > 0) {
+                    throw new ConflictException(
+                        'Loyalty points changed during billing. Please retry bill generation.',
+                    );
+                }
+            }
 
             return createdBill;
         });
@@ -1653,12 +1711,21 @@ export class OrdersService {
                     data: { phone: dto.customerPhone },
                 });
             }
-
+            console.log(dto.claimedLoyalityPoints, "claimedLoyalityPoints")
             if (dto.claimedLoyalityPoints) {
+                const now = new Date();
                 const redemptions = await this.prisma.loyalityPointRedemption.findMany({
                     where: {
                         customerId: customer.id,
-                        loyalityPoint: { restaurantId },
+                        loyalityPoint: {
+                            restaurantId,
+                            isActive: true,
+                            // Exclude loyalty points with endDate in the past
+                            // OR: [
+                            //     { endDate: null }, // No end date (never expires)
+                            //     { endDate: { gte: now } }, // End date is in the future
+                            // ],
+                        },
                     },
                     include: {
                         loyalityPoint: {

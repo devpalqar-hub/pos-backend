@@ -6,11 +6,62 @@ import {
     IsOptional,
     IsString,
     IsUUID,
+    ValidateNested,
     MaxLength,
     Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ExpenseType } from '@prisma/client';
+import { ExpenseType, PaymentMethod, VendorPaymentType } from '@prisma/client';
+
+export class CreateExpenseVendorPaymentDto {
+    @ApiProperty({
+        description: 'Vendor UUID',
+        example: '5e57e31b-45fc-4f08-9013-86ebe696c2fa',
+    })
+    @IsUUID()
+    vendorId!: string;
+
+    @ApiProperty({
+        description: 'Amount paid in this payment entry',
+        example: 300,
+    })
+    @IsNumber()
+    @Min(0.01)
+    @Type(() => Number)
+    paidAmount!: number;
+
+    @ApiPropertyOptional({
+        enum: VendorPaymentType,
+        description: 'Payment entry type',
+    })
+    @IsOptional()
+    @IsEnum(VendorPaymentType)
+    type?: VendorPaymentType;
+
+    @ApiPropertyOptional({
+        enum: PaymentMethod,
+        description: 'Payment mode used for this entry',
+    })
+    @IsOptional()
+    @IsEnum(PaymentMethod)
+    paymentMethod?: PaymentMethod;
+
+    @ApiPropertyOptional({
+        description: 'Reference/transaction number',
+        example: 'UPI-REF-248992',
+    })
+    @IsOptional()
+    @IsString()
+    referenceNo?: string;
+
+    @ApiPropertyOptional({
+        description: 'Optional note for this payment',
+        example: 'March vegetables invoice settlement',
+    })
+    @IsOptional()
+    @IsString()
+    notes?: string;
+}
 
 export class CreateExpenseDto {
     @ApiProperty({
@@ -21,7 +72,7 @@ export class CreateExpenseDto {
     @IsString()
     @IsNotEmpty({ message: 'Expense name is required' })
     @MaxLength(255)
-    expenseName: string;
+    expenseName!: string;
 
     @ApiProperty({
         description: 'Type of expense',
@@ -29,7 +80,7 @@ export class CreateExpenseDto {
         example: ExpenseType.MONTHLY,
     })
     @IsEnum(ExpenseType, { message: 'expenseType must be one of: DAILY, WEEKLY, MONTHLY, YEARLY' })
-    expenseType: ExpenseType;
+    expenseType!: ExpenseType;
 
     @ApiProperty({
         description: 'Expense amount',
@@ -38,7 +89,7 @@ export class CreateExpenseDto {
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)
     @Type(() => Number)
-    amount: number;
+    amount!: number;
 
     @ApiPropertyOptional({
         description: 'Description or notes about the expense',
@@ -63,4 +114,14 @@ export class CreateExpenseDto {
     @IsOptional()
     @IsUUID()
     expenseCategoryId?: string;
+
+    @ApiPropertyOptional({
+        description:
+            'Optional vendor payment details to create one vendor payment along with this expense.',
+        type: CreateExpenseVendorPaymentDto,
+    })
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => CreateExpenseVendorPaymentDto)
+    vendorPayment?: CreateExpenseVendorPaymentDto;
 }

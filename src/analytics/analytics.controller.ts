@@ -243,6 +243,11 @@ Returns a detailed P&L analytics summary including:
     }
 
     @Get('coupons/analytics/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
     @ApiQuery({ name: 'startYear', required: false, type: Number })
     @ApiQuery({ name: 'endYear', required: false, type: Number })
     performance(
@@ -260,6 +265,11 @@ Returns a detailed P&L analytics summary including:
     }
 
     @Get('coupons/analytics/trend/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
     @ApiQuery({ name: 'startYear', required: false, type: Number })
     @ApiQuery({ name: 'endYear', required: false, type: Number })
     trend(
@@ -532,6 +542,11 @@ Returns waiter-wise performance:
 
 
     @Get('customer-retention/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
     @ApiOperation({
         summary: 'Get customer retention analytics',
         description:
@@ -552,7 +567,14 @@ Returns waiter-wise performance:
         return this.analyticsService.getCustomerRetention(actor, restaurantId);
     }
 
+
+
     @Get('aov/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
     @ApiOperation({
         summary: 'Get average order value (AOV) analytics',
         description:
@@ -573,7 +595,13 @@ Returns waiter-wise performance:
         return this.analyticsService.getAOV(actor, restaurantId);
     }
 
+
     @Get('revenue-by-channel/:restaurantId')
+    @Roles(
+        UserRole.SUPER_ADMIN,
+        UserRole.OWNER,
+        UserRole.RESTAURANT_ADMIN,
+    )
     @ApiOperation({
         summary: 'Get revenue by channel analytics',
         description:

@@ -15,14 +15,14 @@ export class CreateVendorPaymentDto {
         example: '5e57e31b-45fc-4f08-9013-86ebe696c2fa',
     })
     @IsUUID()
-    vendorId: string;
+    vendorId!: string;
 
     @ApiProperty({
         description: 'Restaurant UUID',
         example: 'c5f50dda-222a-445b-a41d-4f1a31914cf9',
     })
     @IsUUID()
-    restaurantId: string;
+    restaurantId!: string;
 
     @ApiProperty({
         description: 'Amount paid in this payment entry',
@@ -30,7 +30,7 @@ export class CreateVendorPaymentDto {
     })
     @IsNumber()
     @Min(0.01)
-    paidAmount: number;
+    paidAmount!: number;
 
     @ApiPropertyOptional({
         enum: VendorPaymentType,
@@ -69,5 +69,5 @@ export class CreateVendorPaymentDto {
         example: '3c0d38f0-a78a-43e0-9ef3-a7f7371ea1e8',
     })
     @IsUUID()
-    expenseId: string;
+    expenseId!: string;
 }

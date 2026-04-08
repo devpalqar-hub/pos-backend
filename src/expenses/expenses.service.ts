@@ -2,12 +2,13 @@ import {
     Injectable,
     NotFoundException,
     ForbiddenException,
+    BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
-import { User, UserRole, ExpenseType } from '@prisma/client';
+import { User, UserRole, ExpenseType, VendorPaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class ExpensesService {
@@ -17,6 +18,68 @@ export class ExpensesService {
 
     async create(actor: User, restaurantId: string, dto: CreateExpenseDto) {
         await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+
+        if (dto.vendorPayment) {
+            const vendor = await this.prisma.vendor.findFirst({
+                where: {
+                    id: dto.vendorPayment.vendorId,
+                    restaurantId,
+                    isActive: true,
+                },
+                select: { id: true },
+            });
+
+            if (!vendor) {
+                throw new NotFoundException('Vendor not found in this restaurant');
+            }
+
+            if (Number(dto.vendorPayment.paidAmount) > Number(dto.amount)) {
+                throw new BadRequestException(
+                    'Vendor payment paidAmount cannot be greater than expense amount',
+                );
+            }
+
+            const dueAmount = Number(dto.amount) - Number(dto.vendorPayment.paidAmount);
+            const status =
+                dueAmount === 0
+                    ? VendorPaymentStatus.PAID
+                    : VendorPaymentStatus.PENDING;
+
+            return this.prisma.$transaction(async (tx) => {
+                const expense = await tx.expense.create({
+                    data: {
+                        restaurantId,
+                        expenseName: dto.expenseName,
+                        expenseType: dto.expenseType,
+                        amount: dto.amount,
+                        description: dto.description ?? null,
+                        date: dto.date ?? new Date(),
+                        createdById: actor.id,
+                        expenseCategoryId: dto.expenseCategoryId ?? null,
+                    },
+                });
+
+                await tx.vendorPayment.create({
+                    data: {
+                        vendorId: dto.vendorPayment!.vendorId,
+                        restaurantId,
+                        totalAmount: dto.amount,
+                        paidAmount: dto.vendorPayment!.paidAmount,
+                        dueAmount,
+                        status,
+                        type: dto.vendorPayment!.type,
+                        paymentMethod: dto.vendorPayment!.paymentMethod,
+                        referenceNo: dto.vendorPayment!.referenceNo,
+                        notes: dto.vendorPayment!.notes,
+                        paidAt: status === VendorPaymentStatus.PAID ? new Date() : null,
+                        createdById: actor.id,
+                        expenseId: expense.id,
+                    },
+                });
+
+                return expense;
+            });
+        }
 
         return this.prisma.expense.create({
             data: {

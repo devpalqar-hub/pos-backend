@@ -35,7 +35,7 @@ export class VendorController {
     @ApiOperation({
         summary: 'Create a vendor',
         description:
-            'Creates a vendor under the selected restaurant and maps it to one or more vendor categories via categoryIds.',
+            'Creates a vendor under the selected restaurant. categoryIds is optional and can be used to map vendor categories.',
     })
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiResponse({ status: 201, description: 'Vendor created successfully.' })

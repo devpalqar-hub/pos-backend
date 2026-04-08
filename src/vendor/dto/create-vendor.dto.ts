@@ -12,7 +12,7 @@ export class CreateVendorDto {
         example: 'Fresh Farm Supplies',
     })
     @IsString()
-    name: string;
+    name!: string;
 
     @ApiPropertyOptional({
         description: 'Primary contact person name',
@@ -62,12 +62,13 @@ export class CreateVendorDto {
     @IsString()
     panNumber?: string;
 
-    @ApiProperty({
+    @ApiPropertyOptional({
         type: [String],
-        description: 'List of vendor category UUIDs to map this vendor to.',
+        description: 'Optional list of vendor category UUIDs to map this vendor to.',
         example: ['7f053d3f-3ad2-441a-8a5f-745d2ad6a4ce'],
     })
+    @IsOptional()
     @IsArray()
     @IsUUID('all', { each: true })
-    categoryIds: string[];
+    categoryIds?: string[];
 }
