@@ -90,44 +90,21 @@ export class LoyalityPointsConverterService {
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        // ================================
-        // Ensure only ONE active converter
-        // ================================
-        const shouldActivate = dto.isActive ?? true;
+        return this.prisma.$transaction(async (tx) => {
+            await tx.loyalityPointsConverter.deleteMany({
+                where: { restaurantId },
+            });
 
-        if (shouldActivate) {
-            await this.prisma.loyalityPointsConverter.updateMany({
-                where: {
-                    restaurantId,
-                    isActive: true,
-                },
+            return tx.loyalityPointsConverter.create({
                 data: {
-                    isActive: false,
+                    restaurantId,
+                    points: new Prisma.Decimal(dto.points),
+                    value: new Prisma.Decimal(dto.value),
+                    currency: dto.currency ?? 'USD',
+                    isActive: dto.isActive ?? true,
                 },
             });
-        }
-
-        // ================================
-        // CREATE
-        // ================================
-        console.log('Creating converter with data:', {
-            restaurantId,
-            points: dto.points,
-            value: dto.value,
-            currency: dto.currency ?? 'USD',
-            isActive: shouldActivate,
         });
-        const converter = await this.prisma.loyalityPointsConverter.create({
-            data: {
-                restaurantId,
-                points: new Prisma.Decimal(dto.points),
-                value: new Prisma.Decimal(dto.value),
-                currency: dto.currency ?? 'USD',
-                isActive: shouldActivate,
-            },
-        });
-
-        return converter;
     }
 
     async updateConverter(
