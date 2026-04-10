@@ -136,7 +136,7 @@ review, or debugging conversion behavior.
         };
     }
 
-    @Patch(':converterId')
+    @Patch()
     @Roles(
         UserRole.SUPER_ADMIN,
         UserRole.OWNER,
@@ -144,17 +144,14 @@ review, or debugging conversion behavior.
     )
     @ApiOperation({ summary: 'Update loyalty points converter' })
     @ApiParam({ name: 'restaurantId' })
-    @ApiParam({ name: 'converterId' })
     async updateConverter(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Param('converterId', ParseUUIDPipe) converterId: string,
         @Body() dto: UpdateLoyalityPointsConverterDto,
     ) {
         const data = await this.converterService.updateConverter(
             actor,
             restaurantId,
-            converterId,
             dto,
         );
 

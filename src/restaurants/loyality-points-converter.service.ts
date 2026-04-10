@@ -110,16 +110,15 @@ export class LoyalityPointsConverterService {
     async updateConverter(
         actor: User,
         restaurantId: string,
-        converterId: string,
         dto: UpdateLoyalityPointsConverterDto,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
         const existing = await this.prisma.loyalityPointsConverter.findFirst({
             where: {
-                id: converterId,
                 restaurantId,
             },
+            orderBy: { createdAt: 'desc' },
         });
 
         if (!existing) {
@@ -134,7 +133,7 @@ export class LoyalityPointsConverterService {
                 where: {
                     restaurantId,
                     isActive: true,
-                    NOT: { id: converterId },
+                    NOT: { id: existing.id },
                 },
                 data: { isActive: false },
             });
@@ -144,7 +143,7 @@ export class LoyalityPointsConverterService {
         // UPDATE DATA
         // ================================
         const updated = await this.prisma.loyalityPointsConverter.update({
-            where: { id: converterId },
+            where: { id: existing.id },
             data: {
                 ...(dto.points && {
                     points: new Prisma.Decimal(dto.points),
