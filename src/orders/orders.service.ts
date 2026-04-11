@@ -1421,7 +1421,7 @@ export class OrdersService {
                 restaurantId,
                 tableId: session.tableId,
                 status: {
-                    notIn: [SessionStatus.PAID, SessionStatus.BILLED],
+                    notIn: [SessionStatus.PAID, SessionStatus.BILLED, SessionStatus.CANCELLED],
                 },
             },
         });

@@ -25,6 +25,7 @@ enum RestaurantFeature {
   MARKETING
   DOORDASH
   UBER_EATS
+  TOAST
   PAYROLL
   EXPENSES
 }
@@ -82,6 +83,19 @@ enum OrderChannel {
   ONLINE_OWN // Own online ordering platform
   UBER_EATS // Uber Eats integration
   DOORDASH // DoorDash Merchant API
+  TOAST // Toast order import sync
+}
+
+enum ToastSyncType {
+  MENU
+  ORDERS
+  FULL
+}
+
+enum ToastSyncStatus {
+  SUCCESS
+  SKIPPED
+  FAILED
 }
 
 enum SessionStatus {
@@ -331,8 +345,13 @@ model Restaurant {
   carts                    Cart[]
   features                 RestaurantFeatureFlag[]
   loyalityPointsConverters LoyalityPointsConverter[]
+  toastSettings            ToastSettings?
+  toastSyncState           ToastSyncState?
+  toastSyncLogs            ToastSyncLog[]
+  toastOrderLinks          ToastOrderLink[]
   vendors                  Vendor[]
   vendorPayments           VendorPayment[]
+  ToastMenuItemMapping     ToastMenuItemMapping[]
 
   @@index([ownerId])
   @@map("restaurants")
@@ -404,14 +423,15 @@ model MenuItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  restaurant       Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  category         MenuCategory          @relation(fields: [categoryId], references: [id])
+  restaurant       Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category         MenuCategory           @relation(fields: [categoryId], references: [id])
   priceRules       PriceRule[]
   orderItems       OrderItem[]
   billItems        BillItem[]
   loyalityPoints   LoyalityPoint[]
   doorDashMappings DoorDashItemMapping[]
   uberEatsMappings UberEatsItemMapping[]
+  toastMappings    ToastMenuItemMapping[]
   cartItems        CartItem[]
 
   @@index([restaurantId])
@@ -569,6 +589,7 @@ model OrderSession {
   couponUsages            CouponUsage[]
   customer                Customer?                @relation(fields: [customerId], references: [id])
   orderSessionUpdateTimes OrderSessionUpdateTime[]
+  toastOrderLink          ToastOrderLink?
 
   @@unique([restaurantId, sessionNumber])
   @@index([restaurantId])
@@ -886,8 +907,8 @@ model Expense {
   expenseCategoryId String?
   expenseCategory   ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id])
 
-  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  vendor         Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  vendor     Vendor?    @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId])
   @@index([vendorId])
@@ -1293,6 +1314,121 @@ model UberEatsWebhookLog {
   @@map("uber_eats_webhook_logs")
 }
 
+// ─── Toast Integration ─────────────────────────────────────────────────────
+
+model ToastSettings {
+  id           String @id @default(uuid())
+  restaurantId String @unique
+
+  // Toast API credentials
+  clientId                  String @db.VarChar(255)
+  clientSecret              String @db.VarChar(500)
+  toastRestaurantExternalId String @db.VarChar(255)
+
+  // Optional base URL override (defaults to https://ws-api.toasttab.com)
+  apiBaseUrl String @default("https://ws-api.toasttab.com") @db.VarChar(255)
+
+  // Optional tuning
+  defaultOrderLookbackHours Int     @default(24)
+  autoSyncEnabled           Boolean @default(false)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("toast_settings")
+}
+
+model ToastSyncState {
+  id           String @id @default(uuid())
+  restaurantId String @unique
+
+  menuLastUpdatedAt DateTime?
+  ordersLastStartAt DateTime?
+  ordersLastEndAt   DateTime?
+
+  lastSyncStatus   ToastSyncStatus?
+  lastSyncError    String?          @db.Text
+  lastSuccessfulAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("toast_sync_states")
+}
+
+model ToastMenuItemMapping {
+  id           String @id @default(uuid())
+  restaurantId String
+  menuItemId   String
+
+  // Toast menu item GUID for direct resolution when importing orders
+  toastItemGuid String @db.VarChar(255)
+
+  // Helpful snapshot fields for audit/debugging
+  toastItemName String? @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, toastItemGuid])
+  @@unique([restaurantId, menuItemId])
+  @@index([restaurantId])
+  @@map("toast_menu_item_mappings")
+}
+
+model ToastOrderLink {
+  id             String @id @default(uuid())
+  restaurantId   String
+  orderSessionId String @unique
+
+  // Toast order GUID
+  toastOrderGuid String @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderSession OrderSession @relation(fields: [orderSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, toastOrderGuid])
+  @@index([restaurantId])
+  @@map("toast_order_links")
+}
+
+model ToastSyncLog {
+  id           String @id @default(uuid())
+  restaurantId String
+
+  syncType ToastSyncType
+  status   ToastSyncStatus
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  // Aggregated counters
+  categoriesUpserted Int @default(0)
+  itemsUpserted      Int @default(0)
+  ordersCreated      Int @default(0)
+  ordersSkipped      Int @default(0)
+
+  errorMessage String? @db.Text
+  summary      Json?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([syncType])
+  @@index([status])
+  @@map("toast_sync_logs")
+}
+
 // ─── Trigger Campaigns (Automated Repeating Marketing) ──────────────────────
 //  This is the parent record — like defining "Send a promo to customers who visit on Mondays, repeat every 7 days, max 5 times."
 model TriggerCampaign {
@@ -1585,8 +1721,8 @@ model VendorPayment {
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
 
   // ── Financial Fields ─────────────────────────────────────────
-  paidAmount  Decimal @default(0) @db.Decimal(10, 2)
-  dueAmount   Decimal @db.Decimal(10, 2)
+  paidAmount Decimal @default(0) @db.Decimal(10, 2)
+  dueAmount  Decimal @db.Decimal(10, 2)
 
   // ── Payment Status ───────────────────────────────────────────
   status        VendorPaymentStatus @default(PENDING)

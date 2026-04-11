@@ -20,6 +20,7 @@ import { PayrollModule } from './payroll/payroll.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { DoorDashModule } from './doordash/doordash.module';
 import { UberEatsModule } from './uber-eats/uber-eats.module';
+import { ToastModule } from './toast/toast.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { TriggerCampaignsModule } from './trigger-campaigns/trigger-campaigns.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -75,6 +76,7 @@ import { VendorPaymentModule } from './vendor-payment/vendor-payment.module';
     MarketingModule,
     DoorDashModule,
     UberEatsModule,
+    ToastModule,
     AnalyticsModule,
     TriggerCampaignsModule,
     CartModule,
