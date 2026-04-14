@@ -50,6 +50,37 @@ const RESTAURANT_LIST_INCLUDE = {
     _count: { select: { staff: true } },
 } as const;
 
+const PUBLIC_RESTAURANT_LIST_SELECT = {
+    id: true,
+    name: true,
+    slug: true,
+    description: true,
+    phone: true,
+    email: true,
+    website: true,
+    address: true,
+    city: true,
+    state: true,
+    country: true,
+    postalCode: true,
+    logoUrl: true,
+    coverUrl: true,
+    cuisineType: true,
+    currency: true,
+    workingHours: {
+        select: { day: true, openTime: true, closeTime: true, isClosed: true },
+        orderBy: { day: 'asc' as const },
+    },
+} as const;
+
+const PUBLIC_RESTAURANT_DETAIL_SELECT = {
+    ...PUBLIC_RESTAURANT_LIST_SELECT,
+    latitude: true,
+    longitude: true,
+    maxCapacity: true,
+    taxRate: true,
+} as const;
+
 const ALL_RESTAURANT_FEATURES = Object.values(RestaurantFeature);
 @Injectable()
 export class RestaurantsService {
@@ -182,6 +213,34 @@ export class RestaurantsService {
         }
     }
 
+    async publicFindAll(page: number = 1, limit: number = 10): Promise<object> {
+        const skip = (page - 1) * limit;
+        const where = { isActive: true };
+
+        const [data, total] = await Promise.all([
+            this.prisma.restaurant.findMany({
+                skip,
+                take: limit,
+                where,
+                select: PUBLIC_RESTAURANT_LIST_SELECT,
+                orderBy: { createdAt: 'desc' },
+            }),
+            this.prisma.restaurant.count({ where }),
+        ]);
+
+        return {
+            data,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+                hasNextPage: page * limit < total,
+                hasPrevPage: page > 1,
+            },
+        };
+    }
+
     // ─── Get Single Restaurant ─────────────────────────────────────────────────
 
     async findOne(actor: User, id: string): Promise<object> {
@@ -194,6 +253,16 @@ export class RestaurantsService {
 
         this.assertCanViewRestaurant(actor, restaurant);
         return this.filterResponse(actor.role, restaurant);
+    }
+
+    async publicFindOne(id: string): Promise<object> {
+        const restaurant = await this.prisma.restaurant.findFirst({
+            where: { id, isActive: true },
+            select: PUBLIC_RESTAURANT_DETAIL_SELECT,
+        });
+
+        if (!restaurant) throw new NotFoundException(`Restaurant ${id} not found`);
+        return restaurant;
     }
 
     // ─── Update Restaurant ─────────────────────────────────────────────────────

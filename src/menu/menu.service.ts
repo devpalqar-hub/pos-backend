@@ -241,6 +241,85 @@ export class MenuService {
     return this.applyDatePricing(result, evaluationDate);
   }
 
+  async publicFindAll(
+    restaurantId: string,
+    page = 1,
+    limit = 10,
+    search?: string,
+    sortBy?: string,
+    date?: Date,
+    fetchAll = false,
+    type?: string,
+    status?: string,
+    categoryId?: string,
+  ) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!restaurant || !restaurant.isActive) {
+      throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+    }
+
+    if (categoryId) {
+      const category = await this.prisma.menuCategory.findFirst({
+        where: { id: categoryId, restaurantId, isActive: true },
+        select: { id: true },
+      });
+
+      if (!category) {
+        throw new NotFoundException(
+          `Category ${categoryId} not found in restaurant ${restaurantId}`,
+        );
+      }
+    }
+
+    const where: any = {
+      restaurantId,
+      isActive: true,
+      ...(categoryId && { categoryId }),
+      ...(search && {
+        OR: [
+          { name: { contains: search } },
+          { description: { contains: search } },
+        ],
+      }),
+    };
+
+    if (type && (type === 'STOCKABLE' || type === 'NON_STOCKABLE')) {
+      where.itemType = type;
+    }
+
+    const result = await paginate({
+      prismaModel: this.prisma.menuItem,
+      page,
+      limit,
+      fetchAll,
+      where,
+      include: {
+        ...ITEM_INCLUDE,
+        priceRules: {
+          include: {
+            days: true,
+          },
+        },
+      },
+      orderBy: categoryId
+        ? sortBy
+          ? this.resolveSort(sortBy)
+          : [{ sortOrder: 'asc' }, { name: 'asc' }]
+        : this.resolveSort(sortBy),
+    });
+
+    if (status) {
+      result.data = this.filterByStatus(result.data, status);
+    }
+
+    const evaluationDate = date ?? new Date();
+    return this.applyDatePricing(result, evaluationDate);
+  }
+
   // ─── List by category ─────────────────────────────────────────────────────
 
   async findByCategory(
@@ -342,6 +421,30 @@ export class MenuService {
 
     const item = await this.prisma.menuItem.findFirst({
       where: { id, restaurantId },
+      include: ITEM_INCLUDE,
+    });
+
+    if (!item) {
+      throw new NotFoundException(
+        `Menu item ${id} not found in restaurant ${restaurantId}`,
+      );
+    }
+
+    return item;
+  }
+
+  async publicFindOne(restaurantId: string, id: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!restaurant || !restaurant.isActive) {
+      throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+    }
+
+    const item = await this.prisma.menuItem.findFirst({
+      where: { id, restaurantId, isActive: true },
       include: ITEM_INCLUDE,
     });
 

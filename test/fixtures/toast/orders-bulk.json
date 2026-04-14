@@ -1,0 +1,68 @@
+[
+    {
+        "guid": "ord_1001",
+        "externalId": "toast-order-1001",
+        "openedDate": "2026-04-10T10:15:00.000Z",
+        "modifiedDate": "2026-04-10T10:30:00.000Z",
+        "numberOfGuests": 2,
+        "voided": false,
+        "deleted": false,
+        "checks": [
+            {
+                "guid": "chk_1001",
+                "selections": [
+                    {
+                        "guid": "sel_1001",
+                        "quantity": 2,
+                        "preDiscountPrice": 899,
+                        "displayName": "Classic Burger",
+                        "item": {
+                            "guid": "itm_classic_burger",
+                            "name": "Classic Burger"
+                        }
+                    },
+                    {
+                        "guid": "sel_1002",
+                        "quantity": 1,
+                        "preDiscountPrice": 299,
+                        "displayName": "Coke",
+                        "item": {
+                            "guid": "itm_coke",
+                            "name": "Coke"
+                        }
+                    }
+                ]
+            }
+        ],
+        "deliveryInfo": {
+            "address1": "123 Main Street",
+            "notes": "Ring bell once"
+        }
+    },
+    {
+        "guid": "ord_1002",
+        "externalId": "toast-order-1002",
+        "openedDate": "2026-04-10T11:00:00.000Z",
+        "modifiedDate": "2026-04-10T11:05:00.000Z",
+        "numberOfGuests": 1,
+        "voided": false,
+        "deleted": false,
+        "checks": [
+            {
+                "guid": "chk_1002",
+                "selections": [
+                    {
+                        "guid": "sel_2001",
+                        "quantity": 1,
+                        "preDiscountPrice": 799,
+                        "displayName": "Veggie Burger",
+                        "item": {
+                            "guid": "itm_veggie_burger",
+                            "name": "Veggie Burger"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+]

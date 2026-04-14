@@ -1,0 +1,48 @@
+{
+    "restaurantGuid": "4721e7a9-b4ae-4fef-9230-b3dae186e0a4",
+    "lastUpdated": "2026-04-10T12:00:00.000Z",
+    "restaurantTimeZone": "America/Los_Angeles",
+    "menus": [
+        {
+            "name": "Main Menu",
+            "itemGroupReferences": [
+                "grp_burgers",
+                "grp_drinks"
+            ]
+        }
+    ],
+    "itemGroupReferences": {
+        "grp_burgers": {
+            "guid": "grp_burgers",
+            "name": "Burgers",
+            "itemReferences": [
+                "itm_classic_burger",
+                "itm_veggie_burger"
+            ]
+        },
+        "grp_drinks": {
+            "guid": "grp_drinks",
+            "name": "Drinks",
+            "itemReferences": [
+                "itm_coke"
+            ]
+        }
+    },
+    "itemReferences": {
+        "itm_classic_burger": {
+            "guid": "itm_classic_burger",
+            "name": "Classic Burger",
+            "price": 899
+        },
+        "itm_veggie_burger": {
+            "guid": "itm_veggie_burger",
+            "name": "Veggie Burger",
+            "price": 799
+        },
+        "itm_coke": {
+            "guid": "itm_coke",
+            "name": "Coke",
+            "price": 299
+        }
+    }
+}

@@ -29,6 +29,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '@prisma/client'
+import { Public } from '../common/decorators/public.decorator';
 @ApiTags('Restaurants')
 @ApiBearerAuth('Bearer')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -91,6 +92,24 @@ Returns restaurants visible to the authenticated user:
         };
     }
 
+    @Public()
+    @Get('public')
+    @ApiOperation({
+        summary: 'Public list of active restaurants',
+        description: 'Returns all active restaurants without authentication.',
+    })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiResponse({ status: 200, description: 'Public restaurant list returned.' })
+    async publicFindAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+        const pageNum = parseInt(page ?? '1');
+        const limitNum = parseInt(limit ?? '10');
+        return {
+            message: 'Public restaurants fetched successfully',
+            data: await this.restaurantsService.publicFindAll(pageNum, limitNum),
+        };
+    }
+
     // ─── Get Single Restaurant ────────────────────────────────────────────────
 
     @Get(':id')
@@ -111,6 +130,22 @@ Returns restaurants visible to the authenticated user:
         return {
             message: 'Restaurant fetched successfully',
             data: await this.restaurantsService.findOne(actor, id),
+        };
+    }
+
+    @Public()
+    @Get('public/:id')
+    @ApiParam({ name: 'id', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Public get restaurant by ID',
+        description: 'Returns a single active restaurant without authentication.',
+    })
+    @ApiResponse({ status: 200, description: 'Public restaurant found.' })
+    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    async publicFindOne(@Param('id', ParseUUIDPipe) id: string) {
+        return {
+            message: 'Public restaurant fetched successfully',
+            data: await this.restaurantsService.publicFindOne(id),
         };
     }
 

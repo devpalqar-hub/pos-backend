@@ -1,0 +1,11 @@
+{
+    "token": {
+        "tokenType": "Bearer",
+        "scope": null,
+        "expiresIn": 3600,
+        "accessToken": "mock-toast-access-token",
+        "idToken": null,
+        "refreshToken": null
+    },
+    "status": "SUCCESS"
+}

@@ -209,6 +209,104 @@ Creates a new item in the restaurant menu.
     };
   }
 
+  @Public()
+  @Get('public')
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    description: 'Filter by category UUID',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search menu item by name or description',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    type: String,
+    description: 'Sort menu items (newest | oldest | price_asc | price_desc | name_asc | name_desc)',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    description: 'ISO date (YYYY-MM-DD or full ISO string) to evaluate price rules',
+  })
+  @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by item type (STOCKABLE | NON_STOCKABLE)' })
+  @ApiQuery({ name: 'status', required: false, type: String, description: 'Filter by stock status (low_stock | out_of_stock | in_stock)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiQuery({ name: 'fetchAll', required: false, type: Boolean, description: 'If true, returns all items without pagination' })
+  @ApiOperation({
+    summary: 'Public list menu items for a restaurant',
+    description: 'Returns active menu items for a restaurant without authentication.',
+  })
+  @ApiResponse({ status: 200, description: 'Public menu items returned.' })
+  @ApiResponse({ status: 404, description: 'Restaurant or category not found.' })
+  async publicFindAll(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('type') type?: string,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('date') date?: string,
+    @Query('fetchAll') fetchAll?: string,
+  ) {
+    const pageNum = parseInt(page ?? '1');
+    const limitNum = parseInt(limit ?? '10');
+    const shouldFetchAll = fetchAll === 'true';
+    const parsedDate = date ? new Date(date) : undefined;
+
+    const rawResult = await this.menuService.publicFindAll(
+      restaurantId,
+      pageNum,
+      limitNum,
+      search,
+      sortBy,
+      parsedDate,
+      shouldFetchAll,
+      type,
+      status,
+      categoryId,
+    );
+
+    const formatItem = (item) => ({
+      id: item.id,
+      restaurantId: item.restaurantId,
+      categoryId: item.categoryId,
+      name: item.name,
+      description: item.description,
+      price: item.price?.toString?.() ?? null,
+      discountedPrice: item.discountedPrice?.toString?.() ?? null,
+      imageUrl: item.imageUrl,
+      itemType: item.itemType,
+      stockCount: item.stockCount,
+      isAvailable: item.isAvailable,
+      isOutOfStock: item.isOutOfStock,
+      outOfStockAt: item.outOfStockAt,
+      isActive: item.isActive,
+      sortOrder: item.sortOrder,
+      category: item.category ? { id: item.category.id, name: item.category.name } : null,
+      effectivePrice: item.effectivePrice?.toString?.() ?? (item.discountedPrice?.toString?.() ?? item.price?.toString?.()),
+    });
+
+    const data = {
+      ...rawResult,
+      data: Array.isArray(rawResult.data) ? rawResult.data.map(formatItem) : [],
+    };
+
+    return {
+      message: 'Public menu items fetched successfully',
+      data,
+    };
+  }
+
   // ─── Get One ──────────────────────────────────────────────────────────────
 
   @Get(':id')
@@ -228,6 +326,26 @@ Creates a new item in the restaurant menu.
     return {
       message: 'Menu item fetched successfully',
       data: await this.menuService.findOne(actor, restaurantId, id),
+    };
+  }
+
+  @Public()
+  @Get('public/:id')
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'id', description: 'Menu item UUID' })
+  @ApiOperation({
+    summary: 'Public get menu item by ID',
+    description: 'Returns a single active menu item without authentication.',
+  })
+  @ApiResponse({ status: 200, description: 'Public menu item found.' })
+  @ApiResponse({ status: 404, description: 'Menu item or restaurant not found.' })
+  async publicFindOne(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return {
+      message: 'Public menu item fetched successfully',
+      data: await this.menuService.publicFindOne(restaurantId, id),
     };
   }
 

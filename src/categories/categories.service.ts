@@ -78,6 +78,43 @@ export class CategoriesService {
     });
   }
 
+  async publicFindAll(restaurantId: string, page = 1, limit = 10, search?: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!restaurant || !restaurant.isActive) {
+      throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+    }
+
+    return paginate({
+      prismaModel: this.prisma.menuCategory,
+      page,
+      limit,
+      where: {
+        restaurantId,
+        isActive: true,
+        ...(search && {
+          OR: [
+            {
+              name: {
+                contains: search,
+              },
+            },
+            {
+              description: {
+                contains: search,
+              },
+            },
+          ],
+        }),
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: { _count: { select: { items: true } } },
+    });
+  }
+
   // ─── Get One ──────────────────────────────────────────────────────────────
 
   async findOne(actor: User, restaurantId: string, id: string) {
@@ -85,6 +122,45 @@ export class CategoriesService {
 
     const category = await this.prisma.menuCategory.findFirst({
       where: { id, restaurantId },
+      include: {
+        items: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            discountedPrice: true,
+            imageUrl: true,
+            itemType: true,
+            isOutOfStock: true,
+            isAvailable: true,
+            stockCount: true,
+          },
+        },
+        _count: { select: { items: true } },
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category ${id} not found in restaurant ${restaurantId}`);
+    }
+
+    return category;
+  }
+
+  async publicFindOne(restaurantId: string, id: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!restaurant || !restaurant.isActive) {
+      throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+    }
+
+    const category = await this.prisma.menuCategory.findFirst({
+      where: { id, restaurantId, isActive: true },
       include: {
         items: {
           where: { isActive: true },

@@ -28,6 +28,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '@prisma/client';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Categories')
 @ApiBearerAuth('Bearer')
@@ -101,6 +102,40 @@ Creates a new category for the specified restaurant. Category names are **unique
     };
   }
 
+  @Public()
+  @Get('public')
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search category by name or description',
+  })
+  @ApiOperation({
+    summary: 'Public list categories for a restaurant',
+    description: 'Returns active categories for a restaurant without authentication.',
+  })
+  @ApiResponse({ status: 200, description: 'Public category list returned.' })
+  @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+  async publicFindAll(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return {
+      message: 'Public categories fetched successfully',
+      data: await this.categoriesService.publicFindAll(
+        restaurantId,
+        parseInt(page ?? '1'),
+        parseInt(limit ?? '10'),
+        search,
+      ),
+    };
+  }
+
   // ─── Get One ──────────────────────────────────────────────────────────────
 
   @Get(':id')
@@ -121,6 +156,26 @@ Creates a new category for the specified restaurant. Category names are **unique
     return {
       message: 'Category fetched successfully',
       data: await this.categoriesService.findOne(actor, restaurantId, id),
+    };
+  }
+
+  @Public()
+  @Get('public/:id')
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'id', description: 'Category UUID' })
+  @ApiOperation({
+    summary: 'Public get category by ID',
+    description: 'Returns a single active category with active menu items without authentication.',
+  })
+  @ApiResponse({ status: 200, description: 'Public category found.' })
+  @ApiResponse({ status: 404, description: 'Category or restaurant not found.' })
+  async publicFindOne(
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return {
+      message: 'Public category fetched successfully',
+      data: await this.categoriesService.publicFindOne(restaurantId, id),
     };
   }
 
