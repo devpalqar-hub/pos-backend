@@ -48,7 +48,6 @@ export class CustomersAuthService {
     async sendOtp(restaurantId: string, dto: SendOtpDto) {
         const customer = await this.prisma.customer.findFirst({
             where: {
-                restaurantId,
                 email: dto.email,
             },
         });
@@ -70,21 +69,20 @@ export class CustomersAuthService {
             },
         });
 
-        await this.sendOtpEmail(restaurantId, dto.email, otp, customer.name);
+        // await this.sendOtpEmail(dto.email, otp, customer.name);
 
-        return { email: dto.email };
+        return { email: dto.email, otp };
     }
 
     /*
     VERIFY OTP
     */
 
-    async verifyOtp(restaurantId: string, dto: VerifyOtpDto) {
+    async verifyOtp(dto: VerifyOtpDto) {
         const { email, otp } = dto;
 
         const customer = await this.prisma.customer.findFirst({
             where: {
-                restaurantId,
                 email,
             },
             include: {

@@ -16,7 +16,7 @@ import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Customer Authentication')
-@Controller('restaurants/:restaurantId/customers')
+@Controller('customers')
 export class CustomersAuthController {
     constructor(private readonly authService: CustomersAuthService) { }
 
@@ -73,7 +73,7 @@ If valid, OTP is cleared from the database.
     ) {
         return {
             message: 'OTP verified successfully',
-            data: await this.authService.verifyOtp(restaurantId, dto),
+            data: await this.authService.verifyOtp(dto),
         };
     }
 

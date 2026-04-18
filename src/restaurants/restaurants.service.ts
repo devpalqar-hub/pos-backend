@@ -213,9 +213,12 @@ export class RestaurantsService {
         }
     }
 
-    async publicFindAll(page: number = 1, limit: number = 10): Promise<object> {
+    async publicFindAll(page: number = 1, limit: number = 10, ownerId?: string): Promise<object> {
         const skip = (page - 1) * limit;
-        const where = { isActive: true };
+        const where = {
+            isActive: true,
+            ...(ownerId ? { ownerId } : {}),
+        };
 
         const [data, total] = await Promise.all([
             this.prisma.restaurant.findMany({
