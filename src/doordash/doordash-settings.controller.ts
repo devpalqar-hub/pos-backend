@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Put,
+  Patch,
   Delete,
   Post,
   Body,
@@ -34,7 +35,7 @@ import { User, UserRole } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('restaurants/:restaurantId/doordash')
 export class DoorDashSettingsController {
-  constructor(private readonly doorDashService: DoorDashService) {}
+  constructor(private readonly doorDashService: DoorDashService) { }
 
   // ─── Settings ─────────────────────────────────────────────────────────────
 
@@ -244,6 +245,186 @@ Supply at least one of \`doorDashItemId\` or \`doorDashItemName\`.
     return {
       message: 'Webhook log fetched successfully',
       data: await this.doorDashService.getWebhookLog(actor, restaurantId, logId),
+    };
+  }
+
+  // ─── DoorDash Drive Delivery API ─────────────────────────────────────────
+
+  @Post('drive/quotes')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Create Quote',
+    description:
+      'Pass-through wrapper over POST /drive/v2/quotes. ' +
+      'Use this to validate serviceability and fee before accepting/creating delivery.',
+  })
+  async createDriveQuote(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Body() payload: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash quote created successfully',
+      data: await this.doorDashService.createDriveQuote(actor, restaurantId, payload),
+    };
+  }
+
+  @Post('drive/quotes/:externalDeliveryId/accept')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'externalDeliveryId', description: 'DoorDash external_delivery_id' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Accept Quote',
+    description:
+      'Pass-through wrapper over POST /drive/v2/quotes/{external_delivery_id}/accept.',
+  })
+  async acceptDriveQuote(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('externalDeliveryId') externalDeliveryId: string,
+    @Body() payload?: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash quote accepted successfully',
+      data: await this.doorDashService.acceptDriveQuote(
+        actor,
+        restaurantId,
+        externalDeliveryId,
+        payload,
+      ),
+    };
+  }
+
+  @Post('drive/deliveries')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Create Delivery',
+    description: 'Pass-through wrapper over POST /drive/v2/deliveries.',
+  })
+  async createDriveDelivery(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Body() payload: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash delivery created successfully',
+      data: await this.doorDashService.createDriveDelivery(actor, restaurantId, payload),
+    };
+  }
+
+  @Get('drive/deliveries/:externalDeliveryId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'externalDeliveryId', description: 'DoorDash external_delivery_id' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Get Delivery',
+    description: 'Pass-through wrapper over GET /drive/v2/deliveries/{external_delivery_id}.',
+  })
+  async getDriveDelivery(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('externalDeliveryId') externalDeliveryId: string,
+  ) {
+    return {
+      message: 'DoorDash delivery fetched successfully',
+      data: await this.doorDashService.getDriveDelivery(actor, restaurantId, externalDeliveryId),
+    };
+  }
+
+  @Patch('drive/deliveries/:externalDeliveryId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'externalDeliveryId', description: 'DoorDash external_delivery_id' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Update Delivery',
+    description: 'Pass-through wrapper over PATCH /drive/v2/deliveries/{external_delivery_id}.',
+  })
+  async updateDriveDelivery(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('externalDeliveryId') externalDeliveryId: string,
+    @Body() payload: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash delivery updated successfully',
+      data: await this.doorDashService.updateDriveDelivery(
+        actor,
+        restaurantId,
+        externalDeliveryId,
+        payload,
+      ),
+    };
+  }
+
+  @Put('drive/deliveries/:externalDeliveryId/cancel')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'externalDeliveryId', description: 'DoorDash external_delivery_id' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Cancel Delivery',
+    description: 'Pass-through wrapper over PUT /drive/v2/deliveries/{external_delivery_id}/cancel.',
+  })
+  async cancelDriveDelivery(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('externalDeliveryId') externalDeliveryId: string,
+    @Body() payload?: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash delivery cancelled successfully',
+      data: await this.doorDashService.cancelDriveDelivery(
+        actor,
+        restaurantId,
+        externalDeliveryId,
+        payload,
+      ),
+    };
+  }
+
+  @Post('drive/serviceability')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Check Serviceability',
+    description: 'Pass-through wrapper over POST /drive/v2/serviceability.',
+  })
+  async checkDriveServiceability(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Body() payload: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash serviceability checked successfully',
+      data: await this.doorDashService.checkDriveServiceability(actor, restaurantId, payload),
+    };
+  }
+
+  @Post('drive/items-substitution-recommendation')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiOperation({
+    summary: 'DoorDash Drive: Get Items Substitution Recommendation',
+    description: 'Pass-through wrapper over POST /drive/v2/items_substitution_recommendation.',
+  })
+  async getDriveItemsSubstitutionRecommendation(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Body() payload: Record<string, unknown>,
+  ) {
+    return {
+      message: 'DoorDash substitution recommendations fetched successfully',
+      data: await this.doorDashService.getDriveItemsSubstitutionRecommendation(
+        actor,
+        restaurantId,
+        payload,
+      ),
     };
   }
 }

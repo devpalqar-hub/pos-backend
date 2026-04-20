@@ -31,7 +31,7 @@ import { Public } from '../common/decorators/public.decorator';
 @ApiTags('DoorDash — Webhook (Public)')
 @Controller('doordash/webhook')
 export class DoorDashWebhookController {
-  constructor(private readonly doorDashService: DoorDashService) {}
+  constructor(private readonly doorDashService: DoorDashService) { }
 
   /**
    * POST /api/v1/doordash/webhook/:restaurantId
@@ -72,6 +72,15 @@ POST https://your-domain.com/api/v1/doordash/webhook/<restaurantId>
 | \`ORDER_UPDATED\` | Logged only |
 | \`ORDER_PICKED_UP\` | Logged only |
 | \`ORDER_DELIVERED\` | Logged only |
+
+### Drive delivery status updates
+For ONLINE_OWN orders routed to DoorDash Drive, this endpoint also accepts payloads containing:
+- \`external_delivery_id\`
+- \`delivery_status\`
+- optional \`tracking_url\`
+
+When received, the backend links the update to the matching POS \`OrderSession\` and emits
+\`delivery:status:changed\` websocket events for real-time tracking in staff dashboards.
 
 ### Payload example
 \`\`\`json

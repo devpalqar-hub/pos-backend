@@ -7,6 +7,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import axios from 'axios';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   User,
@@ -16,6 +18,7 @@ import {
 } from '@prisma/client';
 import { UpsertDoorDashSettingsDto } from './dto/upsert-settings.dto';
 import { CreateItemMappingDto } from './dto/create-item-mapping.dto';
+import { OrdersGateway } from '../orders/orders.gateway';
 
 // ─── DoorDash webhook payload shape ──────────────────────────────────────────
 // Loosely typed — DoorDash may evolve the schema.
@@ -24,6 +27,14 @@ interface DoorDashWebhookPayload {
   event_type?: string;       // "ORDER_CREATED" | "ORDER_CANCELLED" | etc.
   created_at?: string;
   order?: DoorDashOrder;
+  external_delivery_id?: string;
+  delivery_status?: string;
+  tracking_url?: string;
+  data?: {
+    external_delivery_id?: string;
+    delivery_status?: string;
+    tracking_url?: string;
+  };
 }
 
 interface DoorDashOrder {
@@ -62,13 +73,24 @@ interface DoorDashItemOption {
   unit_price?: number;
 }
 
+interface DoorDashDriveDeliveryResponse {
+  external_delivery_id?: string;
+  delivery_status?: string;
+  tracking_url?: string;
+  fee?: number;
+}
+
+type DoorDashDriveMethod = 'get' | 'post' | 'patch' | 'put';
+
 @Injectable()
 export class DoorDashService {
   private readonly logger = new Logger(DoorDashService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-  ) {}
+    private readonly configService: ConfigService,
+    private readonly ordersGateway: OrdersGateway,
+  ) { }
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  Settings
@@ -235,6 +257,262 @@ export class DoorDashService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  //  DoorDash Drive API wrappers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async createDriveQuote(
+    actor: User,
+    restaurantId: string,
+    payload: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(restaurantId, 'post', '/drive/v2/quotes', payload);
+  }
+
+  async acceptDriveQuote(
+    actor: User,
+    restaurantId: string,
+    externalDeliveryId: string,
+    payload?: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(
+      restaurantId,
+      'post',
+      `/drive/v2/quotes/${encodeURIComponent(externalDeliveryId)}/accept`,
+      payload,
+    );
+  }
+
+  async createDriveDelivery(
+    actor: User,
+    restaurantId: string,
+    payload: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(restaurantId, 'post', '/drive/v2/deliveries', payload);
+  }
+
+  async getDriveDelivery(
+    actor: User,
+    restaurantId: string,
+    externalDeliveryId: string,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(
+      restaurantId,
+      'get',
+      `/drive/v2/deliveries/${encodeURIComponent(externalDeliveryId)}`,
+    );
+  }
+
+  async updateDriveDelivery(
+    actor: User,
+    restaurantId: string,
+    externalDeliveryId: string,
+    payload: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(
+      restaurantId,
+      'patch',
+      `/drive/v2/deliveries/${encodeURIComponent(externalDeliveryId)}`,
+      payload,
+    );
+  }
+
+  async cancelDriveDelivery(
+    actor: User,
+    restaurantId: string,
+    externalDeliveryId: string,
+    payload?: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(
+      restaurantId,
+      'put',
+      `/drive/v2/deliveries/${encodeURIComponent(externalDeliveryId)}/cancel`,
+      payload,
+    );
+  }
+
+  async checkDriveServiceability(
+    actor: User,
+    restaurantId: string,
+    payload: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(restaurantId, 'post', '/drive/v2/serviceability', payload);
+  }
+
+  async getDriveItemsSubstitutionRecommendation(
+    actor: User,
+    restaurantId: string,
+    payload: Record<string, unknown>,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+    return this.callDriveApi(
+      restaurantId,
+      'post',
+      '/drive/v2/items_substitution_recommendation',
+      payload,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Drive delivery creation (ONLINE_OWN -> DoorDash Drive)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async createDriveDeliveryForSession(
+    restaurantId: string,
+    sessionId: string,
+  ): Promise<{
+    externalDeliveryId: string;
+    deliveryStatus: string | null;
+    trackingUrl: string | null;
+  }> {
+    const settings = await this.prisma.doorDashSettings.findUnique({
+      where: { restaurantId },
+    });
+
+    if (!settings || !settings.isActive) {
+      throw new BadRequestException('DoorDash is not configured for this restaurant');
+    }
+
+    const session = await this.prisma.orderSession.findFirst({
+      where: { id: sessionId, restaurantId },
+      include: {
+        restaurant: true,
+        batches: {
+          include: {
+            items: {
+              include: {
+                menuItem: {
+                  select: { name: true },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Order session ${sessionId} not found`);
+    }
+
+    if (session.channel !== 'ONLINE_OWN') {
+      throw new BadRequestException('DoorDash Drive can only be created for ONLINE_OWN sessions');
+    }
+
+    if (!session.deliveryAddress) {
+      throw new BadRequestException('Delivery address is required to create DoorDash delivery');
+    }
+
+    if (!session.customerPhone) {
+      throw new BadRequestException('Customer phone is required to create DoorDash delivery');
+    }
+
+    if (!session.restaurant.address) {
+      throw new BadRequestException('Restaurant address is required before creating DoorDash delivery');
+    }
+
+    const sessionItems = session.batches.flatMap((batch) => batch.items);
+
+    if (!sessionItems.length) {
+      throw new BadRequestException('Cannot create delivery for a session with no items');
+    }
+
+    const existingDeliveryId = session.externalChannel === 'DOORDASH_DRIVE'
+      ? session.externalOrderId
+      : null;
+
+    if (existingDeliveryId) {
+      return {
+        externalDeliveryId: existingDeliveryId,
+        deliveryStatus: null,
+        trackingUrl: null,
+      };
+    }
+
+    const now = Date.now();
+    const externalDeliveryId = `sess-${session.sessionNumber}-${now}`;
+
+    const firstName = session.customerName?.trim().split(' ')[0] || 'Customer';
+    const familyNameParts = session.customerName?.trim().split(' ').slice(1) ?? [];
+
+    const payload = {
+      external_delivery_id: externalDeliveryId,
+      pickup_address: session.restaurant.address,
+      pickup_business_name: session.restaurant.name,
+      pickup_phone_number: session.restaurant.phone ?? session.customerPhone,
+      pickup_reference_tag: `POS-${session.sessionNumber}`,
+      dropoff_address: session.deliveryAddress,
+      dropoff_phone_number: session.customerPhone,
+      dropoff_contact_given_name: firstName,
+      dropoff_contact_family_name: familyNameParts.join(' ') || undefined,
+      dropoff_email_address: session.customerEmail ?? undefined,
+      dropoff_contact_send_notifications: true,
+      order_value: Math.round(Number(session.subtotal ?? session.totalAmount ?? 0) * 100),
+      items: sessionItems.map((item) => ({
+        name: item.menuItem.name,
+        quantity: item.quantity,
+        price: Math.round(Number(item.unitPrice) * 100),
+      })),
+      pickup_instructions: 'Order from POS online checkout.',
+      dropoff_instructions: session.specialInstructions ?? undefined,
+    };
+
+    const token = this.generateDoorDashJwt(settings.developerId, settings.keyId, settings.signingSecret);
+    const baseUrl = this.configService.get<string>('DOORDASH_DRIVE_BASE_URL') ?? 'https://openapi.doordash.com';
+
+    const driveResponse = await this.callDriveApi<DoorDashDriveDeliveryResponse>(
+      restaurantId,
+      'post',
+      '/drive/v2/deliveries',
+      payload,
+      {
+        baseUrl,
+        token,
+      },
+    );
+
+    await this.prisma.orderSession.update({
+      where: { id: session.id },
+      data: {
+        externalOrderId: driveResponse.external_delivery_id ?? externalDeliveryId,
+        externalChannel: 'DOORDASH_DRIVE',
+        deliveryFee:
+          driveResponse.fee != null ? Number((driveResponse.fee / 100).toFixed(2)) : undefined,
+      },
+    });
+
+    await this.prisma.orderSessionUpdateTime.create({
+      data: {
+        orderSessionId: session.id,
+        fieldChanged: 'delivery status',
+        oldValue: null,
+        newValue: driveResponse.delivery_status ?? 'created',
+      },
+    });
+
+    this.ordersGateway.emitToRestaurant(restaurantId, 'delivery:status:changed', {
+      sessionId: session.id,
+      externalDeliveryId: driveResponse.external_delivery_id ?? externalDeliveryId,
+      status: driveResponse.delivery_status ?? 'created',
+      trackingUrl: driveResponse.tracking_url ?? null,
+      provider: 'DOORDASH_DRIVE',
+    });
+
+    return {
+      externalDeliveryId: driveResponse.external_delivery_id ?? externalDeliveryId,
+      deliveryStatus: driveResponse.delivery_status ?? null,
+      trackingUrl: driveResponse.tracking_url ?? null,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   //  Webhook
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -268,18 +546,19 @@ export class DoorDashService {
     }
 
     const eventType = this.mapEventType(payload.event_type);
+    const driveUpdate = this.extractDriveStatusUpdate(payload);
 
     if (!settings || !settings.isActive) {
-      await this.logWebhook(restaurantId, payload.id, eventType, rawBody, payload, DoorDashWebhookStatus.IGNORED, null, 'DoorDash not configured or inactive');
-      return { received: true, event: payload.event_type ?? 'UNKNOWN', sessionId: null };
+      await this.logWebhook(restaurantId, payload.id ?? driveUpdate.externalDeliveryId, eventType, rawBody, payload, DoorDashWebhookStatus.IGNORED, null, 'DoorDash not configured or inactive');
+      return { received: true, event: payload.event_type ?? driveUpdate.deliveryStatus ?? 'UNKNOWN', sessionId: null };
     }
 
     // 2. Verify signature
     if (!this.verifySignature(rawBody, signature, settings.webhookSecret)) {
-      await this.logWebhook(restaurantId, payload.id, eventType, rawBody, payload, DoorDashWebhookStatus.FAILED, null, 'Invalid signature');
+      await this.logWebhook(restaurantId, payload.id ?? driveUpdate.externalDeliveryId, eventType, rawBody, payload, DoorDashWebhookStatus.FAILED, null, 'Invalid signature');
       this.logger.warn(`DoorDash: signature mismatch for restaurant ${restaurantId}`);
       // Return 200 anyway to prevent DoorDash flooding retries — but mark as FAILED internally
-      return { received: true, event: payload.event_type ?? 'UNKNOWN', sessionId: null };
+      return { received: true, event: payload.event_type ?? driveUpdate.deliveryStatus ?? 'UNKNOWN', sessionId: null };
     }
 
     // 3. Route by event type
@@ -288,21 +567,42 @@ export class DoorDashService {
     let errorMsg: string | null = null;
 
     try {
-      if (eventType === DoorDashEventType.ORDER_CREATED && settings.autoCreateOrders) {
+      if (driveUpdate.externalDeliveryId && driveUpdate.deliveryStatus) {
+        sessionId = await this.processDriveDeliveryStatusUpdate(
+          restaurantId,
+          driveUpdate.externalDeliveryId,
+          driveUpdate.deliveryStatus,
+          driveUpdate.trackingUrl,
+        );
+      } else if (eventType === DoorDashEventType.ORDER_CREATED && settings.autoCreateOrders) {
         sessionId = await this.processOrderCreated(restaurantId, payload, settings);
       } else {
         // Other event types (cancelled, picked up, delivered) — just log for now
         status = DoorDashWebhookStatus.IGNORED;
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       status = DoorDashWebhookStatus.FAILED;
-      errorMsg = err.message;
-      this.logger.error(`DoorDash order processing error: ${err.message}`, err.stack);
+      errorMsg = error.message;
+      this.logger.error(`DoorDash order processing error: ${error.message}`, error.stack);
     }
 
-    await this.logWebhook(restaurantId, payload.id, eventType, rawBody, payload, status, sessionId, errorMsg);
+    await this.logWebhook(
+      restaurantId,
+      payload.id ?? driveUpdate.externalDeliveryId,
+      eventType,
+      rawBody,
+      payload,
+      status,
+      sessionId,
+      errorMsg,
+    );
 
-    return { received: true, event: payload.event_type ?? 'UNKNOWN', sessionId };
+    return {
+      received: true,
+      event: payload.event_type ?? driveUpdate.deliveryStatus ?? 'UNKNOWN',
+      sessionId,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -365,6 +665,72 @@ export class DoorDashService {
   // ═══════════════════════════════════════════════════════════════════════════
   //  Order processing
   // ═══════════════════════════════════════════════════════════════════════════
+
+  private extractDriveStatusUpdate(payload: DoorDashWebhookPayload): {
+    externalDeliveryId: string | null;
+    deliveryStatus: string | null;
+    trackingUrl: string | null;
+  } {
+    const externalDeliveryId =
+      payload.external_delivery_id ?? payload.data?.external_delivery_id ?? null;
+    const deliveryStatus = payload.delivery_status ?? payload.data?.delivery_status ?? null;
+    const trackingUrl = payload.tracking_url ?? payload.data?.tracking_url ?? null;
+
+    return {
+      externalDeliveryId,
+      deliveryStatus: deliveryStatus ? String(deliveryStatus).toLowerCase() : null,
+      trackingUrl,
+    };
+  }
+
+  private async processDriveDeliveryStatusUpdate(
+    restaurantId: string,
+    externalDeliveryId: string,
+    deliveryStatus: string,
+    trackingUrl: string | null,
+  ): Promise<string | null> {
+    const session = await this.prisma.orderSession.findFirst({
+      where: {
+        restaurantId,
+        externalOrderId: externalDeliveryId,
+        externalChannel: 'DOORDASH_DRIVE',
+      },
+      include: {
+        orderSessionUpdateTimes: {
+          where: { fieldChanged: 'delivery status' },
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!session) {
+      this.logger.warn(
+        `DoorDash Drive webhook received for unknown external delivery ${externalDeliveryId} (restaurant ${restaurantId})`,
+      );
+      return null;
+    }
+
+    const previousStatus = session.orderSessionUpdateTimes[0]?.newValue ?? null;
+    await this.prisma.orderSessionUpdateTime.create({
+      data: {
+        orderSessionId: session.id,
+        fieldChanged: 'delivery status',
+        oldValue: previousStatus,
+        newValue: deliveryStatus,
+      },
+    });
+
+    this.ordersGateway.emitToRestaurant(restaurantId, 'delivery:status:changed', {
+      sessionId: session.id,
+      externalDeliveryId,
+      status: deliveryStatus,
+      trackingUrl,
+      provider: 'DOORDASH_DRIVE',
+    });
+
+    return session.id;
+  }
 
   private async processOrderCreated(
     restaurantId: string,
@@ -481,6 +847,90 @@ export class DoorDashService {
   // ═══════════════════════════════════════════════════════════════════════════
   //  Internal helpers
   // ═══════════════════════════════════════════════════════════════════════════
+
+  private generateDoorDashJwt(
+    developerId: string,
+    keyId: string,
+    signingSecret: string,
+  ): string {
+    const now = Math.floor(Date.now() / 1000);
+    const header = {
+      alg: 'HS256',
+      typ: 'JWT',
+      kid: keyId,
+    };
+    const payload = {
+      iss: developerId,
+      aud: 'doordash',
+      iat: now,
+      exp: now + 5 * 60,
+    };
+
+    const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
+    const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
+    const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+
+    const signature = crypto
+      .createHmac('sha256', signingSecret)
+      .update(unsignedToken)
+      .digest('base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+
+    return `${unsignedToken}.${signature}`;
+  }
+
+  private base64UrlEncode(value: string): string {
+    return Buffer.from(value)
+      .toString('base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+  }
+
+  private async callDriveApi<T = any>(
+    restaurantId: string,
+    method: DoorDashDriveMethod,
+    path: string,
+    payload?: Record<string, unknown>,
+    overrideAuth?: { baseUrl: string; token: string },
+  ): Promise<T> {
+    const settings = await this.requireSettings(restaurantId);
+    if (!settings.isActive) {
+      throw new BadRequestException('DoorDash integration is configured but inactive for this restaurant');
+    }
+
+    const baseUrl = overrideAuth?.baseUrl
+      ?? this.configService.get<string>('DOORDASH_DRIVE_BASE_URL')
+      ?? 'https://openapi.doordash.com';
+
+    const token = overrideAuth?.token
+      ?? this.generateDoorDashJwt(settings.developerId, settings.keyId, settings.signingSecret);
+
+    try {
+      const { data } = await axios.request<T>({
+        url: `${baseUrl}${path}`,
+        method,
+        data: payload,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+      });
+      return data;
+    } catch (err: unknown) {
+      const error = err as any;
+      const providerMessage =
+        error?.response?.data?.message
+        ?? error?.response?.data?.error
+        ?? error?.response?.data?.errors?.[0]?.message
+        ?? error?.message
+        ?? 'DoorDash Drive API request failed';
+      throw new BadRequestException(`DoorDash Drive request failed: ${providerMessage}`);
+    }
+  }
 
   /**
    * Verifies the DoorDash HMAC-SHA256 signature.
@@ -609,8 +1059,9 @@ export class DoorDashService {
           errorMessage,
         },
       });
-    } catch (logErr) {
-      this.logger.error(`DoorDash: failed to write webhook log: ${logErr.message}`);
+    } catch (logErr: unknown) {
+      const error = logErr instanceof Error ? logErr : new Error(String(logErr));
+      this.logger.error(`DoorDash: failed to write webhook log: ${error.message}`);
     }
   }
 

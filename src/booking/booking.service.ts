@@ -3,21 +3,26 @@ import {
     Injectable,
     NotFoundException,
     ForbiddenException,
+    Logger,
 } from '@nestjs/common';
 import { CouponDiscountType, PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { DoorDashService } from '../doordash/doordash.service';
 
 import { OrderChannel } from '@prisma/client';
 
 @Injectable()
 export class BookingService {
+    private readonly logger = new Logger(BookingService.name);
+
     constructor(
         private prisma: PrismaService,
         private cartService: CartService,
         private gateway: OrdersGateway,
+        private doorDashService: DoorDashService,
     ) { }
 
     private async generateSessionNumber(restaurantId: string) {
@@ -353,6 +358,36 @@ export class BookingService {
         });
 
         // ================================
+        // STEP 8.5: CREATE DOORDASH DRIVE DELIVERY
+        // ================================
+
+        let delivery: {
+            provider: 'DOORDASH_DRIVE';
+            externalDeliveryId: string;
+            deliveryStatus: string | null;
+            trackingUrl: string | null;
+        } | null = null;
+
+        try {
+            const driveDelivery = await this.doorDashService.createDriveDeliveryForSession(
+                restaurantId,
+                session.id,
+            );
+
+            delivery = {
+                provider: 'DOORDASH_DRIVE',
+                externalDeliveryId: driveDelivery.externalDeliveryId,
+                deliveryStatus: driveDelivery.deliveryStatus,
+                trackingUrl: driveDelivery.trackingUrl,
+            };
+        } catch (err: unknown) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            this.logger.warn(
+                `DoorDash delivery creation skipped for session ${session.id}: ${error.message}`,
+            );
+        }
+
+        // ================================
         // STEP 9: WEBSOCKET EVENTS
         // ================================
 
@@ -381,6 +416,7 @@ export class BookingService {
             batch,
             bill,
             payment,
+            delivery,
         };
     }
 }
