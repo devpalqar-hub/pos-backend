@@ -1,12 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class MergeCartDto {
     @ApiProperty()
     @IsString()
-    guestId: string;
+    sessionId!: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    guestId?: string;
 
     @ApiProperty()
     @IsUUID()
-    customerId: string;
+    customerId!: string;
 }

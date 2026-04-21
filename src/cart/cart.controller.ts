@@ -3,11 +3,14 @@ import {
     Controller,
     Delete,
     Get,
+    Headers,
     Param,
     ParseUUIDPipe,
     Patch,
     Post,
     Query,
+    Req,
+    Res,
     UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -19,6 +22,7 @@ import {
     ApiTags,
 } from '@nestjs/swagger';
 import { v4 as uuid } from 'uuid';
+import { Request, Response } from 'express';
 
 import { CartService } from './cart.service';
 import { CreateCartDto } from './dto/create-cart.dto';
@@ -37,6 +41,32 @@ import { OptionalCustomerJwtAuthGuard } from 'src/common/guards/ optional-jwt-au
 export class CartController {
     constructor(private readonly cartService: CartService) { }
 
+    private resolveSessionId(
+        req: Request,
+        headersSessionId?: string,
+        querySessionId?: string,
+        legacyGuestId?: string,
+    ): string | undefined {
+        const cookieHeader = req.headers.cookie;
+        const sidFromCookie = cookieHeader
+            ?.split(';')
+            .map((c) => c.trim())
+            .find((c) => c.startsWith('sid='))
+            ?.split('=')[1];
+
+        return sidFromCookie || headersSessionId || querySessionId || legacyGuestId;
+    }
+
+    private setSessionCookie(res: Response, sessionId: string): void {
+        res.cookie('sid', sessionId, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 1000 * 60 * 60 * 24 * 30,
+            path: '/',
+        });
+    }
+
     /*
     GET CART
     */
@@ -44,31 +74,39 @@ export class CartController {
     @Get()
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
         type: String,
-        description: 'Guest identifier (for guest users)',
+        description: 'Session identifier for guest users',
     })
     @ApiOperation({
         summary: 'Get active cart',
         description:
             'Returns the active cart for a customer or guest in the specified restaurant. ' +
-            'Cart is resolved using either `customerId` (logged-in user) or `guestId` (guest user).',
+            'Cart is resolved using either `customerId` (logged-in user) or `sessionId` (guest user).',
     })
     @ApiResponse({ status: 200, description: 'Cart retrieved successfully.' })
     @ApiResponse({ status: 404, description: 'Cart not found.' })
     async getCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
-        console.log('Fetching cart for restaurant:', restaurantId, 'guestId:', guestId, 'customerId:', user ? user.id : null);
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         const customerId = user ? user.id : undefined;
         return {
             message: 'Cart fetched successfully',
             data: await this.cartService.getCart(restaurantId, {
                 customerId,
-                guestId,
+                sessionId,
             }),
         };
     }
@@ -84,18 +122,30 @@ export class CartController {
         summary: 'Create a new cart',
         description:
             'Creates a new cart for a restaurant. A cart can belong either to a logged-in customer ' +
-            '(identified by `customerId`) or a guest user (identified by `guestId`).',
+            '(identified by `customerId`) or a guest user (identified by `sessionId`).',
     })
     @ApiResponse({ status: 201, description: 'Cart created successfully.' })
     @ApiResponse({ status: 404, description: 'Restaurant not found.' })
     async createCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         return {
             message: 'Cart created successfully',
-            data: await this.cartService.createCart(restaurantId, { customerId: user?.id, guestId }),
+            data: await this.cartService.createCart(restaurantId, {
+                customerId: user?.id,
+                sessionId,
+            }),
         };
     }
 
@@ -107,9 +157,9 @@ export class CartController {
     @Post('items')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
-        description: 'Guest identifier for guest cart',
+        description: 'Session identifier for guest cart',
     })
     @ApiOperation({
         summary: 'Add item to cart',
@@ -122,14 +172,48 @@ export class CartController {
     async addItem(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Body() dto: AddCartItemDto,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         const customerId = user ? user.id : undefined;
 
         return {
             message: 'Item added to cart',
-            data: await this.cartService.addItem(restaurantId, { customerId, guestId }, dto),
+            data: await this.cartService.addItem(restaurantId, { customerId, sessionId }, dto),
+        };
+    }
+
+    @Public()
+    @Get('session')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Generate guest session ID',
+        description:
+            'Generates a unique sessionId used for cart operations for unauthenticated users and sets sid cookie.',
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Session ID generated successfully',
+    })
+    async generateSessionId(
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const sessionId = `sid_${uuid()}`;
+        this.setSessionCookie(res, sessionId);
+
+        return {
+            message: 'Session ID generated successfully',
+            sessionId,
         };
     }
 
@@ -137,23 +221,19 @@ export class CartController {
     @Get('guest-id')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiOperation({
-        summary: 'Generate guest ID',
+        summary: 'Generate guest ID (legacy)',
         description:
-            'Generates a unique guestId used for cart operations for unauthenticated users.',
+            'Legacy alias that now returns sessionId and sets sid cookie for guest cart operations.',
     })
     @ApiResponse({
         status: 200,
-        description: 'Guest ID generated successfully',
+        description: 'Session ID generated successfully',
     })
-    async generateGuestId(
+    async generateLegacyGuestId(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Res({ passthrough: true }) res: Response,
     ) {
-        const guestId = `guest_${uuid()}`;
-
-        return {
-            message: 'Guest ID generated successfully',
-            guestId,
-        };
+        return this.generateSessionId(restaurantId, res);
     }
     /*
     UPDATE CART ITEM
@@ -214,9 +294,9 @@ export class CartController {
     @Delete()
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
-        description: 'Guest identifier for guest cart',
+        description: 'Session identifier for guest cart',
     })
     @ApiOperation({
         summary: 'Clear cart',
@@ -227,15 +307,24 @@ export class CartController {
     @ApiResponse({ status: 404, description: 'Cart not found.' })
     async clearCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         const customerId = user ? user.id : undefined;
         return {
             message: 'Cart cleared successfully',
             data: await this.cartService.clearCart(restaurantId, {
                 customerId,
-                guestId,
+                sessionId,
             }),
         };
     }
@@ -271,9 +360,9 @@ export class CartController {
     @Post('validate')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
-        description: 'Guest identifier',
+        description: 'Session identifier',
     })
     @ApiOperation({
         summary: 'Validate cart',
@@ -283,15 +372,24 @@ export class CartController {
     @ApiResponse({ status: 200, description: 'Cart validation successful.' })
     async validateCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         const customerId = user ? user.id : undefined;
         return {
             message: 'Cart validated successfully',
             data: await this.cartService.validateCart(restaurantId, {
                 customerId,
-                guestId,
+                sessionId,
             }),
         };
     }
@@ -304,9 +402,9 @@ export class CartController {
     @Post('recalculate')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
-        description: 'Guest identifier',
+        description: 'Session identifier',
     })
     @ApiOperation({
         summary: 'Recalculate cart totals',
@@ -316,15 +414,24 @@ export class CartController {
     @ApiResponse({ status: 200, description: 'Cart recalculated successfully.' })
     async recalculateCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         const customerId = user ? user.id : undefined;
         return {
             message: 'Cart recalculated successfully',
             data: await this.cartService.recalculateCart(restaurantId, {
                 customerId,
-                guestId,
+                sessionId,
             }),
         };
     }
@@ -337,9 +444,9 @@ export class CartController {
     @Get('summary')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
-        description: 'Guest identifier',
+        description: 'Session identifier',
     })
     @ApiOperation({
         summary: 'Get cart summary',
@@ -349,15 +456,24 @@ export class CartController {
     @ApiResponse({ status: 200, description: 'Cart summary retrieved.' })
     async getSummary(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
         @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         const customerId = user ? user.id : undefined;
         return {
             message: 'Cart summary fetched successfully',
             data: await this.cartService.getSummary(restaurantId, {
                 customerId,
-                guestId,
+                sessionId,
             }),
         };
     }

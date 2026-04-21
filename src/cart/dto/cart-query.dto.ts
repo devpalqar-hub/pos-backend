@@ -10,5 +10,10 @@ export class CartQueryDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    sessionId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     guestId?: string;
 }

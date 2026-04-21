@@ -10,5 +10,10 @@ export class CreateCartDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    sessionId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     guestId?: string;
 }

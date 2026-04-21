@@ -1,13 +1,17 @@
 import {
     Body,
     Controller,
+    Headers,
     HttpCode,
     HttpStatus,
-    Param,
-    ParseUUIDPipe,
     Post,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+    ApiHeader,
+    ApiOperation,
+    ApiResponse,
+    ApiTags,
+} from '@nestjs/swagger';
 
 import { CustomersAuthService } from './customers-auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
@@ -24,9 +28,9 @@ export class CustomersAuthController {
     SEND OTP
     */
     @Public()
-    @Post('auth/send-otp/')
+    @Post('auth/send-otp')
     @HttpCode(HttpStatus.OK)
-    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiHeader({ name: 'ownerId', required: true, description: 'Owner UUID' })
     @ApiOperation({
         summary: 'Send OTP to customer email',
         description: `
@@ -38,14 +42,13 @@ OTP expires in **10 minutes**.
 `,
     })
     @ApiResponse({ status: 200, description: 'OTP sent successfully.' })
-    @ApiResponse({ status: 404, description: 'Customer not found.' })
     async sendOtp(
-        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Headers('ownerid') ownerId: string,
         @Body() dto: SendOtpDto,
     ) {
         return {
             message: 'OTP sent successfully',
-            data: await this.authService.sendOtp(restaurantId, dto),
+            data: await this.authService.sendOtp(ownerId, dto),
         };
     }
 
@@ -53,62 +56,63 @@ OTP expires in **10 minutes**.
     VERIFY OTP
     */
     @Public()
-    @Post('auth/verify-otp/')
+    @Post('auth/verify-otp')
     @HttpCode(HttpStatus.OK)
-    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiHeader({ name: 'ownerId', required: true, description: 'Owner UUID' })
     @ApiOperation({
         summary: 'Verify customer OTP',
         description: `
 Verifies the **OTP sent to the customer's email**.
 
 If valid, OTP is cleared from the database.
+
+Returns **isNew=true** when customer profile does not exist yet.
 `,
     })
     @ApiResponse({ status: 200, description: 'OTP verified.' })
     @ApiResponse({ status: 400, description: 'Invalid OTP.' })
     @ApiResponse({ status: 410, description: 'OTP expired.' })
     async verifyOtp(
-        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Headers('ownerid') ownerId: string,
         @Body() dto: VerifyOtpDto,
     ) {
         return {
             message: 'OTP verified successfully',
-            data: await this.authService.verifyOtp(dto),
+            data: await this.authService.verifyOtp(ownerId, dto),
         };
     }
 
     /*
-    REGISTER CUSTOMER
+    COMPLETE PROFILE
     */
     @Public()
-    @Post('register/')
+    @Post('complete-profile')
     @HttpCode(HttpStatus.CREATED)
-    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiHeader({ name: 'ownerId', required: true, description: 'Owner UUID' })
     @ApiOperation({
-        summary: 'Register customer for a restaurant',
+        summary: 'Complete customer profile after OTP verification',
         description: `
-Registers a **customer account for the specified restaurant**.
+Creates or updates a **customer profile** for the owner's restaurant.
 
 Rules:
 
-• Same email can register for **multiple restaurants**  
+• Same email can exist for **multiple restaurants**  
 • Phone must be **unique per restaurant**  
-• OTP verification must be completed before registration
+• OTP verification must be completed before profile completion
 `,
     })
-    @ApiResponse({ status: 201, description: 'Customer registered.' })
-    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    @ApiResponse({ status: 201, description: 'Customer profile completed.' })
     @ApiResponse({
         status: 409,
         description: 'Customer already exists in this restaurant.',
     })
-    async register(
-        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    async completeProfile(
+        @Headers('ownerid') ownerId: string,
         @Body() dto: RegisterCustomerDto,
     ) {
         return {
-            message: 'Customer registered successfully',
-            data: await this.authService.registerCustomer(restaurantId, dto),
+            message: 'Customer profile completed successfully',
+            data: await this.authService.completeProfile(ownerId, dto),
         };
     }
 }

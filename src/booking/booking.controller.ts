@@ -1,12 +1,14 @@
 import {
     Body,
     Controller,
+    Headers,
     HttpCode,
     HttpStatus,
     Param,
     ParseUUIDPipe,
     Post,
     Query,
+    Req,
     UseGuards,
 } from '@nestjs/common';
 
@@ -17,6 +19,7 @@ import {
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -32,6 +35,22 @@ import { OptionalCustomerJwtAuthGuard } from '../common/guards/ optional-jwt-aut
 export class BookingController {
     constructor(private readonly bookingService: BookingService) { }
 
+    private resolveSessionId(
+        req: Request,
+        headersSessionId?: string,
+        querySessionId?: string,
+        legacyGuestId?: string,
+    ): string | undefined {
+        const cookieHeader = req.headers.cookie;
+        const sidFromCookie = cookieHeader
+            ?.split(';')
+            .map((c) => c.trim())
+            .find((c) => c.startsWith('sid='))
+            ?.split('=')[1];
+
+        return sidFromCookie || headersSessionId || querySessionId || legacyGuestId;
+    }
+
     @Post()
     @HttpCode(HttpStatus.CREATED)
     @ApiParam({
@@ -39,11 +58,11 @@ export class BookingController {
         description: 'Restaurant UUID for which the booking is being created',
     })
     @ApiQuery({
-        name: 'guestId',
+        name: 'sessionId',
         required: false,
         type: String,
         description:
-            'Unique guest identifier used for cart operations when the user is not authenticated.',
+            'Unique session identifier used for cart operations when the user is not authenticated.',
     })
 
     @ApiOperation({
@@ -63,7 +82,7 @@ The booking creation process performs the following internal workflow:
    - Ensures the cart belongs to the specified restaurant.
 
 2. **Guest Validation**
-   - If the request is made without authentication and only \`guestId\` is provided,
+    - If the request is made without authentication and only \`sessionId\` is provided,
      the system requires customer details such as:
      - customerName
      - customerPhone
@@ -120,7 +139,7 @@ This endpoint supports:
 - Customer data retrieved automatically
 
 **2. Guest Users**
-- Uses \`guestId\`
+- Uses \`sessionId\`
 - Must provide customer details in the request body
 
 ---
@@ -156,16 +175,24 @@ The following features will be integrated in future versions:
         @CurrentUser() actor: any,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Body() dto: CreateBookingDto,
-        @Query('guestId') guestId?: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
 
     ) {
-        console.log('Received booking request for restaurantId:', restaurantId, 'guestId:', guestId, 'dto:', dto)
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
         return {
             message: 'Booking created successfully',
             data: await this.bookingService.createBooking(
                 actor,
                 restaurantId,
-                guestId,
+                sessionId,
                 dto,
             ),
         };

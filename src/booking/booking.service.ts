@@ -94,11 +94,11 @@ export class BookingService {
     async createBooking(
         actor: any,
         restaurantId: string,
-        guestId: string | undefined,
+        sessionId: string | undefined,
         dto: CreateBookingDto,
     ) {
 
-        if (!actor && guestId) {
+        if (!actor && sessionId) {
             if (
                 !dto.customerName ||
                 !dto.customerPhone ||
