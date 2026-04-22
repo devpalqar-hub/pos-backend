@@ -203,7 +203,7 @@ export class OrdersGateway
             include: {
                 items: {
                     include: {
-                        menuItem: { select: { id: true, name: true } },
+                        menuItem: { select: { id: true, name: true, imageUrl: true } },
                     },
                 },
                 createdBy: { select: { id: true, name: true, role: true } },

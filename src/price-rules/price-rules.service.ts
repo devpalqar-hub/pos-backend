@@ -15,7 +15,7 @@ import { User, UserRole } from '@prisma/client'
 
 const RULE_INCLUDE = {
   days: { select: { id: true, day: true } },
-  menuItem: { select: { id: true, name: true, price: true } },
+  menuItem: { select: { id: true, name: true, price: true, imageUrl: true } },
   restaurant: { select: { id: true, name: true } },
 } as const;
 

@@ -59,7 +59,7 @@ const SESSION_DETAIL_INCLUDE = {
 } as const;
 
 const BATCH_INCLUDE = {
-    items: { include: { menuItem: { select: { id: true, name: true } } } },
+    items: { include: { menuItem: { select: { id: true, name: true, imageUrl: true } } } },
     createdBy: { select: { id: true, name: true, role: true } },
 } as const;
 
@@ -607,7 +607,7 @@ export class OrdersService {
             },
             include: {
                 items: {
-                    include: { menuItem: { select: { id: true, name: true } } },
+                    include: { menuItem: { select: { id: true, name: true, imageUrl: true } } },
                 },
                 createdBy: { select: { id: true, name: true, role: true } },
                 session: { select: { id: true, sessionNumber: true, tableId: true, restaurantId: true } },
@@ -630,7 +630,7 @@ export class OrdersService {
             },
             include: {
                 items: {
-                    include: { menuItem: { select: { id: true, name: true } } },
+                    include: { menuItem: { select: { id: true, name: true, imageUrl: true } } },
                 },
                 createdBy: { select: { id: true, name: true, role: true } },
                 session: { select: { id: true, sessionNumber: true, tableId: true, restaurantId: true } },
@@ -798,7 +798,7 @@ export class OrdersService {
                 }),
             },
             include: {
-                menuItem: { select: { id: true, name: true } },
+                menuItem: { select: { id: true, name: true, imageUrl: true } },
                 batch: { select: { id: true, batchNumber: true, sessionId: true } },
             },
         });
@@ -1003,7 +1003,7 @@ export class OrdersService {
                 batch: { sessionId },
                 status: { not: 'CANCELLED' as any },
             },
-            include: { menuItem: { select: { id: true, name: true } } },
+            include: { menuItem: { select: { id: true, name: true, imageUrl: true } } },
         });
 
         if (items.length === 0) {
@@ -1460,7 +1460,7 @@ export class OrdersService {
         const bill = await this.prisma.bill.findFirst({
             where: { sessionId, restaurantId },
             include: {
-                items: { include: { menuItem: { select: { id: true, name: true } } } },
+                items: { include: { menuItem: { select: { id: true, name: true, imageUrl: true } } } },
                 payments: { orderBy: { createdAt: 'asc' } },
                 generatedBy: { select: { id: true, name: true } },
                 session: {
@@ -1531,7 +1531,7 @@ export class OrdersService {
                 status: { not: 'CANCELLED' as any },
             },
             include: {
-                menuItem: { select: { id: true, name: true } },
+                menuItem: { select: { id: true, name: true, imageUrl: true } },
             },
         });
 
@@ -1881,6 +1881,7 @@ export class OrdersService {
                     menuItem: {
                         id: item.menuItemId,
                         name: item.menuItem.name,
+                        imageUrl: item.menuItem.imageUrl,
                     },
                 };
             }),

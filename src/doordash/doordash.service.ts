@@ -237,7 +237,7 @@ export class DoorDashService {
         doorDashItemName: dto.doorDashItemName ?? null,
       },
       include: {
-        menuItem: { select: { id: true, name: true, price: true } },
+        menuItem: { select: { id: true, name: true, price: true, imageUrl: true } },
       },
     });
   }

@@ -6,6 +6,22 @@ import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
 export class CartService {
     constructor(private prisma: PrismaService) { }
 
+    private static readonly CART_ITEMS_INCLUDE = {
+        items: {
+            include: {
+                menuItem: {
+                    select: {
+                        id: true,
+                        name: true,
+                        imageUrl: true,
+                        price: true,
+                        discountedPrice: true,
+                    },
+                },
+            },
+        },
+    } as const;
+
     private getGuestKey(query: any): string | undefined {
         return query.sessionId ?? query.guestId;
     }
@@ -82,7 +98,7 @@ export class CartService {
                 restaurantId,
                 ...identityWhere,
             },
-            include: { items: true },
+            include: CartService.CART_ITEMS_INCLUDE,
         });
     }
 
@@ -149,6 +165,17 @@ export class CartService {
 
         return this.prisma.cartItem.findUnique({
             where: { id: item.id },
+            include: {
+                menuItem: {
+                    select: {
+                        id: true,
+                        name: true,
+                        imageUrl: true,
+                        price: true,
+                        discountedPrice: true,
+                    },
+                },
+            },
         });
     }
 
@@ -156,18 +183,51 @@ export class CartService {
         if (dto.quantity === 0) {
             return this.prisma.cartItem.delete({
                 where: { id: itemId },
+                include: {
+                    menuItem: {
+                        select: {
+                            id: true,
+                            name: true,
+                            imageUrl: true,
+                            price: true,
+                            discountedPrice: true,
+                        },
+                    },
+                },
             });
         }
 
         return this.prisma.cartItem.update({
             where: { id: itemId },
             data: { quantity: dto.quantity },
+            include: {
+                menuItem: {
+                    select: {
+                        id: true,
+                        name: true,
+                        imageUrl: true,
+                        price: true,
+                        discountedPrice: true,
+                    },
+                },
+            },
         });
     }
 
     async removeItem(itemId: string) {
         return this.prisma.cartItem.delete({
             where: { id: itemId },
+            include: {
+                menuItem: {
+                    select: {
+                        id: true,
+                        name: true,
+                        imageUrl: true,
+                        price: true,
+                        discountedPrice: true,
+                    },
+                },
+            },
         });
     }
 
