@@ -97,38 +97,56 @@ export class CustomersAuthService {
     SEND OTP
     */
     async sendOtp(ownerId: string, dto: SendOtpDto) {
-        const restaurantId = await this.resolveRestaurantIdByOwner(ownerId);
+        this.logger.log(`sendOtp started: ownerId=${ownerId}, email=${dto.email}`);
 
-        await this.prisma.otpToken.updateMany({
-            where: { email: dto.email, isUsed: false },
-            data: { isUsed: true },
-        });
+        try {
+            const restaurantId = await this.resolveRestaurantIdByOwner(ownerId);
 
-        const customer = await this.prisma.customer.findFirst({
-            where: {
-                restaurantId,
-                email: dto.email,
-            },
-        });
+            const invalidatedTokens = await this.prisma.otpToken.updateMany({
+                where: { email: dto.email, isUsed: false },
+                data: { isUsed: true },
+            });
 
-        const otp = this.generateOtp();
+            this.logger.debug(
+                `sendOtp invalidated old tokens: email=${dto.email}, count=${invalidatedTokens.count}`,
+            );
 
-        const expiresAt = new Date(
-            Date.now() +
-            this.configService.get<number>('OTP_EXPIRES_MINUTES', 10) * 60 * 1000,
-        );
+            const customer = await this.prisma.customer.findFirst({
+                where: {
+                    restaurantId,
+                    email: dto.email,
+                },
+            });
 
-        await this.prisma.otpToken.create({
-            data: {
-                email: dto.email,
-                otp,
-                expiresAt,
-            },
-        });
+            const otp = this.generateOtp();
 
-        // await this.sendOtpEmail(restaurantId, dto.email, otp, customer?.name);
+            const expiresAt = new Date(
+                Date.now() +
+                this.configService.get<number>('OTP_EXPIRES_MINUTES', 10) * 60 * 1000,
+            );
 
-        return { email: dto.email, otp };
+            await this.prisma.otpToken.create({
+                data: {
+                    email: dto.email,
+                    otp,
+                    expiresAt,
+                },
+            });
+
+            this.logger.log(
+                `sendOtp created token: ownerId=${ownerId}, email=${dto.email}, restaurantId=${restaurantId}, customerExists=${!!customer}`,
+            );
+
+            // await this.sendOtpEmail(restaurantId, dto.email, otp, customer?.name);
+
+            return { email: dto.email, otp };
+        } catch (error: any) {
+            this.logger.error(
+                `sendOtp failed: ownerId=${ownerId}, email=${dto.email}, message=${error?.message}`,
+                error?.stack,
+            );
+            throw error;
+        }
     }
 
     /*
@@ -136,89 +154,103 @@ export class CustomersAuthService {
     */
 
     async verifyOtp(ownerId: string, dto: VerifyOtpDto) {
-        const restaurantIds = await this.resolveRestaurantIdsByOwner(ownerId);
-
         const { email, otp } = dto;
+        this.logger.log(`verifyOtp started: ownerId=${ownerId}, email=${email}`);
 
-        const customer = await this.prisma.customer.findFirst({
-            where: {
-                restaurantId: { in: restaurantIds },
-                email,
-            },
-            include: {
-                restaurant: {
-                    select: { id: true, name: true },
-                },
-            },
-        });
+        try {
+            const restaurantIds = await this.resolveRestaurantIdsByOwner(ownerId);
 
-        if (customer && !customer.isActive) {
-            throw new BadRequestException('Customer account is inactive');
-        }
-
-        const defaultOtp = this.configService.get<string>('DEFAULT_OTP', '759409');
-        const isDefaultOtp = otp === defaultOtp;
-
-        if (isDefaultOtp) {
-            const latestUnusedOtp = await this.prisma.otpToken.findFirst({
+            const customer = await this.prisma.customer.findFirst({
                 where: {
+                    restaurantId: { in: restaurantIds },
                     email,
-                    isUsed: false,
                 },
-                orderBy: { createdAt: 'desc' },
+                include: {
+                    restaurant: {
+                        select: { id: true, name: true },
+                    },
+                },
             });
 
-            if (latestUnusedOtp) {
+            if (customer && !customer.isActive) {
+                this.logger.warn(`verifyOtp blocked inactive customer: email=${email}`);
+                throw new BadRequestException('Customer account is inactive');
+            }
+
+            const defaultOtp = this.configService.get<string>('DEFAULT_OTP', '759409');
+            const isDefaultOtp = otp === defaultOtp;
+
+            if (isDefaultOtp) {
+                this.logger.warn(`verifyOtp used default OTP: email=${email}`);
+                const latestUnusedOtp = await this.prisma.otpToken.findFirst({
+                    where: {
+                        email,
+                        isUsed: false,
+                    },
+                    orderBy: { createdAt: 'desc' },
+                });
+
+                if (latestUnusedOtp) {
+                    await this.prisma.otpToken.update({
+                        where: { id: latestUnusedOtp.id },
+                        data: { isUsed: true },
+                    });
+                }
+            } else {
+                const otpRecord = await this.prisma.otpToken.findFirst({
+                    where: {
+                        email,
+                        otp,
+                        isUsed: false,
+                        expiresAt: { gte: new Date() },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                });
+
+                if (!otpRecord) {
+                    this.logger.warn(`verifyOtp invalid or expired OTP: email=${email}`);
+                    throw new BadRequestException('Invalid or expired OTP');
+                }
+
                 await this.prisma.otpToken.update({
-                    where: { id: latestUnusedOtp.id },
+                    where: { id: otpRecord.id },
                     data: { isUsed: true },
                 });
             }
-        } else {
-            const otpRecord = await this.prisma.otpToken.findFirst({
-                where: {
-                    email,
-                    otp,
-                    isUsed: false,
-                    expiresAt: { gte: new Date() },
-                },
-                orderBy: { createdAt: 'desc' },
-            });
 
-            if (!otpRecord) {
-                throw new BadRequestException('Invalid or expired OTP');
+            const isNew = !customer || !customer.is_registered;
+
+            if (isNew) {
+                this.logger.log(`verifyOtp success for new customer flow: email=${email}`);
+                return {
+                    isNew: true,
+                    accessToken: null,
+                    customer: null,
+                };
             }
 
-            await this.prisma.otpToken.update({
-                where: { id: otpRecord.id },
-                data: { isUsed: true },
-            });
-        }
-
-        const isNew = !customer || !customer.is_registered;
-
-        if (isNew) {
-            return {
-                isNew: true,
-                accessToken: null,
-                customer: null,
+            const payload = {
+                sub: customer.id,
+                email: customer.email,
+                restaurantId: customer.restaurantId,
+                type: 'customer',
             };
+
+            const accessToken = this.jwtService.sign(payload);
+
+            this.logger.log(`verifyOtp success for existing customer: email=${email}, customerId=${customer.id}`);
+            return {
+                isNew: false,
+                accessToken,
+                customer: this.sanitizeCustomer(customer),
+            };
+        } catch (error: any) {
+            this.logger.error(
+                `verifyOtp failed: ownerId=${ownerId}, email=${email}, message=${error?.message}`,
+                error?.stack,
+            );
+            throw error;
         }
-
-        const payload = {
-            sub: customer.id,
-            email: customer.email,
-            restaurantId: customer.restaurantId,
-            type: 'customer',
-        };
-
-        const accessToken = this.jwtService.sign(payload);
-
-        return {
-            isNew: false,
-            accessToken,
-            customer: this.sanitizeCustomer(customer),
-        };
     }
 
 
@@ -227,132 +259,154 @@ export class CustomersAuthService {
     */
 
     async completeProfile(ownerId: string, dto: RegisterCustomerDto) {
-        const restaurantIds = await this.resolveRestaurantIdsByOwner(ownerId);
-        const primaryRestaurantId = restaurantIds[0];
-        await this.assertOtpVerifiedRecently(dto.email);
+        this.logger.log(
+            `completeProfile started: ownerId=${ownerId}, email=${dto.email}, phone=${dto.phone}`,
+        );
 
-        const existingInOwnedRestaurants = await this.prisma.customer.findFirst({
-            where: {
-                restaurantId: { in: restaurantIds },
-                OR: [{ email: dto.email }, { phone: dto.phone }],
-            },
-        });
+        try {
+            const restaurantIds = await this.resolveRestaurantIdsByOwner(ownerId);
+            const primaryRestaurantId = restaurantIds[0];
+            await this.assertOtpVerifiedRecently(dto.email);
 
-        await this.prisma.$transaction(async (tx) => {
-            if (!existingInOwnedRestaurants) {
-                for (const restaurantId of restaurantIds) {
-                    const conflict = await tx.customer.findFirst({
-                        where: {
-                            restaurantId,
-                            OR: [{ email: dto.email }, { phone: dto.phone }],
-                        },
-                        select: { id: true },
-                    });
+            const existingInOwnedRestaurants = await this.prisma.customer.findFirst({
+                where: {
+                    restaurantId: { in: restaurantIds },
+                    OR: [{ email: dto.email }, { phone: dto.phone }],
+                },
+            });
 
-                    if (conflict) {
-                        throw new ConflictException(
-                            'Customer with same email or phone already exists in one of the owner restaurants',
-                        );
+            await this.prisma.$transaction(async (tx) => {
+                if (!existingInOwnedRestaurants) {
+                    for (const restaurantId of restaurantIds) {
+                        const conflict = await tx.customer.findFirst({
+                            where: {
+                                restaurantId,
+                                OR: [{ email: dto.email }, { phone: dto.phone }],
+                            },
+                            select: { id: true },
+                        });
+
+                        if (conflict) {
+                            this.logger.warn(
+                                `completeProfile conflict while creating customer: email=${dto.email}, phone=${dto.phone}, restaurantId=${restaurantId}`,
+                            );
+                            throw new ConflictException(
+                                'Customer with same email or phone already exists in one of the owner restaurants',
+                            );
+                        }
+
+                        await tx.customer.create({
+                            data: {
+                                restaurantId,
+                                email: dto.email,
+                                phone: dto.phone,
+                                name: dto.name,
+                                carts: {
+                                    create: { restaurantId },
+                                },
+                                is_registered: true,
+                            },
+                        });
                     }
 
+                    return;
+                }
+
+                const existingByEmail = await tx.customer.findFirst({
+                    where: {
+                        restaurantId: primaryRestaurantId,
+                        email: dto.email,
+                    },
+                });
+
+                const existingByPhone = await tx.customer.findFirst({
+                    where: {
+                        restaurantId: primaryRestaurantId,
+                        phone: dto.phone,
+                    },
+                });
+
+                if (
+                    existingByEmail &&
+                    existingByPhone &&
+                    existingByEmail.id !== existingByPhone.id
+                ) {
+                    this.logger.warn(
+                        `completeProfile conflict: email and phone belong to different customers. email=${dto.email}, phone=${dto.phone}`,
+                    );
+                    throw new ConflictException(
+                        'Email and phone belong to different customers in this restaurant',
+                    );
+                }
+
+                const targetCustomer = existingByEmail ?? existingByPhone;
+
+                if (targetCustomer) {
+                    await tx.customer.update({
+                        where: { id: targetCustomer.id },
+                        data: {
+                            email: dto.email,
+                            phone: dto.phone,
+                            name: dto.name,
+                            is_registered: true,
+                        },
+                    });
+                } else {
                     await tx.customer.create({
                         data: {
-                            restaurantId,
+                            restaurantId: primaryRestaurantId,
                             email: dto.email,
                             phone: dto.phone,
                             name: dto.name,
                             carts: {
-                                create: { restaurantId },
+                                create: { restaurantId: primaryRestaurantId },
                             },
                             is_registered: true,
                         },
                     });
                 }
+            });
 
-                return;
-            }
-
-            const existingByEmail = await tx.customer.findFirst({
+            const customer = await this.prisma.customer.findFirst({
                 where: {
                     restaurantId: primaryRestaurantId,
                     email: dto.email,
                 },
-            });
-
-            const existingByPhone = await tx.customer.findFirst({
-                where: {
-                    restaurantId: primaryRestaurantId,
-                    phone: dto.phone,
+                include: {
+                    restaurant: {
+                        select: { id: true, name: true },
+                    },
                 },
             });
 
-            if (
-                existingByEmail &&
-                existingByPhone &&
-                existingByEmail.id !== existingByPhone.id
-            ) {
-                throw new ConflictException(
-                    'Email and phone belong to different customers in this restaurant',
-                );
+            if (!customer) {
+                this.logger.error(`completeProfile failed to fetch customer after transaction: email=${dto.email}`);
+                throw new NotFoundException('Customer profile could not be completed');
             }
 
-            const targetCustomer = existingByEmail ?? existingByPhone;
+            const payload = {
+                sub: customer.id,
+                email: customer.email,
+                restaurantId: customer.restaurantId,
+                type: 'customer',
+            };
 
-            if (targetCustomer) {
-                await tx.customer.update({
-                    where: { id: targetCustomer.id },
-                    data: {
-                        email: dto.email,
-                        phone: dto.phone,
-                        name: dto.name,
-                        is_registered: true,
-                    },
-                });
-            } else {
-                await tx.customer.create({
-                    data: {
-                        restaurantId: primaryRestaurantId,
-                        email: dto.email,
-                        phone: dto.phone,
-                        name: dto.name,
-                        carts: {
-                            create: { restaurantId: primaryRestaurantId },
-                        },
-                        is_registered: true,
-                    },
-                });
-            }
-        });
+            const accessToken = this.jwtService.sign(payload);
 
-        const customer = await this.prisma.customer.findFirst({
-            where: {
-                restaurantId: primaryRestaurantId,
-                email: dto.email,
-            },
-            include: {
-                restaurant: {
-                    select: { id: true, name: true },
-                },
-            },
-        });
-
-        if (!customer) {
-            throw new NotFoundException('Customer profile could not be completed');
+            this.logger.log(
+                `completeProfile success: ownerId=${ownerId}, email=${dto.email}, customerId=${customer.id}`,
+            );
+            return {
+                accessToken,
+                customer: this.sanitizeCustomer(customer),
+            };
+        } catch (error: any) {
+            this.logger.error(
+                `completeProfile failed: ownerId=${ownerId}, email=${dto.email}, phone=${dto.phone}, message=${error?.message}`,
+                error?.stack,
+            );
+            throw error;
         }
-
-        const payload = {
-            sub: customer.id,
-            email: customer.email,
-            restaurantId: customer.restaurantId,
-            type: 'customer',
-        };
-
-        const accessToken = this.jwtService.sign(payload);
-
-        return {
-            accessToken,
-            customer: this.sanitizeCustomer(customer),
-        };
     }
 
     // ═════════════════════════════════════════════════════════════

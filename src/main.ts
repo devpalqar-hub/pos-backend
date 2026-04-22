@@ -27,7 +27,14 @@ async function bootstrap() {
   app.enableCors({
     origin: '*',
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-DoorDash-Signature'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-DoorDash-Signature',
+      'ownerid',
+      'ownerId',
+      'X-Owner-Id',
+    ],
   });
 
   // ─── Global prefix ─────────────────────────────────────────────────────────

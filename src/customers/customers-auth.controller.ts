@@ -4,6 +4,7 @@ import {
     Headers,
     HttpCode,
     HttpStatus,
+    Logger,
     Post,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,7 @@ import { Public } from 'src/common/decorators/public.decorator';
 @ApiTags('Customer Authentication')
 @Controller('customers')
 export class CustomersAuthController {
+    private readonly logger = new Logger(CustomersAuthController.name);
     constructor(private readonly authService: CustomersAuthService) { }
 
     /*
@@ -44,12 +46,28 @@ OTP expires in **10 minutes**.
     @ApiResponse({ status: 200, description: 'OTP sent successfully.' })
     async sendOtp(
         @Headers('ownerid') ownerId: string,
+        @Headers() headers: Record<string, string>,
         @Body() dto: SendOtpDto,
     ) {
-        return {
-            message: 'OTP sent successfully',
-            data: await this.authService.sendOtp(ownerId, dto),
-        };
+        this.logger.log(
+            `sendOtp request received: ownerId=${ownerId}, email=${dto.email}, origin=${headers?.origin ?? 'n/a'}`,
+        );
+
+        try {
+            const data = await this.authService.sendOtp(ownerId, dto);
+            this.logger.log(`sendOtp success: ownerId=${ownerId}, email=${dto.email}`);
+
+            return {
+                message: 'OTP sent successfully',
+                data,
+            };
+        } catch (error: any) {
+            this.logger.error(
+                `sendOtp failed: ownerId=${ownerId}, email=${dto.email}, message=${error?.message}`,
+                error?.stack,
+            );
+            throw error;
+        }
     }
 
     /*
@@ -74,12 +92,30 @@ Returns **isNew=true** when customer profile does not exist yet.
     @ApiResponse({ status: 410, description: 'OTP expired.' })
     async verifyOtp(
         @Headers('ownerid') ownerId: string,
+        @Headers() headers: Record<string, string>,
         @Body() dto: VerifyOtpDto,
     ) {
-        return {
-            message: 'OTP verified successfully',
-            data: await this.authService.verifyOtp(ownerId, dto),
-        };
+        this.logger.log(
+            `verifyOtp request received: ownerId=${ownerId}, email=${dto.email}, origin=${headers?.origin ?? 'n/a'}`,
+        );
+
+        try {
+            const data = await this.authService.verifyOtp(ownerId, dto);
+            this.logger.log(
+                `verifyOtp success: ownerId=${ownerId}, email=${dto.email}, isNew=${data?.isNew}`,
+            );
+
+            return {
+                message: 'OTP verified successfully',
+                data,
+            };
+        } catch (error: any) {
+            this.logger.error(
+                `verifyOtp failed: ownerId=${ownerId}, email=${dto.email}, message=${error?.message}`,
+                error?.stack,
+            );
+            throw error;
+        }
     }
 
     /*
@@ -108,11 +144,29 @@ Rules:
     })
     async completeProfile(
         @Headers('ownerid') ownerId: string,
+        @Headers() headers: Record<string, string>,
         @Body() dto: RegisterCustomerDto,
     ) {
-        return {
-            message: 'Customer profile completed successfully',
-            data: await this.authService.completeProfile(ownerId, dto),
-        };
+        this.logger.log(
+            `completeProfile request received: ownerId=${ownerId}, email=${dto.email}, phone=${dto.phone}, origin=${headers?.origin ?? 'n/a'}`,
+        );
+
+        try {
+            const data = await this.authService.completeProfile(ownerId, dto);
+            this.logger.log(
+                `completeProfile success: ownerId=${ownerId}, email=${dto.email}, customerId=${data?.customer?.id}`,
+            );
+
+            return {
+                message: 'Customer profile completed successfully',
+                data,
+            };
+        } catch (error: any) {
+            this.logger.error(
+                `completeProfile failed: ownerId=${ownerId}, email=${dto.email}, phone=${dto.phone}, message=${error?.message}`,
+                error?.stack,
+            );
+            throw error;
+        }
     }
 }
