@@ -179,10 +179,52 @@ export class CartService {
         });
     }
 
-    async updateItem(itemId: string, dto: any) {
-        if (dto.quantity === 0) {
-            return this.prisma.cartItem.delete({
-                where: { id: itemId },
+    async updateItem(restaurantId: string, itemId: string, query: any, dto: any) {
+        const cart = await this.findCart(restaurantId, query);
+
+        if (!cart) throw new NotFoundException('Cart not found');
+
+        const item = await this.prisma.cartItem.findFirst({
+            where: {
+                id: itemId,
+                cartId: cart.id,
+            },
+            include: {
+                menuItem: {
+                    select: {
+                        id: true,
+                        name: true,
+                        imageUrl: true,
+                        price: true,
+                        discountedPrice: true,
+                    },
+                },
+            },
+        });
+
+        if (!item) throw new NotFoundException('Cart item not found');
+
+        try {
+            if (dto.quantity === 0) {
+                return await this.prisma.cartItem.delete({
+                    where: { id: item.id },
+                    include: {
+                        menuItem: {
+                            select: {
+                                id: true,
+                                name: true,
+                                imageUrl: true,
+                                price: true,
+                                discountedPrice: true,
+                            },
+                        },
+                    },
+                });
+            }
+
+            return await this.prisma.cartItem.update({
+                where: { id: item.id },
+                data: { quantity: dto.quantity },
                 include: {
                     menuItem: {
                         select: {
@@ -195,28 +237,25 @@ export class CartService {
                     },
                 },
             });
-        }
+        } catch (error: any) {
+            if (error?.code === 'P2025') {
+                throw new NotFoundException('Cart item not found');
+            }
 
-        return this.prisma.cartItem.update({
-            where: { id: itemId },
-            data: { quantity: dto.quantity },
-            include: {
-                menuItem: {
-                    select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                        price: true,
-                        discountedPrice: true,
-                    },
-                },
-            },
-        });
+            throw error;
+        }
     }
 
-    async removeItem(itemId: string) {
-        return this.prisma.cartItem.delete({
-            where: { id: itemId },
+    async removeItem(restaurantId: string, itemId: string, query: any) {
+        const cart = await this.findCart(restaurantId, query);
+
+        if (!cart) throw new NotFoundException('Cart not found');
+
+        const item = await this.prisma.cartItem.findFirst({
+            where: {
+                id: itemId,
+                cartId: cart.id,
+            },
             include: {
                 menuItem: {
                     select: {
@@ -229,6 +268,31 @@ export class CartService {
                 },
             },
         });
+
+        if (!item) throw new NotFoundException('Cart item not found');
+
+        try {
+            return await this.prisma.cartItem.delete({
+                where: { id: item.id },
+                include: {
+                    menuItem: {
+                        select: {
+                            id: true,
+                            name: true,
+                            imageUrl: true,
+                            price: true,
+                            discountedPrice: true,
+                        },
+                    },
+                },
+            });
+        } catch (error: any) {
+            if (error?.code === 'P2025') {
+                throw new NotFoundException('Cart item not found');
+            }
+
+            throw error;
+        }
     }
 
     async clearCart(restaurantId: string, query: any) {

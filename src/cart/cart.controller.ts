@@ -243,6 +243,11 @@ export class CartController {
     @Patch('items/:itemId')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiParam({ name: 'itemId', description: 'Cart item UUID' })
+    @ApiQuery({
+        name: 'sessionId',
+        required: false,
+        description: 'Session identifier for guest cart',
+    })
     @ApiOperation({
         summary: 'Update cart item quantity',
         description:
@@ -255,10 +260,25 @@ export class CartController {
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Param('itemId', ParseUUIDPipe) itemId: string,
         @Body() dto: UpdateCartItemDto,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
+        @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
+
         return {
             message: 'Cart item updated',
-            data: await this.cartService.updateItem(itemId, dto),
+            data: await this.cartService.updateItem(restaurantId, itemId, {
+                customerId: user ? user.id : undefined,
+                sessionId,
+            }, dto),
         };
     }
 
@@ -270,6 +290,11 @@ export class CartController {
     @Delete('items/:itemId')
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiParam({ name: 'itemId', description: 'Cart item UUID' })
+    @ApiQuery({
+        name: 'sessionId',
+        required: false,
+        description: 'Session identifier for guest cart',
+    })
     @ApiOperation({
         summary: 'Remove item from cart',
         description: 'Deletes a specific item from the cart.',
@@ -279,10 +304,25 @@ export class CartController {
     async removeItem(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Param('itemId', ParseUUIDPipe) itemId: string,
+        @Req() req: Request,
+        @Headers('x-session-id') headerSessionId?: string,
+        @Query('sessionId') querySessionId?: string,
+        @Query('guestId') legacyGuestId?: string,
+        @CurrentUser() user?: any,
     ) {
+        const sessionId = this.resolveSessionId(
+            req,
+            headerSessionId,
+            querySessionId,
+            legacyGuestId,
+        );
+
         return {
             message: 'Item removed from cart',
-            data: await this.cartService.removeItem(itemId),
+            data: await this.cartService.removeItem(restaurantId, itemId, {
+                customerId: user ? user.id : undefined,
+                sessionId,
+            }),
         };
     }
 
