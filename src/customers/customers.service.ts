@@ -47,6 +47,7 @@ export class CustomersService {
                 phone: dto.phone,
                 email: dto.email ?? null,
                 name: dto.name ?? null,
+                profileImage: dto.profileImage ?? null,
                 is_registered: true
             },
         });
@@ -168,6 +169,7 @@ export class CustomersService {
                 ...(dto.phone !== undefined && { phone: dto.phone }),
                 ...(dto.name !== undefined && { name: dto.name }),
                 ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+                ...(dto.profileImage !== undefined && { profileImage: dto.profileImage }),
             },
         });
     }

@@ -14,6 +14,7 @@ import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { isUUID } from 'class-validator';
+import { UpdateCustomerProfileDto } from 'src/customers/dto/update-customer-profile.dto';
 
 @Injectable()
 export class CustomersAuthService {
@@ -35,6 +36,7 @@ export class CustomersAuthService {
             name: customer.name,
             email: customer.email,
             phone: customer.phone,
+            profileImage: customer.profileImage,
             wallet: customer.wallet,
             is_registered: customer.is_registered,
             restaurant: customer.restaurant,
@@ -301,6 +303,7 @@ export class CustomersAuthService {
                                 email: dto.email,
                                 phone: dto.phone,
                                 name: dto.name,
+                                profileImage: dto.profileImage,
                                 carts: {
                                     create: { restaurantId },
                                 },
@@ -348,6 +351,7 @@ export class CustomersAuthService {
                             email: dto.email,
                             phone: dto.phone,
                             name: dto.name,
+                            profileImage: dto.profileImage,
                             is_registered: true,
                         },
                     });
@@ -358,6 +362,7 @@ export class CustomersAuthService {
                             email: dto.email,
                             phone: dto.phone,
                             name: dto.name,
+                            profileImage: dto.profileImage,
                             carts: {
                                 create: { restaurantId: primaryRestaurantId },
                             },
@@ -407,6 +412,91 @@ export class CustomersAuthService {
             );
             throw error;
         }
+    }
+
+    /*
+    GET LOGGED-IN CUSTOMER PROFILE
+    */
+    async getProfile(customerId: string) {
+        const customer = await this.prisma.customer.findUnique({
+            where: { id: customerId },
+            include: {
+                restaurant: {
+                    select: { id: true, name: true },
+                },
+            },
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Customer not found');
+        }
+
+        return this.sanitizeCustomer(customer);
+    }
+
+    /*
+    UPDATE LOGGED-IN CUSTOMER PROFILE
+    */
+    async updateProfile(customerId: string, dto: UpdateCustomerProfileDto) {
+        const customer = await this.prisma.customer.findUnique({
+            where: { id: customerId },
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Customer not found');
+        }
+
+        if (dto.phone !== undefined && dto.phone !== customer.phone) {
+            const phoneConflict = await this.prisma.customer.findUnique({
+                where: {
+                    restaurantId_phone: {
+                        restaurantId: customer.restaurantId,
+                        phone: dto.phone,
+                    },
+                },
+                select: { id: true },
+            });
+
+            if (phoneConflict && phoneConflict.id !== customer.id) {
+                throw new ConflictException(
+                    `Customer with phone "${dto.phone}" already exists in this restaurant`,
+                );
+            }
+        }
+
+        if (dto.email !== undefined && dto.email !== customer.email) {
+            const emailConflict = await this.prisma.customer.findFirst({
+                where: {
+                    restaurantId: customer.restaurantId,
+                    email: dto.email,
+                    NOT: { id: customer.id },
+                },
+                select: { id: true },
+            });
+
+            if (emailConflict) {
+                throw new ConflictException(
+                    `Customer with email "${dto.email}" already exists in this restaurant`,
+                );
+            }
+        }
+
+        const updated = await this.prisma.customer.update({
+            where: { id: customer.id },
+            data: {
+                ...(dto.name !== undefined && { name: dto.name }),
+                ...(dto.phone !== undefined && { phone: dto.phone }),
+                ...(dto.email !== undefined && { email: dto.email }),
+                ...(dto.profileImage !== undefined && { profileImage: dto.profileImage }),
+            },
+            include: {
+                restaurant: {
+                    select: { id: true, name: true },
+                },
+            },
+        });
+
+        return this.sanitizeCustomer(updated);
     }
 
     // ═════════════════════════════════════════════════════════════

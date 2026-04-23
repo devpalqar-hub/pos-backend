@@ -1,13 +1,17 @@
 import {
     Body,
     Controller,
+    Get,
     Headers,
     HttpCode,
     HttpStatus,
     Logger,
+    Patch,
     Post,
+    UseGuards,
 } from '@nestjs/common';
 import {
+    ApiBearerAuth,
     ApiHeader,
     ApiOperation,
     ApiResponse,
@@ -19,6 +23,9 @@ import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { Public } from 'src/common/decorators/public.decorator';
+import { CustomerJwtAuthGuard } from 'src/common/guards/customer-jwt.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UpdateCustomerProfileDto } from 'src/customers/dto/update-customer-profile.dto';
 
 @ApiTags('Customer Authentication')
 @Controller('customers')
@@ -168,5 +175,57 @@ Rules:
             );
             throw error;
         }
+    }
+
+    /*
+    GET CUSTOMER PROFILE
+    */
+    @Public()
+    @Get('profile')
+    @UseGuards(CustomerJwtAuthGuard)
+    @ApiBearerAuth('Bearer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Get logged-in customer profile',
+        description: 'Returns profile details for the authenticated customer token.',
+    })
+    @ApiResponse({ status: 200, description: 'Customer profile fetched successfully.' })
+    @ApiResponse({ status: 401, description: 'Customer authentication required.' })
+    async getProfile(@CurrentUser() customer: any) {
+        const data = await this.authService.getProfile(customer.id);
+
+        return {
+            message: 'Customer profile fetched successfully',
+            data,
+        };
+    }
+
+    /*
+    UPDATE CUSTOMER PROFILE
+    */
+    @Public()
+    @Patch('profile')
+    @UseGuards(CustomerJwtAuthGuard)
+    @ApiBearerAuth('Bearer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Update logged-in customer profile',
+        description:
+            'Updates profile details for the authenticated customer. Phone and email remain unique per restaurant.',
+    })
+    @ApiResponse({ status: 200, description: 'Customer profile updated successfully.' })
+    @ApiResponse({ status: 401, description: 'Customer authentication required.' })
+    @ApiResponse({ status: 404, description: 'Customer not found.' })
+    @ApiResponse({ status: 409, description: 'Phone or email already exists in this restaurant.' })
+    async updateProfile(
+        @CurrentUser() customer: any,
+        @Body() dto: UpdateCustomerProfileDto,
+    ) {
+        const data = await this.authService.updateProfile(customer.id, dto);
+
+        return {
+            message: 'Customer profile updated successfully',
+            data,
+        };
     }
 }

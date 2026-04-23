@@ -35,4 +35,14 @@ export class CreateCustomerDto {
   @IsString()
   @MaxLength(255)
   name: string;
+
+  @ApiPropertyOptional({
+    description: 'Customer profile image URL',
+    example: 'https://cdn.example.com/customers/john-doe.png',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  profileImage?: string;
 }

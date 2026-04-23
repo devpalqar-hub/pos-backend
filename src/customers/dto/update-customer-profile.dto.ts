@@ -1,22 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-    IsBoolean,
-    IsOptional,
-    IsString,
-    MaxLength,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export class UpdateCustomerDto {
-    @ApiPropertyOptional({
-        description: 'Customer phone number',
-        example: '+1234567890',
-        maxLength: 30,
-    })
-    @IsOptional()
-    @IsString()
-    @MaxLength(30)
-    phone?: string;
-
+export class UpdateCustomerProfileDto {
     @ApiPropertyOptional({
         description: 'Customer name',
         example: 'John Doe',
@@ -28,11 +13,24 @@ export class UpdateCustomerDto {
     name?: string;
 
     @ApiPropertyOptional({
-        description: 'Activate or deactivate the customer',
+        description: 'Customer phone number',
+        example: '+1234567890',
+        maxLength: 30,
     })
     @IsOptional()
-    @IsBoolean()
-    isActive?: boolean;
+    @IsString()
+    @MaxLength(30)
+    phone?: string;
+
+    @ApiPropertyOptional({
+        description: 'Customer email',
+        example: 'user@example.com',
+        maxLength: 255,
+    })
+    @IsOptional()
+    @IsEmail()
+    @MaxLength(255)
+    email?: string;
 
     @ApiPropertyOptional({
         description: 'Customer profile image URL',
