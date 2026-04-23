@@ -111,10 +111,21 @@ export class BookingService {
             }
         }
 
+        const customerId = actor?.id;
+        const cartIdentity = customerId
+            ? { customerId }
+            : sessionId
+                ? { guestId: sessionId }
+                : null;
+
+        if (!cartIdentity) {
+            throw new NotFoundException('Cart not found');
+        }
+
         const cart = await this.prisma.cart.findFirst({
             where: {
-                id: dto.cartId,
                 restaurantId,
+                ...cartIdentity,
             },
             include: {
                 items: true,
@@ -362,31 +373,31 @@ export class BookingService {
         // STEP 8.5: CREATE DOORDASH DRIVE DELIVERY
         // ================================
 
-        let delivery: {
-            provider: 'DOORDASH_DRIVE';
-            externalDeliveryId: string;
-            deliveryStatus: string | null;
-            trackingUrl: string | null;
-        } | null = null;
+        // let delivery: {
+        //     provider: 'DOORDASH_DRIVE';
+        //     externalDeliveryId: string;
+        //     deliveryStatus: string | null;
+        //     trackingUrl: string | null;
+        // } | null = null;
 
-        try {
-            const driveDelivery = await this.doorDashService.createDriveDeliveryForSession(
-                restaurantId,
-                session.id,
-            );
+        // try {
+        //     const driveDelivery = await this.doorDashService.createDriveDeliveryForSession(
+        //         restaurantId,
+        //         session.id,
+        //     );
 
-            delivery = {
-                provider: 'DOORDASH_DRIVE',
-                externalDeliveryId: driveDelivery.externalDeliveryId,
-                deliveryStatus: driveDelivery.deliveryStatus,
-                trackingUrl: driveDelivery.trackingUrl,
-            };
-        } catch (err: unknown) {
-            const error = err instanceof Error ? err : new Error(String(err));
-            this.logger.warn(
-                `DoorDash delivery creation skipped for session ${session.id}: ${error.message}`,
-            );
-        }
+        //     delivery = {
+        //         provider: 'DOORDASH_DRIVE',
+        //         externalDeliveryId: driveDelivery.externalDeliveryId,
+        //         deliveryStatus: driveDelivery.deliveryStatus,
+        //         trackingUrl: driveDelivery.trackingUrl,
+        //     };
+        // } catch (err: unknown) {
+        //     const error = err instanceof Error ? err : new Error(String(err));
+        //     this.logger.warn(
+        //         `DoorDash delivery creation skipped for session ${session.id}: ${error.message}`,
+        //     );
+        // }
 
         // ================================
         // STEP 9: WEBSOCKET EVENTS
@@ -417,7 +428,7 @@ export class BookingService {
             batch,
             bill,
             payment,
-            delivery,
+            // delivery, -- commented this
         };
     }
 }

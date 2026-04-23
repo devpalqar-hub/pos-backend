@@ -185,8 +185,8 @@ export class CartController {
             legacyGuestId,
         );
         const customerId = user ? user.id : undefined;
-
         return {
+
             message: 'Item added to cart',
             data: await this.cartService.addItem(restaurantId, { customerId, sessionId }, dto),
         };

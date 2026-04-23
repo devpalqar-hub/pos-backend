@@ -117,16 +117,28 @@ export class CartService {
         });
     }
 
-    async addItem(restaurantId: string, query: any, dto: any) {
-        if (this.getGuestKey(query) && !query.customerId) {
-            const cart = await this.findCart(restaurantId, query);
-            if (!cart) {
-                await this.createCart(restaurantId, query);
-            }
+    private async getOrCreateCart(restaurantId: string, query: any) {
+        const existingCart = await this.findCart(restaurantId, query);
+        if (existingCart) {
+            return existingCart;
         }
-        const cart = await this.findCart(restaurantId, query);
 
-        if (!cart) throw new NotFoundException('Cart not found');
+        if (!query.customerId && !this.getGuestKey(query)) {
+            throw new NotFoundException('Cart identity not provided');
+        }
+
+        await this.createCart(restaurantId, query);
+
+        const createdCart = await this.findCart(restaurantId, query);
+        if (!createdCart) {
+            throw new NotFoundException('Cart not found');
+        }
+
+        return createdCart;
+    }
+
+    async addItem(restaurantId: string, query: any, dto: any) {
+        const cart = await this.getOrCreateCart(restaurantId, query);
 
         const unitPrice = await this.getEffectiveMenuItemPrice(dto.menuItemId, restaurantId);
         const existingItem = cart.items.find((item) => item.menuItemId === dto.menuItemId);

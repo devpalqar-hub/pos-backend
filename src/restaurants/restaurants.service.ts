@@ -12,7 +12,6 @@ import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { AssignStaffDto, RemoveStaffDto } from './dto/assign-staff.dto';
 import { RestaurantFeature, User, UserRole } from '@prisma/client'
-import { features } from 'process';
 
 // ─── Full include clause reused across queries ─────────────────────────────────
 
@@ -82,6 +81,9 @@ const PUBLIC_RESTAURANT_DETAIL_SELECT = {
 } as const;
 
 const ALL_RESTAURANT_FEATURES = Object.values(RestaurantFeature);
+
+type ShowColumnResult = { Type: string };
+
 @Injectable()
 export class RestaurantsService {
     private readonly logger = new Logger(RestaurantsService.name);
@@ -110,6 +112,18 @@ export class RestaurantsService {
         // Build unique slug
         const slug = dto.slug ?? this.buildSlug(dto.name);
         await this.assertSlugAvailable(slug);
+
+        const supportedFeatures = await this.getSupportedRestaurantFeatures();
+        const featuresToSeed = supportedFeatures.length
+            ? ALL_RESTAURANT_FEATURES.filter((feature) => supportedFeatures.includes(feature))
+            : ALL_RESTAURANT_FEATURES;
+
+        if (featuresToSeed.length !== ALL_RESTAURANT_FEATURES.length) {
+            const skipped = ALL_RESTAURANT_FEATURES.filter((feature) => !featuresToSeed.includes(feature));
+            this.logger.warn(
+                `Skipping unsupported restaurant features during seed: ${skipped.join(', ')}`,
+            );
+        }
 
         const { workingHours, ...restDto } = dto;
 
@@ -160,7 +174,7 @@ export class RestaurantsService {
             */
 
             await tx.restaurantFeatureFlag.createMany({
-                data: ALL_RESTAURANT_FEATURES.map((feature) => ({
+                data: featuresToSeed.map((feature) => ({
                     restaurantId: createdRestaurant.id,
                     feature,
                     isEnabled: false,
@@ -174,13 +188,23 @@ export class RestaurantsService {
     }
     // ─── List Restaurants ─────────────────────────────────────────────────────
 
-    async findAll(actor: User, page: number = 1, limit: number = 10): Promise<object> {
+    async findAll(actor: User, page: number = 1, limit: number = 10, search?: string): Promise<object> {
+        const nameFilter = search?.trim()
+            ? {
+                name: {
+                    contains: search.trim(),
+                    mode: 'insensitive' as const,
+                },
+            }
+            : {};
+
         switch (actor.role) {
             case UserRole.SUPER_ADMIN:
                 return paginate({
                     prismaModel: this.prisma.restaurant,
                     page,
                     limit,
+                    where: nameFilter,
                     include: RESTAURANT_LIST_INCLUDE,
                     orderBy: { createdAt: 'desc' },
                 });
@@ -190,7 +214,7 @@ export class RestaurantsService {
                     prismaModel: this.prisma.restaurant,
                     page,
                     limit,
-                    where: { ownerId: actor.id },
+                    where: { ownerId: actor.id, ...nameFilter },
                     include: RESTAURANT_LIST_INCLUDE,
                     orderBy: { createdAt: 'desc' },
                 });
@@ -204,7 +228,7 @@ export class RestaurantsService {
                     prismaModel: this.prisma.restaurant,
                     page,
                     limit,
-                    where: { id: actor.restaurantId },
+                    where: { id: actor.restaurantId, ...nameFilter },
                     include: RESTAURANT_LIST_INCLUDE,
                 });
 
@@ -575,6 +599,30 @@ export class RestaurantsService {
             .replace(/\s+/g, '-')
             .replace(/-+/g, '-')
             + '-' + Date.now().toString(36);
+    }
+
+    private async getSupportedRestaurantFeatures(): Promise<RestaurantFeature[]> {
+        try {
+            const rows = await this.prisma.$queryRawUnsafe<ShowColumnResult[]>(
+                "SHOW COLUMNS FROM restaurant_feature_flags LIKE 'feature'",
+            );
+
+            const enumType = rows?.[0]?.Type;
+            if (!enumType?.startsWith('enum(')) {
+                return ALL_RESTAURANT_FEATURES;
+            }
+
+            const dbValues = enumType
+                .slice(5, -1)
+                .split(',')
+                .map((value) => value.trim().replace(/^'/, '').replace(/'$/, ''))
+                .filter(Boolean);
+
+            return ALL_RESTAURANT_FEATURES.filter((feature) => dbValues.includes(feature));
+        } catch (error) {
+            this.logger.warn('Could not read restaurant feature enum from DB, using all feature flags.');
+            return ALL_RESTAURANT_FEATURES;
+        }
     }
 
     private async assertSlugAvailable(slug: string): Promise<void> {

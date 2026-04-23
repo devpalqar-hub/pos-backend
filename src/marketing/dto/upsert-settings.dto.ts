@@ -82,4 +82,36 @@ export class UpsertMarketingSettingsDto {
   @IsOptional()
   @IsString()
   waAccessToken?: string;
+
+  @ApiPropertyOptional({
+    example: 'order_confirmation_v1',
+    description: 'Approved WhatsApp template name used for outbound template messages',
+  })
+  @IsOptional()
+  @IsString()
+  waTemplateName?: string;
+
+  @ApiPropertyOptional({
+    example: 'en_US',
+    description: 'Language code for the approved WhatsApp template',
+  })
+  @IsOptional()
+  @IsString()
+  waTemplateLanguageCode?: string;
+
+  @ApiPropertyOptional({
+    example: 'checkout_checkbox',
+    description: 'How the customer opted in to receive WhatsApp messages',
+  })
+  @IsOptional()
+  @IsString()
+  waOptInMethod?: string;
+
+  @ApiPropertyOptional({
+    example: 'Opt-in collected via checkout checkbox and saved with order consent log',
+    description: 'Optional notes about how WhatsApp opt-in was captured',
+  })
+  @IsOptional()
+  @IsString()
+  waOptInDescription?: string;
 }

@@ -1,13 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateBookingDto {
-    @ApiProperty({
-        description: 'Cart UUID used to create the booking',
-    })
-    @IsUUID()
-    cartId: string;
-
     @ApiProperty({
         required: false,
         description: 'Customer name',

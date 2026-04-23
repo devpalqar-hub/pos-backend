@@ -82,13 +82,19 @@ Returns restaurants visible to the authenticated user:
     })
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by restaurant name' })
     @ApiResponse({ status: 200, description: 'Restaurant list returned.' })
-    async findAll(@CurrentUser() actor: User, @Query('page') page?: string, @Query('limit') limit?: string) {
+    async findAll(
+        @CurrentUser() actor: User,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+    ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Restaurants fetched successfully',
-            data: await this.restaurantsService.findAll(actor, pageNum, limitNum),
+            data: await this.restaurantsService.findAll(actor, pageNum, limitNum, search),
         };
     }
 

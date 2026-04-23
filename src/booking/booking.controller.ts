@@ -78,8 +78,9 @@ The booking creation process performs the following internal workflow:
 ### Booking Flow
 
 1. **Validate Cart**
-   - The system verifies the provided \`cartId\`.
-   - Ensures the cart belongs to the specified restaurant.
+    - If JWT token is present, cart is resolved by authenticated customer.
+    - If token is absent, cart is resolved by \`sessionId\`.
+    - Ensures the cart belongs to the specified restaurant.
 
 2. **Guest Validation**
     - If the request is made without authentication and only \`sessionId\` is provided,

@@ -79,9 +79,10 @@ Obtain the **Account SID** and **Auth Token** from [console.twilio.com](https://
 \`twilioFromNumber\` must be in E.164 format, e.g. \`+15551234567\`.
 
 ### WhatsApp Business (Meta Cloud API)
-- \`waBaId\` — WhatsApp Business Account ID (from Meta Business Manager)
-- \`waPhoneNumberId\` — Phone Number ID for the sending number
-- \`waAccessToken\` — Permanent / temporary access token from Meta Developers console
+ - \`waTemplateName\` — Approved template name for outbound WhatsApp notifications
+ - \`waTemplateLanguageCode\` — Template language code such as \`en_US\`
+ - \`waOptInMethod\` — How customers opt in to WhatsApp messaging
+ - \`waOptInDescription\` — Optional notes about how consent was collected
 
 **Allowed roles**: SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
     `,

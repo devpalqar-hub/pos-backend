@@ -49,6 +49,13 @@ export class MarketingService {
       };
     }
 
+    const whatsappSettings = settings as typeof settings & {
+      waTemplateName?: string | null;
+      waTemplateLanguageCode?: string | null;
+      waOptInMethod?: string | null;
+      waOptInDescription?: string | null;
+    };
+
     // Return masked sensitive fields ─ never send raw credentials in the response
     return {
       restaurantId: settings.restaurantId,
@@ -72,6 +79,10 @@ export class MarketingService {
         baId: settings.waBaId,
         phoneNumberId: settings.waPhoneNumberId,
         accessToken: settings.waAccessToken ? '••••••••' : null,
+        templateName: whatsappSettings.waTemplateName,
+        templateLanguageCode: whatsappSettings.waTemplateLanguageCode,
+        optInMethod: whatsappSettings.waOptInMethod,
+        optInDescription: whatsappSettings.waOptInDescription,
         configured: !!(settings.waPhoneNumberId && settings.waAccessToken),
       },
       createdAt: settings.createdAt,
@@ -106,6 +117,11 @@ export class MarketingService {
     if (dto.waPhoneNumberId !== undefined) data.waPhoneNumberId = dto.waPhoneNumberId;
     if (dto.waAccessToken !== undefined && dto.waAccessToken !== '••••••••')
       data.waAccessToken = dto.waAccessToken;
+    if (dto.waTemplateName !== undefined) data.waTemplateName = dto.waTemplateName;
+    if (dto.waTemplateLanguageCode !== undefined)
+      data.waTemplateLanguageCode = dto.waTemplateLanguageCode;
+    if (dto.waOptInMethod !== undefined) data.waOptInMethod = dto.waOptInMethod;
+    if (dto.waOptInDescription !== undefined) data.waOptInDescription = dto.waOptInDescription;
 
     await this.prisma.marketingSettings.upsert({
       where: { restaurantId },
@@ -1029,12 +1045,12 @@ export class MarketingService {
     restaurantId: string,
     mode: 'view' | 'manage',
   ): Promise<void> {
-    if (actor.role === UserRole.SUPER_ADMIN) return;
-
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id: restaurantId },
     });
     if (!restaurant) throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+
+    if (actor.role === UserRole.SUPER_ADMIN) return;
 
     if (actor.role === UserRole.OWNER) {
       if (restaurant.ownerId !== actor.id) {

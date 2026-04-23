@@ -1014,6 +1014,10 @@ model MarketingSettings {
   waBaId          String? @db.VarChar(255) // Business Account ID
   waPhoneNumberId String? @db.VarChar(255) // Phone Number ID
   waAccessToken   String? @db.Text // Bearer token — store encrypted in production
+  waTemplateName        String? @db.VarChar(255) // Approved WhatsApp template name
+  waTemplateLanguageCode String? @db.VarChar(20) // Template language code, e.g. en_US
+  waOptInMethod         String? @db.VarChar(100) // How customer opt-in is collected
+  waOptInDescription    String? @db.Text // Optional consent / opt-in details
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
