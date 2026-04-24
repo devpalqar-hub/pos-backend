@@ -181,11 +181,13 @@ export class MenuService {
       'SATURDAY',
     ];
 
-    return weekdayMap[date.getUTCDay()]; // ✅ USE UTC
+    return weekdayMap[date.getDay()];
   }
 
   private formatTime(date: Date): string {
-    return date.toISOString().slice(11, 16); // HH:mm in UTC
+    return `${String(date.getHours()).padStart(2, '0')}:${String(
+      date.getMinutes(),
+    ).padStart(2, '0')}`;
   }
 
   async findAll(
@@ -232,13 +234,36 @@ export class MenuService {
       orderBy: this.resolveSort(sortBy),
     });
 
+    const totalItemsBeforeFilter = Array.isArray(result.data) ? result.data.length : 0;
+    const totalRulesLoaded = Array.isArray(result.data)
+      ? result.data.reduce(
+        (sum, item: any) => sum + (Array.isArray(item.priceRules) ? item.priceRules.length : 0),
+        0,
+      )
+      : 0;
+
+    this.logger.log(
+      `[Menu.findAll] Starting price-rule evaluation: restaurantId=${restaurantId}, items=${totalItemsBeforeFilter}, rulesLoaded=${totalRulesLoaded}, date=${(date ?? new Date()).toISOString()}`,
+    );
+
     // Filter by status if provided
     if (status) {
       result.data = this.filterByStatus(result.data, status);
     }
 
     const evaluationDate = date ?? new Date();
-    return this.applyDatePricing(result, evaluationDate);
+    const pricedResult = this.applyDatePricing(result, evaluationDate);
+
+    const totalItemsAfterFilter = Array.isArray(pricedResult.data) ? pricedResult.data.length : 0;
+    const itemsWithAppliedRule = Array.isArray(pricedResult.data)
+      ? pricedResult.data.filter((item: any) => !!item.appliedRule).length
+      : 0;
+
+    this.logger.log(
+      `[Menu.findAll] Completed price-rule evaluation: restaurantId=${restaurantId}, itemsAfterFilter=${totalItemsAfterFilter}, itemsWithAppliedRule=${itemsWithAppliedRule}`,
+    );
+
+    return pricedResult;
   }
 
   async publicFindAll(

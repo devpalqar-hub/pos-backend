@@ -101,6 +101,12 @@ Creates a new item in the restaurant menu.
     type: String,
     description: 'ISO date (YYYY-MM-DD or full ISO string) to evaluate price rules',
   })
+  @ApiQuery({
+    name: 'atTime',
+    required: false,
+    type: String,
+    description: 'Alias for date. ISO datetime used to evaluate price rules.',
+  })
   @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by item type (STOCKABLE | NON_STOCKABLE)' })
   @ApiQuery({ name: 'status', required: false, type: String, description: 'Filter by stock status (low_stock | out_of_stock | in_stock)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
@@ -126,12 +132,14 @@ Creates a new item in the restaurant menu.
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
     @Query('date') date?: string,
+    @Query('atTime') atTime?: string,
     @Query('fetchAll') fetchAll?: string,
   ) {
     const pageNum = parseInt(page ?? '1');
     const limitNum = parseInt(limit ?? '10');
     const shouldFetchAll = fetchAll === 'true';
-    const parsedDate = date ? new Date(date) : undefined;
+    const evaluationInput = atTime ?? date;
+    const parsedDate = evaluationInput ? new Date(evaluationInput) : undefined;
 
     console.log(parsedDate, "parsed Date");
 
@@ -235,6 +243,12 @@ Creates a new item in the restaurant menu.
     type: String,
     description: 'ISO date (YYYY-MM-DD or full ISO string) to evaluate price rules',
   })
+  @ApiQuery({
+    name: 'atTime',
+    required: false,
+    type: String,
+    description: 'Alias for date. ISO datetime used to evaluate price rules.',
+  })
   @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by item type (STOCKABLE | NON_STOCKABLE)' })
   @ApiQuery({ name: 'status', required: false, type: String, description: 'Filter by stock status (low_stock | out_of_stock | in_stock)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
@@ -256,12 +270,14 @@ Creates a new item in the restaurant menu.
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
     @Query('date') date?: string,
+    @Query('atTime') atTime?: string,
     @Query('fetchAll') fetchAll?: string,
   ) {
     const pageNum = parseInt(page ?? '1');
     const limitNum = parseInt(limit ?? '10');
     const shouldFetchAll = fetchAll === 'true';
-    const parsedDate = date ? new Date(date) : undefined;
+    const evaluationInput = atTime ?? date;
+    const parsedDate = evaluationInput ? new Date(evaluationInput) : undefined;
 
     const rawResult = await this.menuService.publicFindAll(
       restaurantId,
