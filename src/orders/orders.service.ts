@@ -765,7 +765,8 @@ export class OrdersService {
                 actor.role !== UserRole.CHEF &&
                 actor.role !== UserRole.SUPER_ADMIN &&
                 actor.role !== UserRole.OWNER &&
-                actor.role !== UserRole.RESTAURANT_ADMIN
+                actor.role !== UserRole.RESTAURANT_ADMIN &&
+                actor.role !== UserRole.WAITER
             ) {
                 throw new ForbiddenException('Only CHEF can mark items as PREPARING or PREPARED');
             }
@@ -776,7 +777,8 @@ export class OrdersService {
                 actor.role !== UserRole.WAITER &&
                 actor.role !== UserRole.SUPER_ADMIN &&
                 actor.role !== UserRole.OWNER &&
-                actor.role !== UserRole.RESTAURANT_ADMIN
+                actor.role !== UserRole.RESTAURANT_ADMIN &&
+                actor.role !== UserRole.CHEF
             ) {
                 throw new ForbiddenException('Only WAITER can mark items as SERVED');
             }
