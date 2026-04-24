@@ -6,14 +6,19 @@ import {
     HttpCode,
     HttpStatus,
     Logger,
+    Param,
+    ParseUUIDPipe,
     Patch,
     Post,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import {
     ApiBearerAuth,
     ApiHeader,
     ApiOperation,
+    ApiParam,
+    ApiQuery,
     ApiResponse,
     ApiTags,
 } from '@nestjs/swagger';
@@ -225,6 +230,81 @@ Rules:
 
         return {
             message: 'Customer profile updated successfully',
+            data,
+        };
+    }
+
+    /*
+    GET CUSTOMER ORDERS
+    */
+    @Public()
+    @Get('orders')
+    @UseGuards(CustomerJwtAuthGuard)
+    @ApiBearerAuth('Bearer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Get logged-in customer orders',
+        description: 'Returns paginated orders of the authenticated customer.',
+    })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({ name: 'status', required: false, type: String, description: 'Optional order status filter' })
+    @ApiQuery({ name: 'channel', required: false, type: String, description: 'Optional order channel filter' })
+    @ApiResponse({ status: 200, description: 'Customer orders fetched successfully.' })
+    @ApiResponse({ status: 401, description: 'Customer authentication required.' })
+    async getMyOrders(
+        @CurrentUser() customer: any,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('status') status?: string,
+        @Query('channel') channel?: string,
+    ) {
+        const pageNum = Number(page ?? 1);
+        const limitNum = Number(limit ?? 10);
+
+        const data = await this.authService.getMyOrders(
+            customer.id,
+            customer.restaurantId,
+            pageNum,
+            limitNum,
+            status,
+            channel,
+        );
+
+        return {
+            message: 'Customer orders fetched successfully',
+            data,
+        };
+    }
+
+    /*
+    GET CUSTOMER ORDER DETAIL
+    */
+    @Public()
+    @Get('orders/:sessionId')
+    @UseGuards(CustomerJwtAuthGuard)
+    @ApiBearerAuth('Bearer')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Get logged-in customer order detail',
+        description: 'Returns full details for one order belonging to the authenticated customer.',
+    })
+    @ApiParam({ name: 'sessionId', description: 'Order session UUID' })
+    @ApiResponse({ status: 200, description: 'Customer order fetched successfully.' })
+    @ApiResponse({ status: 401, description: 'Customer authentication required.' })
+    @ApiResponse({ status: 404, description: 'Order not found.' })
+    async getMyOrderById(
+        @CurrentUser() customer: any,
+        @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    ) {
+        const data = await this.authService.getMyOrderById(
+            customer.id,
+            customer.restaurantId,
+            sessionId,
+        );
+
+        return {
+            message: 'Customer order fetched successfully',
             data,
         };
     }

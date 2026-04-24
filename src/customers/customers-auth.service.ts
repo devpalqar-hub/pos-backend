@@ -502,6 +502,136 @@ export class CustomersAuthService {
         return this.sanitizeCustomer(updated);
     }
 
+    /*
+    GET LOGGED-IN CUSTOMER ORDERS
+    */
+    async getMyOrders(
+        customerId: string,
+        restaurantId: string,
+        page = 1,
+        limit = 10,
+        status?: string,
+        channel?: string,
+    ) {
+        const where: any = {
+            customerId,
+            restaurantId,
+            ...(status && { status }),
+            ...(channel && { channel }),
+        };
+
+        const [orders, total] = await Promise.all([
+            this.prisma.orderSession.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    table: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                    bill: {
+                        select: {
+                            id: true,
+                            billNumber: true,
+                            status: true,
+                            subtotal: true,
+                            taxAmount: true,
+                            discountAmount: true,
+                            totalAmount: true,
+                            createdAt: true,
+                        },
+                    },
+                    _count: {
+                        select: {
+                            batches: true,
+                        },
+                    },
+                },
+            }),
+            this.prisma.orderSession.count({ where }),
+        ]);
+
+        return {
+            data: orders,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+                hasNextPage: page * limit < total,
+                hasPrevPage: page > 1,
+            },
+        };
+    }
+
+    /*
+    GET LOGGED-IN CUSTOMER ORDER DETAIL
+    */
+    async getMyOrderById(
+        customerId: string,
+        restaurantId: string,
+        sessionId: string,
+    ) {
+        const order = await this.prisma.orderSession.findFirst({
+            where: {
+                id: sessionId,
+                customerId,
+                restaurantId,
+            },
+            include: {
+                restaurant: {
+                    select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                        email: true,
+                    },
+                },
+                table: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+                batches: {
+                    orderBy: { createdAt: 'asc' },
+                    include: {
+                        items: {
+                            include: {
+                                menuItem: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        imageUrl: true,
+                                    },
+                                },
+                            },
+                            orderBy: { createdAt: 'asc' },
+                        },
+                    },
+                },
+                bill: {
+                    include: {
+                        items: true,
+                        payments: {
+                            orderBy: { createdAt: 'asc' },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        return order;
+    }
+
     // ═════════════════════════════════════════════════════════════
     // INTERNAL: Send OTP Email using Restaurant SMTP
     // ═════════════════════════════════════════════════════════════
