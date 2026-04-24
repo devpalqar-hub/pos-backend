@@ -330,6 +330,7 @@ model Restaurant {
   sessions                 OrderSession[]
   bills                    Bill[]
   customers                Customer[]
+  addresses                Address[]
   loyalityPoints           LoyalityPoint[]
   expenses                 Expense[]
   payrolls                 Payroll[]
@@ -352,6 +353,7 @@ model Restaurant {
   vendors                  Vendor[]
   vendorPayments           VendorPayment[]
   ToastMenuItemMapping     ToastMenuItemMapping[]
+  deliveryChargeSetting    RestaurantDeliveryCharge?
 
   @@index([ownerId])
   @@map("restaurants")
@@ -786,6 +788,7 @@ model Customer {
   orderSessions           OrderSession[]
   orderBatches            OrderBatch[]
   bills                   Bill[]
+  addresses               Address[]
 
   @@unique([restaurantId, phone])
   @@unique([restaurantId, email])
@@ -1635,6 +1638,46 @@ model CartItem {
   @@unique([cartId, menuItemId])
   @@index([cartId])
   @@map("cart_items")
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  customerId   String
+  restaurantId String
+  label        String?  @db.VarChar(100)
+  line1        String   @db.VarChar(255)
+  line2        String?  @db.VarChar(255)
+  city         String   @db.VarChar(100)
+  state        String?  @db.VarChar(100)
+  postalCode   String?  @db.VarChar(20)
+  country      String?  @db.VarChar(100)
+  latitude     Decimal? @db.Decimal(10, 8)
+  longitude    Decimal? @db.Decimal(11, 8)
+  instructions String?  @db.VarChar(500)
+  isDefault    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([restaurantId])
+  @@map("addresses")
+}
+
+model RestaurantDeliveryCharge {
+  id             String   @id @default(uuid())
+  restaurantId   String   @unique
+  deliveryCharge Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@map("restaurant_delivery_charges")
 }
 
 model RestaurantFeatureFlag {

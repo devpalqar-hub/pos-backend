@@ -79,6 +79,18 @@ export class CartController {
         type: String,
         description: 'Session identifier for guest users',
     })
+    @ApiQuery({
+        name: 'coupounName',
+        required: false,
+        type: String,
+        description: 'Coupon code for payable amount preview',
+    })
+    @ApiQuery({
+        name: 'claimedLoyalityPoints',
+        required: false,
+        type: Boolean,
+        description: 'If true, loyalty points will be considered in payable amount preview',
+    })
     @ApiOperation({
         summary: 'Get active cart',
         description:
@@ -93,6 +105,8 @@ export class CartController {
         @Headers('x-session-id') headerSessionId?: string,
         @Query('sessionId') querySessionId?: string,
         @Query('guestId') legacyGuestId?: string,
+        @Query('coupounName') coupounName?: string,
+        @Query('claimedLoyalityPoints') claimedLoyalityPoints?: string,
         @CurrentUser() user?: any,
     ) {
         const sessionId = this.resolveSessionId(
@@ -107,6 +121,8 @@ export class CartController {
             data: await this.cartService.getCart(restaurantId, {
                 customerId,
                 sessionId,
+                coupounName,
+                claimedLoyalityPoints,
             }),
         };
     }
@@ -446,6 +462,18 @@ export class CartController {
         required: false,
         description: 'Session identifier',
     })
+    @ApiQuery({
+        name: 'coupounName',
+        required: false,
+        type: String,
+        description: 'Coupon code for payable amount preview',
+    })
+    @ApiQuery({
+        name: 'claimedLoyalityPoints',
+        required: false,
+        type: Boolean,
+        description: 'If true, loyalty points will be considered in payable amount preview',
+    })
     @ApiOperation({
         summary: 'Recalculate cart totals',
         description:
@@ -500,6 +528,8 @@ export class CartController {
         @Headers('x-session-id') headerSessionId?: string,
         @Query('sessionId') querySessionId?: string,
         @Query('guestId') legacyGuestId?: string,
+        @Query('coupounName') coupounName?: string,
+        @Query('claimedLoyalityPoints') claimedLoyalityPoints?: string,
         @CurrentUser() user?: any,
     ) {
         const sessionId = this.resolveSessionId(
@@ -514,6 +544,8 @@ export class CartController {
             data: await this.cartService.getSummary(restaurantId, {
                 customerId,
                 sessionId,
+                coupounName,
+                claimedLoyalityPoints,
             }),
         };
     }

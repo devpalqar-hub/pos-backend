@@ -431,7 +431,10 @@ export class CustomersAuthService {
             throw new NotFoundException('Customer not found');
         }
 
-        return this.sanitizeCustomer(customer);
+        return {
+            ...this.sanitizeCustomer(customer),
+            memberSince: customer.createdAt,
+        };
     }
 
     /*

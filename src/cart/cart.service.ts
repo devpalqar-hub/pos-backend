@@ -6,6 +6,15 @@ import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
 export class CartService {
     constructor(private prisma: PrismaService) { }
 
+    private parseBooleanQuery(value: unknown): boolean {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            return normalized === 'true' || normalized === '1' || normalized === 'yes';
+        }
+        return false;
+    }
+
     private static readonly CART_ITEMS_INCLUDE = {
         items: {
             include: {
@@ -103,7 +112,17 @@ export class CartService {
     }
 
     async getCart(restaurantId: string, query: any) {
-        return this.findCart(restaurantId, query);
+        const cart = await this.findCart(restaurantId, query);
+        if (!cart) return cart;
+
+        const summary = await this.buildCartSummaryWithPayable(restaurantId, query, cart);
+
+        return {
+            ...cart,
+            payableAmoung: summary.payableAmoung,
+            payableAmount: summary.payableAmount,
+            summary,
+        };
     }
 
     async createCart(restaurantId: string, dto: any) {
@@ -387,14 +406,101 @@ export class CartService {
 
         if (!cart) throw new NotFoundException('Cart not found');
 
+        return this.buildCartSummaryWithPayable(restaurantId, query, cart);
+    }
+
+    private async buildCartSummaryWithPayable(restaurantId: string, query: any, cart: any) {
         const items = cart.items.length;
+        const subtotal = Number(cart.subtotal ?? 0);
+        const taxAmount = Number(cart.taxAmount ?? 0);
+        const discount = Number(cart.discount ?? 0);
+        const total = Number(cart.total ?? 0);
+
+        const couponCode = query?.coupounName ?? query?.couponName;
+        const shouldApplyLoyalty = this.parseBooleanQuery(query?.claimedLoyalityPoints);
+
+        let couponDiscount = 0;
+        if (couponCode) {
+            const coupon = await this.prisma.coupon.findFirst({
+                where: {
+                    code: couponCode,
+                    restaurantId,
+                    isActive: true,
+                },
+            });
+
+            if (coupon) {
+                const now = new Date();
+                const isWithinValidity = now >= coupon.validFrom && now <= coupon.validUntil;
+                const hasMinAmount = !coupon.minOrderAmount || subtotal >= Number(coupon.minOrderAmount);
+
+                if (isWithinValidity && hasMinAmount) {
+                    if (coupon.discountType === 'PERCENTAGE') {
+                        couponDiscount = subtotal * (Number(coupon.discountValue) / 100);
+                    } else {
+                        couponDiscount = Number(coupon.discountValue);
+                    }
+
+                    if (coupon.maxDiscount) {
+                        couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
+                    }
+                }
+            }
+        }
+
+        let loyaltyDiscount = 0;
+        if (shouldApplyLoyalty && query?.customerId) {
+            const converter = await this.prisma.loyalityPointsConverter.findFirst({
+                where: {
+                    restaurantId,
+                    isActive: true,
+                },
+            });
+
+            if (converter) {
+                const now = new Date();
+                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                    where: {
+                        customerId: query.customerId,
+                        loyalityPoint: {
+                            restaurantId,
+                            isActive: true,
+                            OR: [{ endDate: null }, { endDate: { gte: now } }],
+                        },
+                    },
+                    select: {
+                        pointsAwarded: true,
+                    },
+                });
+
+                const totalPoints = redemptions.reduce(
+                    (sum, redemption) => sum + Number(redemption.pointsAwarded),
+                    0,
+                );
+
+                if (totalPoints > 0 && Number(converter.points) > 0) {
+                    const conversionRate = Number(converter.value) / Number(converter.points);
+                    const maxPossibleDiscount = totalPoints * conversionRate;
+                    const maxAfterCoupon = Math.max(0, total - couponDiscount);
+                    loyaltyDiscount = Math.min(maxPossibleDiscount, maxAfterCoupon);
+                }
+            }
+        }
+
+        const payableAmount = parseFloat(
+            Math.max(0, total - couponDiscount - loyaltyDiscount).toFixed(2),
+        );
 
         return {
             items,
-            subtotal: cart.subtotal,
-            taxAmount: cart.taxAmount,
-            discount: cart.discount,
-            total: cart.total,
+            subtotal,
+            taxAmount,
+            discount,
+            total,
+            couponDiscount: parseFloat(couponDiscount.toFixed(2)),
+            loyalityDiscount: parseFloat(loyaltyDiscount.toFixed(2)),
+            payableAmoung: payableAmount,
+            payableAmount,
         };
     }
 }

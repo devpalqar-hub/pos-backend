@@ -39,6 +39,8 @@ import { BillModule } from './bill/bill.module';
 import { VendorModule } from './vendor/vendor.module';
 import { VendorCategoryModule } from './vendor-category/vendor-category.module';
 import { VendorPaymentModule } from './vendor-payment/vendor-payment.module';
+import { AddressModule } from './address/address.module';
+import { DeliveryChargeModule } from './delivery-charge/delivery-charge.module';
 
 @Module({
   imports: [
@@ -85,7 +87,9 @@ import { VendorPaymentModule } from './vendor-payment/vendor-payment.module';
     BillModule,
     VendorModule,
     VendorCategoryModule,
-    VendorPaymentModule
+    VendorPaymentModule,
+    AddressModule,
+    DeliveryChargeModule,
   ],
   controllers: [AppController],
   providers: [
