@@ -41,6 +41,7 @@ import { VendorCategoryModule } from './vendor-category/vendor-category.module';
 import { VendorPaymentModule } from './vendor-payment/vendor-payment.module';
 import { AddressModule } from './address/address.module';
 import { DeliveryChargeModule } from './delivery-charge/delivery-charge.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { DeliveryChargeModule } from './delivery-charge/delivery-charge.module';
     VendorPaymentModule,
     AddressModule,
     DeliveryChargeModule,
+    StripeModule.forRootAsync()
   ],
   controllers: [AppController],
   providers: [

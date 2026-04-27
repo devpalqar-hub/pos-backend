@@ -6,9 +6,10 @@ import { CartService } from '../cart/cart.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { OrdersModule } from 'src/orders/orders.module';
 import { DoorDashModule } from '../doordash/doordash.module';
+import { StripeModule } from '../stripe/stripe.module';
 
 @Module({
-    imports: [OrdersModule, DoorDashModule],
+    imports: [OrdersModule, DoorDashModule, StripeModule],
     controllers: [BookingController],
     providers: [BookingService, PrismaService, CartService],
 })

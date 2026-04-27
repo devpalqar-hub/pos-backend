@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `payments` ADD COLUMN `checkoutSessionId` VARCHAR(255) NULL,
+    ADD COLUMN `failureReason` VARCHAR(500) NULL,
+    ADD COLUMN `paidAt` DATETIME(3) NULL,
+    ADD COLUMN `paymentIntentId` VARCHAR(255) NULL,
+    ADD COLUMN `status` ENUM('PENDING', 'SUCCESS', 'FAILED', 'CANCELED', 'REFUNDED') NOT NULL DEFAULT 'PENDING';

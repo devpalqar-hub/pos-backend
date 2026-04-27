@@ -137,6 +137,14 @@ enum PaymentMethod {
   OTHER
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
 enum LeaveType {
   PAID
   UNPAID
@@ -733,12 +741,17 @@ model BillItem {
 }
 
 model Payment {
-  id        String        @id @default(uuid())
-  billId    String
-  amount    Decimal       @db.Decimal(10, 2)
-  method    PaymentMethod
-  reference String?       @db.VarChar(255) // Transaction ID, UPI ref, card last4, etc.
-  notes     String?       @db.VarChar(500)
+  id                String        @id @default(uuid())
+  billId            String
+  amount            Decimal       @db.Decimal(10, 2)
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  reference         String?       @db.VarChar(255) // Transaction ID, UPI ref, card last4, etc.
+  paymentIntentId   String?       @db.VarChar(255)
+  checkoutSessionId String?       @db.VarChar(255)
+  failureReason     String?       @db.VarChar(500)
+  paidAt            DateTime?
+  notes             String?       @db.VarChar(500)
 
   processedById String?
   createdAt     DateTime @default(now())

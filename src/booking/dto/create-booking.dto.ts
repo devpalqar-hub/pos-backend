@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUrl } from 'class-validator';
 
 export class CreateBookingDto {
     @ApiProperty({
@@ -57,5 +57,23 @@ export class CreateBookingDto {
     @IsOptional()
     @IsString()
     couponName?: string;
+
+    @ApiProperty({
+        required: false,
+        description: 'Stripe success redirect URL',
+        example: 'https://example.com/payment/success',
+    })
+    @IsOptional()
+    @IsUrl({ require_tld: false })
+    successurl?: string;
+
+    @ApiProperty({
+        required: false,
+        description: 'Stripe failure/cancel redirect URL',
+        example: 'https://example.com/payment/failure',
+    })
+    @IsOptional()
+    @IsUrl({ require_tld: false })
+    failureurl?: string;
 
 }

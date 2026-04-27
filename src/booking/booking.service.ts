@@ -5,14 +5,14 @@ import {
     ForbiddenException,
     Logger,
 } from '@nestjs/common';
-import { CouponDiscountType, PaymentMethod } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { BillStatus, CouponDiscountType, OrderChannel, PaymentMethod, PaymentStatus, SessionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { DoorDashService } from '../doordash/doordash.service';
-
-import { OrderChannel } from '@prisma/client';
+import { StripeService } from '../stripe/stripe.service';
 
 @Injectable()
 export class BookingService {
@@ -23,6 +23,8 @@ export class BookingService {
         private cartService: CartService,
         private gateway: OrdersGateway,
         private doorDashService: DoorDashService,
+        private stripeService: StripeService,
+        private configService: ConfigService,
     ) { }
 
     private async generateSessionNumber(restaurantId: string) {
@@ -98,6 +100,17 @@ export class BookingService {
         dto: CreateBookingDto,
     ) {
 
+        const successRedirectUrl =
+            dto.successurl || this.configService.get<string>('BOOKING_PAYMENT_SUCCESS_URL');
+        const failureRedirectUrl =
+            dto.failureurl || this.configService.get<string>('BOOKING_PAYMENT_FAILURE_URL');
+
+        if (!successRedirectUrl || !failureRedirectUrl) {
+            throw new BadRequestException(
+                'successurl and failureurl are required (or configure BOOKING_PAYMENT_SUCCESS_URL and BOOKING_PAYMENT_FAILURE_URL)',
+            );
+        }
+
         if (!actor && sessionId) {
             if (
                 !dto.customerName ||
@@ -138,6 +151,15 @@ export class BookingService {
 
         if (!cart.items || cart.items.length === 0) {
             throw new BadRequestException('Cart is empty');
+        }
+
+        const restaurant = await this.prisma.restaurant.findUnique({
+            where: { id: restaurantId },
+            select: { currency: true },
+        });
+
+        if (!restaurant) {
+            throw new NotFoundException('Restaurant not found');
         }
 
         // ================================
@@ -267,6 +289,10 @@ export class BookingService {
         const totalDiscount = discountAmount + loyaltyDiscount;
         const finalTotal = Math.max(subtotal - totalDiscount, 0);
 
+        if (finalTotal <= 0) {
+            throw new BadRequestException('Final payable amount must be greater than 0 for online Stripe checkout');
+        }
+
         // ================================
         // STEP 5: CREATE SESSION
         // ================================
@@ -278,6 +304,7 @@ export class BookingService {
                 restaurantId,
                 sessionNumber,
                 channel: OrderChannel.ONLINE_OWN,
+                status: SessionStatus.BILLED,
                 customerId: actor?.id ?? cart.customerId,
 
                 subtotal,
@@ -333,7 +360,7 @@ export class BookingService {
                 sessionId: session.id,
                 restaurantId,
                 billNumber,
-                status: 'PAID',
+                status: BillStatus.FINAL,
 
                 subtotal,
                 taxRate: 0,
@@ -341,8 +368,6 @@ export class BookingService {
                 grossAmount: subtotal,
                 discountAmount: totalDiscount,
                 totalAmount: finalTotal,
-
-                paidAt: new Date(),
             },
         });
 
@@ -365,7 +390,31 @@ export class BookingService {
             data: {
                 billId: bill.id,
                 amount: finalTotal,
-                method: PaymentMethod.CASH,
+                method: PaymentMethod.ONLINE,
+                status: PaymentStatus.PENDING,
+                notes: 'PENDING_STRIPE_CHECKOUT',
+            },
+        });
+
+        const customerEmail = dto.customerEmail || actor?.email;
+
+        if (!customerEmail) {
+            throw new BadRequestException('customerEmail is required to create Stripe checkout session');
+        }
+
+        const stripeCheckoutSession = await this.stripeService.createCheckoutLinkForBooking(
+            { id: session.id, restaurantId },
+            { id: payment.id, billId: bill.id, amount: finalTotal, currency: restaurant.currency },
+            customerEmail,
+            successRedirectUrl,
+            failureRedirectUrl,
+        );
+
+        await this.prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+                reference: stripeCheckoutSession.id,
+                notes: 'PENDING_STRIPE_CHECKOUT',
             },
         });
 
@@ -405,14 +454,11 @@ export class BookingService {
 
         this.gateway.emitToBilling(restaurantId, 'bill:generated', bill);
 
-        this.gateway.emitToBilling(restaurantId, 'payment:recorded', {
+        this.gateway.emitToBilling(restaurantId, 'payment:pending', {
             billId: bill.id,
             amount: finalTotal,
-            method: 'CASH',
-        });
-
-        this.gateway.emitToBilling(restaurantId, 'bill:paid', {
-            billId: bill.id,
+            method: 'ONLINE',
+            checkoutSessionId: stripeCheckoutSession.id,
         });
 
         // ================================
@@ -427,7 +473,12 @@ export class BookingService {
             session,
             batch,
             bill,
-            payment,
+            payment: {
+                ...payment,
+                reference: stripeCheckoutSession.id,
+            },
+            paymentLink: stripeCheckoutSession.url,
+            checkoutSessionId: stripeCheckoutSession.id,
             // delivery, -- commented this
         };
     }
