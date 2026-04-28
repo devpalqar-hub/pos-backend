@@ -452,6 +452,10 @@ export class BookingService {
         // STEP 9: WEBSOCKET EVENTS
         // ================================
 
+        // Keep online bookings visible to kitchen/restaurant dashboards like dine-in batches.
+        this.gateway.emitToKitchen(restaurantId, 'batch:created', batch);
+        this.gateway.emitToRestaurant(restaurantId, 'batch:created', batch);
+
         this.gateway.emitToBilling(restaurantId, 'bill:generated', bill);
 
         this.gateway.emitToBilling(restaurantId, 'payment:pending', {

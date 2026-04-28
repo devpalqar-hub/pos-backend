@@ -3,6 +3,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MarketingService } from './marketing.service';
 import { MarketingSettingsController } from './marketing-settings.controller';
 import { CampaignsController } from './campaigns.controller';
+import { WhatsappTemplatesController } from './whatsapp-templates.controller';
 
 @Module({
   imports: [
@@ -10,8 +11,8 @@ import { CampaignsController } from './campaigns.controller';
     // It is safe to call forRoot() multiple times — NestJS deduplicates it.
     ScheduleModule.forRoot(),
   ],
-  controllers: [MarketingSettingsController, CampaignsController],
+  controllers: [MarketingSettingsController, CampaignsController, WhatsappTemplatesController],
   providers: [MarketingService],
   exports: [MarketingService],
 })
-export class MarketingModule {}
+export class MarketingModule { }

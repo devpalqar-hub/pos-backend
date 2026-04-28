@@ -22,10 +22,33 @@ import { UpsertMarketingSettingsDto } from './dto/upsert-settings.dto';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { TriggerCampaignDto } from './dto/trigger-campaign.dto';
+import { CreateWhatsappTemplateDto } from './dto/create-whatsapp-template.dto';
+
+type WhatsAppTemplateRow = {
+  id: string;
+  restaurantId: string;
+  waBaId: string | null;
+  templateName: string;
+  languageCode: string;
+  category: string;
+  parameterFormat: string | null;
+  components: string;
+  status: string;
+  metaTemplateId: string | null;
+  qualityScore: string | null;
+  rejectionReason: string | null;
+  isActive: number;
+  metaPayload: string | null;
+  metaResponse: string | null;
+  lastSyncedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class MarketingService {
   private readonly logger = new Logger(MarketingService.name);
+  private templatesTableReady = false;
 
   constructor(private readonly prisma: PrismaService) { }
 
@@ -130,6 +153,206 @@ export class MarketingService {
     });
 
     return this.getSettings(actor, restaurantId);
+  }
+
+  async createWhatsappTemplate(
+    actor: User,
+    restaurantId: string,
+    dto: CreateWhatsappTemplateDto,
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+
+    const settings = await this.prisma.marketingSettings.findUnique({
+      where: { restaurantId },
+    });
+
+    if (!settings?.waBaId || !settings?.waAccessToken) {
+      throw new BadRequestException('WhatsApp settings are not configured for this restaurant');
+    }
+
+    if (!/^[a-z0-9_]{1,512}$/.test(dto.name.trim())) {
+      throw new BadRequestException('WhatsApp template name must use lowercase letters, numbers, and underscores only');
+    }
+
+    await this.ensureWhatsappTemplatesTable();
+
+    const payload = {
+      name: dto.name.trim(),
+      language: dto.language.trim(),
+      category: dto.category.trim().toUpperCase(),
+      components: dto.components,
+      ...(dto.parameter_format ? { parameter_format: dto.parameter_format.trim() } : {}),
+      ...(dto.allow_category_change !== undefined
+        ? { allow_category_change: dto.allow_category_change }
+        : { allow_category_change: true }),
+    };
+
+    const response = await axios.post(
+      `https://graph.facebook.com/v25.0/${settings.waBaId}/message_templates`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${settings.waAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+
+    const metaStatus = String(response.data?.status ?? 'PENDING');
+    const metaTemplateId = response.data?.id ? String(response.data.id) : null;
+
+    const template = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? AND templateName = ? AND languageCode = ? LIMIT 1`,
+      restaurantId,
+      payload.name,
+      payload.language,
+    );
+
+    if (template.length > 0) {
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE whatsapp_templates SET waBaId = ?, category = ?, parameterFormat = ?, components = ?, status = ?, metaTemplateId = ?, metaPayload = ?, metaResponse = ?, isActive = 1, lastSyncedAt = NOW(), updatedAt = NOW() WHERE id = ?`,
+        settings.waBaId,
+        payload.category,
+        payload.parameter_format ?? null,
+        JSON.stringify(payload.components),
+        metaStatus,
+        metaTemplateId,
+        JSON.stringify(payload),
+        JSON.stringify(response.data ?? null),
+        template[0].id,
+      );
+    } else {
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO whatsapp_templates (id, restaurantId, waBaId, templateName, languageCode, category, parameterFormat, components, status, metaTemplateId, metaPayload, metaResponse, isActive, lastSyncedAt, createdAt, updatedAt) VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW(), NOW())`,
+        restaurantId,
+        settings.waBaId,
+        payload.name,
+        payload.language,
+        payload.category,
+        payload.parameter_format ?? null,
+        JSON.stringify(payload.components),
+        metaStatus,
+        metaTemplateId,
+        JSON.stringify(payload),
+        JSON.stringify(response.data ?? null),
+      );
+    }
+
+    return this.getWhatsappTemplateByKey(actor, restaurantId, payload.name, payload.language, { sync: false });
+  }
+
+  async listWhatsappTemplates(
+    actor: User,
+    restaurantId: string,
+    options: { sync?: boolean; includeInactive?: boolean } = {},
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+    await this.ensureWhatsappTemplatesTable();
+
+    if (options.sync ?? true) {
+      await this.syncWhatsappTemplatesFromMeta(actor, restaurantId);
+    }
+
+    const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? ${options.includeInactive ? '' : 'AND isActive = 1'} ORDER BY createdAt DESC`,
+      restaurantId,
+    );
+
+    return rows.map((row) => this.mapWhatsappTemplateRow(row));
+  }
+
+  async getWhatsappTemplate(
+    actor: User,
+    restaurantId: string,
+    id: string,
+    options: { sync?: boolean } = {},
+  ) {
+    await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+    await this.ensureWhatsappTemplatesTable();
+
+    if (options.sync ?? true) {
+      await this.syncWhatsappTemplatesFromMeta(actor, restaurantId);
+    }
+
+    const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? AND id = ? LIMIT 1`,
+      restaurantId,
+      id,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('WhatsApp template not found');
+    }
+
+    return this.mapWhatsappTemplateRow(rows[0]);
+  }
+
+  async deactivateWhatsappTemplate(actor: User, restaurantId: string, id: string) {
+    await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+    await this.ensureWhatsappTemplatesTable();
+
+    const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? AND id = ? LIMIT 1`,
+      restaurantId,
+      id,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('WhatsApp template not found');
+    }
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE whatsapp_templates SET isActive = 0, status = 'INACTIVE', updatedAt = NOW() WHERE id = ?`,
+      id,
+    );
+
+    return this.getWhatsappTemplate(actor, restaurantId, id, { sync: false });
+  }
+
+  async deleteWhatsappTemplate(actor: User, restaurantId: string, id: string) {
+    await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+    await this.ensureWhatsappTemplatesTable();
+
+    const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? AND id = ? LIMIT 1`,
+      restaurantId,
+      id,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('WhatsApp template not found');
+    }
+
+    const template = rows[0];
+    const settings = await this.prisma.marketingSettings.findUnique({
+      where: { restaurantId },
+    });
+
+    if (settings?.waBaId && settings?.waAccessToken) {
+      try {
+        await axios.delete(
+          `https://graph.facebook.com/v25.0/${settings.waBaId}/message_templates`,
+          {
+            headers: {
+              Authorization: `Bearer ${settings.waAccessToken}`,
+              'Content-Type': 'application/json',
+            },
+            params: {
+              name: template.templateName,
+            },
+          },
+        );
+      } catch (error: any) {
+        this.logger.warn(`Meta template delete failed for ${template.templateName}: ${error.message}`);
+      }
+    }
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE whatsapp_templates SET isActive = 0, status = 'DELETED', updatedAt = NOW() WHERE id = ?`,
+      id,
+    );
+
+    return this.getWhatsappTemplate(actor, restaurantId, id, { sync: false });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -630,8 +853,8 @@ export class MarketingService {
           }
 
           success = true;
-        } catch (err) {
-          errorMsg = err.message;
+        } catch (err: unknown) {
+          errorMsg = err instanceof Error ? err.message : String(err);
           this.logger.warn(`Failed to send to recipient ${recipient.id}: ${errorMsg}`);
         }
 
@@ -678,8 +901,11 @@ export class MarketingService {
           },
         });
       }
-    } catch (err) {
-      this.logger.error(`Campaign ${campaignId} fatal error: ${err.message}`, err.stack);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Campaign ${campaignId} fatal error: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       await this.prisma.campaign.update({
         where: { id: campaignId },
         data: { status: CampaignStatus.CANCELLED },
@@ -869,8 +1095,11 @@ export class MarketingService {
       });
 
       this.logger.log(`[EMAIL] SUCCESS → messageId: ${response.messageId}`);
-    } catch (err) {
-      this.logger.error(`[EMAIL] FAILED → to: ${toEmail}, error: ${err.message}`, err.stack);
+    } catch (err: unknown) {
+      this.logger.error(
+        `[EMAIL] FAILED → to: ${toEmail}, error: ${err instanceof Error ? err.message : String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
       throw err;
     }
   }
@@ -990,10 +1219,11 @@ export class MarketingService {
       );
 
       this.logger.log(`[WHATSAPP] SUCCESS → to: ${toPhone}, response: ${JSON.stringify(response.data)}`);
-    } catch (err) {
+    } catch (err: unknown) {
       this.logger.error(
-        `[WHATSAPP] FAILED → to: ${toPhone}, error: ${err.response?.data || err.message}`,
-        err.stack,
+        `[WHATSAPP] FAILED → to: ${toPhone}, error: ${err instanceof Error ? err.message : String(err)
+        }`,
+        err instanceof Error ? err.stack : undefined,
       );
       throw err;
     }
@@ -1069,6 +1299,156 @@ export class MarketingService {
       actor.role !== UserRole.RESTAURANT_ADMIN
     ) {
       throw new ForbiddenException('Only OWNER, RESTAURANT_ADMIN and SUPER_ADMIN can manage marketing');
+    }
+  }
+
+  private async ensureWhatsappTemplatesTable(): Promise<void> {
+    if (this.templatesTableReady) return;
+
+    await this.prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS whatsapp_templates (
+        id CHAR(36) NOT NULL PRIMARY KEY,
+        restaurantId CHAR(36) NOT NULL,
+        waBaId VARCHAR(255) NULL,
+        templateName VARCHAR(255) NOT NULL,
+        languageCode VARCHAR(20) NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        parameterFormat VARCHAR(20) NULL,
+        components JSON NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        metaTemplateId VARCHAR(255) NULL,
+        qualityScore JSON NULL,
+        rejectionReason TEXT NULL,
+        isActive TINYINT(1) NOT NULL DEFAULT 1,
+        metaPayload JSON NULL,
+        metaResponse JSON NULL,
+        lastSyncedAt DATETIME NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY whatsapp_templates_unique (restaurantId, templateName, languageCode),
+        INDEX whatsapp_templates_restaurant_idx (restaurantId),
+        INDEX whatsapp_templates_status_idx (status)
+      )
+    `);
+
+    this.templatesTableReady = true;
+  }
+
+  private async syncWhatsappTemplatesFromMeta(actor: User, restaurantId: string) {
+    const settings = await this.prisma.marketingSettings.findUnique({
+      where: { restaurantId },
+    });
+
+    if (!settings?.waBaId || !settings?.waAccessToken) {
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/v25.0/${settings.waBaId}/message_templates`,
+        {
+          headers: {
+            Authorization: `Bearer ${settings.waAccessToken}`,
+          },
+          params: {
+            fields: 'name,language,category,status,quality_score,components,id',
+            limit: 200,
+          },
+        },
+      );
+
+      const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+      for (const template of rows) {
+        const templateName = String(template.name ?? '').trim();
+        const languageCode = String(template.language ?? '').trim();
+        if (!templateName || !languageCode) continue;
+
+        await this.prisma.$executeRawUnsafe(
+          `INSERT INTO whatsapp_templates (id, restaurantId, waBaId, templateName, languageCode, category, parameterFormat, components, status, metaTemplateId, qualityScore, rejectionReason, isActive, metaPayload, metaResponse, lastSyncedAt, createdAt, updatedAt)
+           VALUES (UUID(), ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, 1, ?, ?, NOW(), NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             waBaId = VALUES(waBaId),
+             category = VALUES(category),
+             components = VALUES(components),
+             status = VALUES(status),
+             metaTemplateId = VALUES(metaTemplateId),
+             qualityScore = VALUES(qualityScore),
+             isActive = 1,
+             metaResponse = VALUES(metaResponse),
+             lastSyncedAt = NOW(),
+             updatedAt = NOW()`,
+          restaurantId,
+          settings.waBaId,
+          templateName,
+          languageCode,
+          String(template.category ?? 'UTILITY'),
+          JSON.stringify(template.components ?? []),
+          String(template.status ?? 'PENDING'),
+          String(template.id ?? null),
+          JSON.stringify(template.quality_score ?? null),
+          JSON.stringify(template),
+          JSON.stringify(template),
+        );
+      }
+    } catch (error: any) {
+      this.logger.warn(`WhatsApp template sync skipped for restaurant ${restaurantId}: ${error.message}`);
+    }
+  }
+
+  private async getWhatsappTemplateByKey(
+    actor: User,
+    restaurantId: string,
+    templateName: string,
+    languageCode: string,
+    options: { sync?: boolean } = {},
+  ) {
+    if (options.sync ?? true) {
+      await this.syncWhatsappTemplatesFromMeta(actor, restaurantId);
+    }
+
+    const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? AND templateName = ? AND languageCode = ? LIMIT 1`,
+      restaurantId,
+      templateName,
+      languageCode,
+    );
+
+    if (!rows.length) {
+      throw new NotFoundException('WhatsApp template not found');
+    }
+
+    return this.mapWhatsappTemplateRow(rows[0]);
+  }
+
+  private mapWhatsappTemplateRow(row: WhatsAppTemplateRow) {
+    return {
+      id: row.id,
+      restaurantId: row.restaurantId,
+      wabaId: row.waBaId,
+      name: row.templateName,
+      language: row.languageCode,
+      category: row.category,
+      parameterFormat: row.parameterFormat,
+      components: this.safeParseJson(row.components, []),
+      status: row.status,
+      metaTemplateId: row.metaTemplateId,
+      qualityScore: this.safeParseJson(row.qualityScore, null),
+      rejectionReason: row.rejectionReason,
+      isActive: !!row.isActive,
+      metaPayload: this.safeParseJson(row.metaPayload, null),
+      metaResponse: this.safeParseJson(row.metaResponse, null),
+      lastSyncedAt: row.lastSyncedAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
+  private safeParseJson(value: string | null, fallback: any) {
+    if (!value) return fallback;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
     }
   }
 

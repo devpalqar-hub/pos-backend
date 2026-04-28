@@ -1415,24 +1415,63 @@ export class AnalyticsService {
         const bills = await this.prisma.bill.findMany({
             where: { restaurantId, status: BillStatus.PAID },
             include: { customer: true },
+            orderBy: { createdAt: 'asc' },
         });
+
+        const customers = await this.prisma.customer.findMany({
+            where: { restaurantId },
+            select: { id: true, name: true, email: true, phone: true },
+        });
+
+        const customerByPhone = new Map<string, { id: string; name: string | null }>();
+        const customerByEmail = new Map<string, { id: string; name: string | null }>();
+
+        for (const customer of customers) {
+            if (customer.phone) {
+                customerByPhone.set(customer.phone.trim(), {
+                    id: customer.id,
+                    name: customer.name,
+                });
+            }
+            if (customer.email) {
+                customerByEmail.set(customer.email.trim().toLowerCase(), {
+                    id: customer.id,
+                    name: customer.name,
+                });
+            }
+        }
 
         const map: Record<string, any> = {};
 
         bills.forEach((b) => {
-            if (!b.customerId) return;
+            const resolvedCustomer =
+                (b.customerId && b.customer)
+                    ? { id: b.customerId, name: b.customer.name ?? b.customerName ?? null }
+                    : (b.customerPhone && customerByPhone.get(b.customerPhone.trim())) ||
+                    (b.customerEmail && customerByEmail.get(b.customerEmail.trim().toLowerCase())) ||
+                    null;
 
-            if (!map[b.customerId]) {
-                map[b.customerId] = {
-                    customerId: b.customerId,
-                    name: b.customer?.name,
+            const customerKey = resolvedCustomer?.id
+                ? `customer:${resolvedCustomer.id}`
+                : b.customerPhone
+                    ? `phone:${b.customerPhone.trim()}`
+                    : b.customerEmail
+                        ? `email:${b.customerEmail.trim().toLowerCase()}`
+                        : null;
+
+            if (!customerKey) return;
+
+            if (!map[customerKey]) {
+                map[customerKey] = {
+                    customerId: resolvedCustomer?.id ?? b.customerId ?? null,
+                    name: resolvedCustomer?.name ?? b.customer?.name ?? b.customerName ?? null,
                     totalSpend: 0,
                     visitCount: 0,
                 };
             }
 
-            map[b.customerId].totalSpend += Number(b.totalAmount);
-            map[b.customerId].visitCount += 1;
+            map[customerKey].totalSpend += Number(b.totalAmount);
+            map[customerKey].visitCount += 1;
         });
 
         return Object.values(map)
