@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BillStatus, PaymentStatus, SessionStatus } from '@prisma/client';
+import { BatchStatus, BillStatus, OrderChannel, OrderItemStatus, PaymentMethod, PaymentStatus, SessionStatus } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
@@ -22,6 +22,77 @@ export class WebhookService {
         private readonly configService: ConfigService,
         private readonly gateway: OrdersGateway,
     ) { }
+
+    private async generateSessionNumber(restaurantId: string) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const exists = await this.prisma.orderSession.findFirst({
+            where: {
+                restaurantId,
+                sessionNumber: code,
+            },
+        });
+
+        if (exists) {
+            return this.generateSessionNumber(restaurantId);
+        }
+
+        return code;
+    }
+
+    private async generateBatchNumber(sessionId: string) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const exists = await this.prisma.orderBatch.findFirst({
+            where: {
+                sessionId,
+                batchNumber: code,
+            },
+        });
+
+        if (exists) {
+            return this.generateBatchNumber(sessionId);
+        }
+
+        return code;
+    }
+
+    private async generateBillNumber(restaurantId: string) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const exists = await this.prisma.bill.findFirst({
+            where: {
+                restaurantId,
+                billNumber: code,
+            },
+        });
+
+        if (exists) {
+            return this.generateBillNumber(restaurantId);
+        }
+
+        return code;
+    }
+
+    private parseMetadataNumber(value: unknown, fallback: number): number {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
 
     verifyWebhookSignature(body: Buffer, signature: string): StripeWebhookEvent {
         const endpointSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
@@ -73,54 +144,190 @@ export class WebhookService {
             return { received: true };
         }
 
-        const { paymentId, billId, orderSessionId, restaurantId } = session.metadata || {};
-        if (!paymentId || !billId || !orderSessionId || !restaurantId) {
-            this.logger.error(`Missing booking payment metadata | session=${session.id}`);
+        const metadata = session.metadata || {};
+        const restaurantId = metadata.restaurantId;
+        const cartId = metadata.cartId;
+
+        if (!restaurantId || !cartId) {
+            this.logger.error(`Missing booking metadata | session=${session.id}`);
             return { received: true };
         }
 
+        const existingOrder = await this.prisma.orderSession.findFirst({
+            where: {
+                restaurantId,
+                externalOrderId: session.id,
+            },
+        });
+
+        if (existingOrder) {
+            this.logger.warn(`Checkout session already processed | session=${session.id}`);
+            return { received: true };
+        }
+
+        const cart = await this.prisma.cart.findFirst({
+            where: { id: cartId, restaurantId },
+            include: {
+                items: {
+                    include: {
+                        menuItem: { select: { id: true, name: true, imageUrl: true } },
+                    },
+                },
+                customer: {
+                    select: { id: true, name: true, email: true, phone: true },
+                },
+            },
+        });
+
+        if (!cart || cart.items.length === 0) {
+            this.logger.error(`Cart not found or empty for paid checkout session ${session.id}`);
+            return { received: true };
+        }
+
+        const subtotal = this.parseMetadataNumber(
+            metadata.subtotal,
+            cart.items.reduce((sum, item) => sum + Number(item.total), 0),
+        );
+        const discountAmount = this.parseMetadataNumber(metadata.discountAmount, 0);
+        const totalAmount = this.parseMetadataNumber(
+            metadata.totalAmount,
+            Math.max(subtotal - discountAmount, 0),
+        );
+
+        const customerName = metadata.customerName || cart.customer?.name || null;
+        const customerPhone = metadata.customerPhone || cart.customer?.phone || null;
+        const customerEmail = metadata.customerEmail || cart.customer?.email || null;
+        const deliveryAddress = metadata.deliveryAddress || null;
+        const specialInstructions = metadata.specialInstructions || null;
         const paymentIntentId =
             typeof session.payment_intent === 'string'
                 ? session.payment_intent
                 : session.payment_intent?.id;
 
-        await this.prisma.$transaction(async (tx) => {
-            await tx.payment.updateMany({
-                where: { id: paymentId },
+        const created = await this.prisma.$transaction(async (tx) => {
+            const sessionNumber = await this.generateSessionNumber(restaurantId);
+
+            const orderSession = await tx.orderSession.create({
                 data: {
+                    restaurantId,
+                    sessionNumber,
+                    channel: OrderChannel.ONLINE_OWN,
+                    status: SessionStatus.OPEN,
+                    customerId: cart.customerId ?? null,
+                    externalOrderId: session.id,
+                    customerName,
+                    customerPhone,
+                    customerEmail,
+                    deliveryAddress,
+                    specialInstructions,
+                    subtotal,
+                    discountAmount,
+                    totalAmount,
+                },
+            });
+
+            await tx.orderSessionUpdateTime.create({
+                data: {
+                    orderSessionId: orderSession.id,
+                    updatedAt: orderSession.createdAt,
+                    fieldChanged: 'status',
+                    oldValue: null,
+                    newValue: SessionStatus.OPEN,
+                },
+            });
+
+            const batchNumber = await this.generateBatchNumber(orderSession.id);
+
+            const batch = await tx.orderBatch.create({
+                data: {
+                    sessionId: orderSession.id,
+                    batchNumber,
+                    status: BatchStatus.PENDING,
+                    customerId: cart.customerId ?? null,
+                    items: {
+                        create: cart.items.map((item) => ({
+                            menuItemId: item.menuItemId,
+                            quantity: item.quantity,
+                            unitPrice: item.price,
+                            totalPrice: item.total,
+                            status: OrderItemStatus.PENDING,
+                        })),
+                    },
+                },
+                include: {
+                    items: {
+                        include: {
+                            menuItem: { select: { id: true, name: true, imageUrl: true } },
+                        },
+                    },
+                    createdBy: { select: { id: true, name: true, role: true } },
+                },
+            });
+
+            const billNumber = await this.generateBillNumber(restaurantId);
+
+            const bill = await tx.bill.create({
+                data: {
+                    sessionId: orderSession.id,
+                    restaurantId,
+                    billNumber,
+                    status: BillStatus.PAID,
+                    subtotal,
+                    grossAmount: subtotal,
+                    taxRate: 0,
+                    taxAmount: 0,
+                    discountAmount,
+                    totalAmount,
+                    customerName,
+                    customerPhone,
+                    customerEmail,
+                    paidAt: new Date(),
+                    customerId: cart.customerId ?? null,
+                },
+            });
+
+            await tx.billItem.createMany({
+                data: cart.items.map((item) => ({
+                    billId: bill.id,
+                    menuItemId: item.menuItemId,
+                    name: item.menuItem.name,
+                    quantity: item.quantity,
+                    unitPrice: item.price,
+                    totalPrice: item.total,
+                })),
+            });
+
+            const payment = await tx.payment.create({
+                data: {
+                    billId: bill.id,
+                    amount: totalAmount,
+                    method: PaymentMethod.ONLINE,
                     status: PaymentStatus.SUCCESS,
+                    reference: paymentIntentId ?? session.id,
                     paymentIntentId: paymentIntentId ?? null,
                     checkoutSessionId: session.id,
-                    reference: paymentIntentId ?? session.id,
                     paidAt: new Date(),
-                    failureReason: null,
                     notes: 'STRIPE_CHECKOUT_PAID',
                 },
             });
 
-            await tx.bill.updateMany({
-                where: { id: billId, status: { not: BillStatus.PAID } },
-                data: {
-                    status: BillStatus.PAID,
-                    paidAt: new Date(),
-                },
+            await tx.cartItem.deleteMany({
+                where: { cartId },
             });
 
-            await tx.orderSession.updateMany({
-                where: { id: orderSessionId, status: { not: SessionStatus.PAID } },
-                data: {
-                    status: SessionStatus.PAID,
-                    closedAt: new Date(),
-                },
-            });
+            return { orderSession, batch, bill, payment };
         });
 
+        this.gateway.emitToRestaurant(restaurantId, 'session:opened', created.orderSession);
+        this.gateway.emitToKitchen(restaurantId, 'batch:created', created.batch);
+        this.gateway.emitToRestaurant(restaurantId, 'batch:created', created.batch);
+        this.gateway.emitToBilling(restaurantId, 'bill:generated', created.bill);
         this.gateway.emitToBilling(restaurantId, 'payment:recorded', {
-            billId,
-            paymentId,
+            billId: created.bill.id,
+            paymentId: created.payment.id,
             method: 'ONLINE',
         });
-        this.gateway.emitToBilling(restaurantId, 'bill:paid', { billId });
+        this.gateway.emitToBilling(restaurantId, 'bill:paid', { billId: created.bill.id });
 
         return { received: true };
     }
@@ -130,21 +337,7 @@ export class WebhookService {
             return { received: true };
         }
 
-        const { paymentId, billId, orderSessionId, restaurantId } = session.metadata || {};
-        if (!paymentId || !billId || !orderSessionId) {
-            return { received: true };
-        }
-
-        await this.markPaymentFailed(paymentId, billId, orderSessionId, 'Checkout session expired');
-
-        if (restaurantId) {
-            this.gateway.emitToBilling(restaurantId, 'payment:failed', {
-                billId,
-                paymentId,
-                reason: 'Checkout session expired',
-            });
-        }
-
+        this.logger.warn(`Checkout session expired for booking cart=${session?.metadata?.cartId ?? 'unknown'}`);
         return { received: true };
     }
 
@@ -153,53 +346,11 @@ export class WebhookService {
             return { received: true };
         }
 
-        const { paymentId, billId, orderSessionId, restaurantId } = paymentIntent.metadata || {};
-        if (!paymentId || !billId || !orderSessionId) {
-            return { received: true };
-        }
-
         const reason = paymentIntent.last_payment_error?.message || 'Payment failed';
-        await this.markPaymentFailed(paymentId, billId, orderSessionId, reason, paymentIntent.id);
-
-        if (restaurantId) {
-            this.gateway.emitToBilling(restaurantId, 'payment:failed', {
-                billId,
-                paymentId,
-                reason,
-            });
-        }
-
+        this.logger.warn(
+            `Stripe payment failed for booking cart=${paymentIntent?.metadata?.cartId ?? 'unknown'} | reason=${reason}`,
+        );
         return { received: true };
-    }
-
-    private async markPaymentFailed(
-        paymentId: string,
-        billId: string,
-        orderSessionId: string,
-        reason: string,
-        paymentIntentId?: string,
-    ) {
-        await this.prisma.$transaction(async (tx) => {
-            await tx.payment.updateMany({
-                where: { id: paymentId },
-                data: {
-                    status: PaymentStatus.FAILED,
-                    paymentIntentId: paymentIntentId ?? null,
-                    failureReason: reason,
-                    notes: `STRIPE_CHECKOUT_FAILED: ${reason}`,
-                },
-            });
-
-            await tx.bill.updateMany({
-                where: { id: billId, status: { not: BillStatus.PAID } },
-                data: { status: BillStatus.FINAL },
-            });
-
-            await tx.orderSession.updateMany({
-                where: { id: orderSessionId, status: { not: SessionStatus.PAID } },
-                data: { status: SessionStatus.BILLED },
-            });
-        });
     }
 
     private parseStripeSignature(headerValue: string): { timestamp?: string; signatures: string[] } {

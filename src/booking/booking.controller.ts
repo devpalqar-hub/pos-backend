@@ -97,27 +97,18 @@ The booking creation process performs the following internal workflow:
      - restaurant ownership
    - If **loyalty points** are claimed, the system verifies available points.
 
-4. **Create Order Session**
-   - A new **OrderSession** is created with:
-     - channel: \`ONLINE_OWN\`
-     - customer details
-     - delivery information
-     - calculated totals (subtotal, discount, total)
+4. **Create Stripe Checkout Session**
+    - The order is not created yet.
+    - A Stripe checkout link is generated using the cart total.
 
-5. **Create Order Batch**
-   - A single **OrderBatch** is created for the session.
-
-6. **Convert Cart Items**
-   - Cart items are converted into **OrderItems**
-   - Price snapshots are stored at the time of booking.
-
-7. **Emit WebSocket Events**
-   - The system notifies internal services:
-     - **Kitchen dashboard**
-     - **Billing system**
-
-8. **Cart Cleanup**
-   - The cart is cleared after a successful booking.
+5. **Payment Webhook Handles Order Creation**
+    - After Stripe confirms payment, the webhook creates:
+      - **OrderSession**
+      - **OrderBatch**
+      - **OrderItems**
+      - **Bill**
+      - **Payment**
+    - WebSocket events are emitted only after successful payment.
 
 ---
 
@@ -159,7 +150,7 @@ The following features will be integrated in future versions:
     @ApiResponse({
         status: 201,
         description:
-            'Booking created successfully. Order session and batch created and sent to kitchen and billing services.',
+            'Booking created successfully. Stripe checkout link returned; order is created after payment success.',
     })
 
     @ApiResponse({
