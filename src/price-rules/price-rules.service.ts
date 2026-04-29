@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
 import { CreatePriceRuleDto, PriceRuleType } from './dto/create-price-rule.dto';
@@ -119,30 +120,35 @@ export class PriceRulesService {
     }
   }
 
-  private overrideTimePreserveUTC(dateStr?: string, time?: string): Date | null {
+  private combineDateAndTime(dateStr?: string, time?: string): Date | null {
     if (!dateStr) return null;
-    if (!time) return new Date(dateStr);
-
     const date = new Date(dateStr);
-
-    // Extract original seconds + milliseconds
-    const seconds = date.getUTCSeconds();
-    const milliseconds = date.getUTCMilliseconds();
+    if (!time) return date;
 
     const [hours, minutes] = time.split(':').map(Number);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  }
 
-    // Construct new UTC date explicitly
-    const newDate = new Date(Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      hours,
-      minutes,
-      seconds,
-      milliseconds
-    ));
+  private async deactivateExpiredLimitedTimeRules(): Promise<void> {
+    const now = new Date();
+    const result = await this.prisma.priceRule.updateMany({
+      where: {
+        ruleType: PriceRuleType.LIMITED_TIME as any,
+        isActive: true,
+        endDate: { lt: now },
+      },
+      data: { isActive: false },
+    });
 
-    return newDate;
+    if (result.count > 0) {
+      this.logger.log(`Auto-deactivated ${result.count} expired price rule(s)`);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async expireLimitedTimeRulesCron() {
+    await this.deactivateExpiredLimitedTimeRules();
   }
 
   // ─── Create ───────────────────────────────────────────────────────────────
@@ -165,8 +171,8 @@ export class PriceRulesService {
         specialPrice: dto.specialPrice as any,
         startTime: dto.startTime ?? null,
         endTime: dto.endTime ?? null,
-        startDate: this.overrideTimePreserveUTC(dto.startDate, dto.startTime),
-        endDate: this.overrideTimePreserveUTC(dto.endDate, dto.endTime),
+        startDate: this.combineDateAndTime(dto.startDate, dto.startTime),
+        endDate: this.combineDateAndTime(dto.endDate, dto.endTime),
         priority: dto.priority ?? 0,
         isActive: dto.isActive ?? true,
         restaurantId,
@@ -199,6 +205,7 @@ export class PriceRulesService {
     menuItemId?: string,
     name?: string,
   ) {
+    await this.deactivateExpiredLimitedTimeRules();
     await this.assertAccess(actor, restaurantId);
     await this.assertRestaurantExists(restaurantId);
 
@@ -228,6 +235,7 @@ export class PriceRulesService {
     menuItemId: string,
     id: string,
   ) {
+    await this.deactivateExpiredLimitedTimeRules();
     await this.assertAccess(actor, restaurantId);
 
     const rule = await this.prisma.priceRule.findFirst({
@@ -290,6 +298,11 @@ export class PriceRulesService {
         }
         : {};
 
+    const startDateInput = dto.startDate ?? existing.startDate?.toISOString();
+    const endDateInput = dto.endDate ?? existing.endDate?.toISOString();
+    const startTimeInput = dto.startTime ?? existing.startTime ?? undefined;
+    const endTimeInput = dto.endTime ?? existing.endTime ?? undefined;
+
     const updated = await this.prisma.priceRule.update({
       where: { id },
       data: {
@@ -298,8 +311,12 @@ export class PriceRulesService {
         ...(dto.specialPrice !== undefined && { specialPrice: dto.specialPrice as any }),
         ...(dto.startTime !== undefined && { startTime: dto.startTime }),
         ...(dto.endTime !== undefined && { endTime: dto.endTime }),
-        ...(dto.startDate !== undefined && { startDate: new Date(dto.startDate!) }),
-        ...(dto.endDate !== undefined && { endDate: new Date(dto.endDate!) }),
+        ...((dto.startDate !== undefined || dto.startTime !== undefined) && {
+          startDate: this.combineDateAndTime(startDateInput, startTimeInput),
+        }),
+        ...((dto.endDate !== undefined || dto.endTime !== undefined) && {
+          endDate: this.combineDateAndTime(endDateInput, endTimeInput),
+        }),
         ...(dto.priority !== undefined && { priority: dto.priority }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         ...daysUpdate,
@@ -348,6 +365,7 @@ export class PriceRulesService {
     menuItemId: string,
     atTime?: Date,
   ) {
+    await this.deactivateExpiredLimitedTimeRules();
     await this.assertAccess(actor, restaurantId);
     await this.assertRestaurantExists(restaurantId);
     await this.assertMenuItemExists(restaurantId, menuItemId);
