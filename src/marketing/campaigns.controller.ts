@@ -202,8 +202,6 @@ Each rule has a \`condition\` and a \`value\`:
     description: 'Cannot delete a RUNNING campaign — pause it first.',
   })
   @ApiResponse({ status: 200, description: 'Campaign deleted.' })
-  @ApiResponse({ status: 400, description: 'Campaign is currently RUNNING.' })
-  @ApiResponse({ status: 404, description: 'Campaign not found.' })
   async remove(
     @CurrentUser() actor: User,
     @Param('restaurantId', ParseUUIDPipe) restaurantId: string,

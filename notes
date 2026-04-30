@@ -1,24 +1,4 @@
-
-get loyality points converter apis
-get by id loyality points converter apis
-restaurant and owner relation changed and revoked as it changes the whole codebase
-/restaurants/${restaurantId}/payroll/staff
-ithil role filter venam.GET
-/restaurants/${restaurantId}/payroll/staff
-ithil profile image add akkan olla filed venam .POST and PATCH
-/api/v1/users/{id}
-"Only Super Admin can change user roles"
-issue
-/analytics/waiter-performance/${restaurantId}
-waiter performance analytics is not showing even if there are waiters
-owner aayt login cheyyumba does not see 
-analytics/employee/${restaurantId}
-analytics/loyality-points/${restaurantId}
-
-
-doula rest completed. 
-
-
-
-
-
+whatsapp template details change from setting  
+add latitude and longitude in public restaurant api -- done
+watermark supermeals doc  -- done
+samasta data migration 

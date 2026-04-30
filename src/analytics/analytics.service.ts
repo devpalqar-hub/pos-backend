@@ -137,14 +137,25 @@ export class AnalyticsService {
 
     private async assertRestaurantAccess(actor: User, restaurantId: string) {
 
-        if (actor.role === 'SUPER_ADMIN') {
-            return
+        if (actor.role === UserRole.SUPER_ADMIN) {
+            return;
+        }
+
+        if (actor.role === UserRole.OWNER) {
+            const restaurant = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } });
+            if (!restaurant) {
+                throw new NotFoundException(`Restaurant ${restaurantId} not found`);
+            }
+            if (restaurant.ownerId !== actor.id) {
+                throw new ForbiddenException('You do not own this restaurant');
+            }
+            return;
         }
 
         if (actor.restaurantId !== restaurantId) {
             throw new ForbiddenException(
                 `User does not have access to restaurant ${restaurantId}`,
-            )
+            );
         }
     }
 

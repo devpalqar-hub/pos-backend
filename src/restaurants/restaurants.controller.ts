@@ -107,17 +107,27 @@ Returns restaurants visible to the authenticated user:
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     @ApiQuery({ name: 'ownerId', required: false, type: String, description: 'Filter by owner UUID' })
+    @ApiQuery({ name: 'latitude', required: false, type: String, description: 'Latitude used to prioritize nearby restaurants' })
+    @ApiQuery({ name: 'longitude', required: false, type: String, description: 'Longitude used to prioritize nearby restaurants' })
     @ApiResponse({ status: 200, description: 'Public restaurant list returned.' })
     async publicFindAll(
         @Query('page') page?: string,
         @Query('limit') limit?: string,
         @Query('ownerId') ownerId?: string,
+        @Query('latitude') latitude?: string,
+        @Query('longitude') longitude?: string,
     ) {
         const pageNum = parseInt(page ?? '1');
         const limitNum = parseInt(limit ?? '10');
         return {
             message: 'Public restaurants fetched successfully',
-            data: await this.restaurantsService.publicFindAll(pageNum, limitNum, ownerId),
+            data: await this.restaurantsService.publicFindAll(
+                pageNum,
+                limitNum,
+                ownerId,
+                latitude ? parseFloat(latitude) : undefined,
+                longitude ? parseFloat(longitude) : undefined,
+            ),
         };
     }
 

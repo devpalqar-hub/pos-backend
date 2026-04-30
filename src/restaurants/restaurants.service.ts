@@ -66,6 +66,8 @@ const PUBLIC_RESTAURANT_LIST_SELECT = {
     coverUrl: true,
     cuisineType: true,
     currency: true,
+    latitude: true,
+    longitude: true,
     workingHours: {
         select: { day: true, openTime: true, closeTime: true, isClosed: true },
         orderBy: { day: 'asc' as const },
@@ -237,7 +239,13 @@ export class RestaurantsService {
         }
     }
 
-    async publicFindAll(page: number = 1, limit: number = 10, ownerId?: string): Promise<object> {
+    async publicFindAll(
+        page: number = 1,
+        limit: number = 10,
+        ownerId?: string,
+        latitude?: number,
+        longitude?: number,
+    ): Promise<object> {
         const skip = (page - 1) * limit;
         const where = {
             isActive: true,
@@ -255,8 +263,22 @@ export class RestaurantsService {
             this.prisma.restaurant.count({ where }),
         ]);
 
+        const orderedData =
+            latitude !== undefined && longitude !== undefined
+                ? [...data]
+                    .map((restaurant) => ({
+                        ...restaurant,
+                        _distanceKm:
+                            restaurant.latitude !== null && restaurant.longitude !== null
+                                ? this.calculateDistanceKm(latitude, longitude, Number(restaurant.latitude), Number(restaurant.longitude))
+                                : Number.POSITIVE_INFINITY,
+                    }))
+                    .sort((a, b) => a._distanceKm - b._distanceKm)
+                    .map(({ _distanceKm, latitude: _latitude, longitude: _longitude, ...restaurant }) => restaurant)
+                : data.map(({ latitude: _latitude, longitude: _longitude, ...restaurant }) => restaurant);
+
         return {
-            data,
+            data: orderedData,
             meta: {
                 total,
                 page,
@@ -266,6 +288,27 @@ export class RestaurantsService {
                 hasPrevPage: page > 1,
             },
         };
+    }
+
+    private calculateDistanceKm(
+        fromLatitude: number,
+        fromLongitude: number,
+        toLatitude: number,
+        toLongitude: number,
+    ): number {
+        const earthRadiusKm = 6371;
+        const latitudeDelta = this.toRadians(toLatitude - fromLatitude);
+        const longitudeDelta = this.toRadians(toLongitude - fromLongitude);
+        const a =
+            Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2) +
+            Math.cos(this.toRadians(fromLatitude)) *
+                Math.cos(this.toRadians(toLatitude)) *
+                Math.sin(longitudeDelta / 2) * Math.sin(longitudeDelta / 2);
+        return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private toRadians(value: number): number {
+        return value * (Math.PI / 180);
     }
 
     // ─── Get Single Restaurant ─────────────────────────────────────────────────

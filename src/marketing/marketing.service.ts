@@ -45,6 +45,14 @@ type WhatsAppTemplateRow = {
   updatedAt: Date;
 };
 
+type CampaignWhatsappTemplateSource = {
+  id: string;
+  restaurantId: string;
+  name: string;
+  subject: string | null;
+  channels: { channel: MarketingChannel }[];
+};
+
 @Injectable()
 export class MarketingService {
   private readonly logger = new Logger(MarketingService.name);
@@ -72,13 +80,6 @@ export class MarketingService {
       };
     }
 
-    const whatsappSettings = settings as typeof settings & {
-      waTemplateName?: string | null;
-      waTemplateLanguageCode?: string | null;
-      waOptInMethod?: string | null;
-      waOptInDescription?: string | null;
-    };
-
     // Return masked sensitive fields ─ never send raw credentials in the response
     return {
       restaurantId: settings.restaurantId,
@@ -102,10 +103,8 @@ export class MarketingService {
         baId: settings.waBaId,
         phoneNumberId: settings.waPhoneNumberId,
         accessToken: settings.waAccessToken ? '••••••••' : null,
-        templateName: whatsappSettings.waTemplateName,
-        templateLanguageCode: whatsappSettings.waTemplateLanguageCode,
-        optInMethod: whatsappSettings.waOptInMethod,
-        optInDescription: whatsappSettings.waOptInDescription,
+        optInMethod: settings.waOptInMethod,
+        optInDescription: settings.waOptInDescription,
         configured: !!(settings.waPhoneNumberId && settings.waAccessToken),
       },
       createdAt: settings.createdAt,
@@ -140,9 +139,6 @@ export class MarketingService {
     if (dto.waPhoneNumberId !== undefined) data.waPhoneNumberId = dto.waPhoneNumberId;
     if (dto.waAccessToken !== undefined && dto.waAccessToken !== '••••••••')
       data.waAccessToken = dto.waAccessToken;
-    if (dto.waTemplateName !== undefined) data.waTemplateName = dto.waTemplateName;
-    if (dto.waTemplateLanguageCode !== undefined)
-      data.waTemplateLanguageCode = dto.waTemplateLanguageCode;
     if (dto.waOptInMethod !== undefined) data.waOptInMethod = dto.waOptInMethod;
     if (dto.waOptInDescription !== undefined) data.waOptInDescription = dto.waOptInDescription;
 
@@ -407,6 +403,12 @@ export class MarketingService {
       );
     }
 
+    if (campaign.channels.some((entry) => entry.channel === MarketingChannel.WHATSAPP)) {
+      this.syncCampaignWhatsappTemplate(campaign).catch((err) =>
+        this.logger.warn(`Campaign ${campaign.id} WhatsApp template sync failed: ${err.message}`),
+      );
+    }
+
     return campaign;
   }
 
@@ -498,7 +500,7 @@ export class MarketingService {
       await this.assertChannelSettings(restaurantId, dto.channels as unknown as MarketingChannel[]);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedCampaign = await this.prisma.$transaction(async (tx) => {
       // Replace rules
       if (dto.rules !== undefined) {
         await tx.campaignRule.deleteMany({ where: { campaignId: id } });
@@ -542,6 +544,14 @@ export class MarketingService {
         include: { rules: true, channels: true },
       });
     });
+
+    if (updatedCampaign.channels.some((entry) => entry.channel === MarketingChannel.WHATSAPP)) {
+      this.syncCampaignWhatsappTemplate(updatedCampaign).catch((err) =>
+        this.logger.warn(`Campaign ${updatedCampaign.id} WhatsApp template sync failed: ${err.message}`),
+      );
+    }
+
+    return updatedCampaign;
   }
 
   async deleteCampaign(actor: User, restaurantId: string, id: string) {
@@ -1268,6 +1278,43 @@ export class MarketingService {
         `Missing channel configuration: ${missing.join('; ')}`,
       );
     }
+  }
+
+  private async syncCampaignWhatsappTemplate(campaign: CampaignWhatsappTemplateSource) {
+    await this.ensureWhatsappTemplatesTable();
+
+    const settings = await this.prisma.marketingSettings.findUnique({
+      where: { restaurantId: campaign.restaurantId },
+    });
+
+    const templateName = `campaign_${campaign.id.replace(/-/g, '_')}`;
+    const templateLanguageCode = 'en_US';
+    const templateBody = (campaign.subject ?? campaign.name).trim() || campaign.name;
+    const components = [{ type: 'BODY', text: templateBody }];
+
+    await this.prisma.$executeRawUnsafe(
+      `INSERT INTO whatsapp_templates (id, restaurantId, waBaId, templateName, languageCode, category, parameterFormat, components, status, metaTemplateId, qualityScore, rejectionReason, isActive, metaPayload, metaResponse, lastSyncedAt, createdAt, updatedAt)
+       VALUES (UUID(), ?, ?, ?, ?, 'MARKETING', NULL, ?, 'DRAFT', NULL, NULL, NULL, 1, NULL, NULL, NULL, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+         waBaId = VALUES(waBaId),
+         category = VALUES(category),
+         parameterFormat = VALUES(parameterFormat),
+         components = VALUES(components),
+         status = VALUES(status),
+         metaTemplateId = NULL,
+         qualityScore = NULL,
+         rejectionReason = NULL,
+         isActive = 1,
+         metaPayload = NULL,
+         metaResponse = NULL,
+         lastSyncedAt = NULL,
+         updatedAt = NOW()`,
+      campaign.restaurantId,
+      settings?.waBaId ?? null,
+      templateName,
+      templateLanguageCode,
+      JSON.stringify(components),
+    );
   }
 
   private async assertRestaurantAccess(
