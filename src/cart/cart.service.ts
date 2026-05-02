@@ -450,6 +450,7 @@ export class CartService {
 
         let loyaltyDiscount = 0;
         if (shouldApplyLoyalty && query?.customerId) {
+            const loyaltyEligibleAmount = Math.max(0, total - couponDiscount);
             const converter = await this.prisma.loyalityPointsConverter.findFirst({
                 where: {
                     restaurantId,
@@ -466,7 +467,21 @@ export class CartService {
                             restaurantId,
                             isActive: true,
                             OR: [{ endDate: null }, { endDate: { gte: now } }],
-                        },
+                            AND: [
+                                {
+                                    OR: [
+                                        { conditionMinAmount: null },
+                                        { conditionMinAmount: { lte: loyaltyEligibleAmount } },
+                                    ],
+                                },
+                                {
+                                    OR: [
+                                        { conditionMaxAmount: null },
+                                        { conditionMaxAmount: { gte: loyaltyEligibleAmount } },
+                                    ],
+                                },
+                            ],
+                        } as any,
                     },
                     select: {
                         pointsAwarded: true,

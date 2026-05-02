@@ -19,7 +19,7 @@ export class CreateUserDto {
     @IsString()
     @IsNotEmpty({ message: 'Name is required' })
     @MaxLength(255)
-    name: string;
+    name!: string;
 
     @ApiProperty({
         description: 'Unique email address of the user',
@@ -27,7 +27,17 @@ export class CreateUserDto {
     })
     @IsEmail({}, { message: 'Please provide a valid email address' })
     @IsNotEmpty({ message: 'Email is required' })
-    email: string;
+    email!: string;
+
+    @ApiPropertyOptional({
+        description: 'Profile image URL of the user',
+        example: 'https://cdn.example.com/users/jane-smith.png',
+        maxLength: 1000,
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(1000)
+    profileImage?: string;
 
     @ApiProperty({
         description: 'Role to assign to the user',
@@ -36,7 +46,7 @@ export class CreateUserDto {
     })
     @IsEnum(UserRole, { message: `Role must be one of: ${Object.values(UserRole).join(', ')}` })
     @IsNotEmpty({ message: 'Role is required' })
-    role: UserRole;
+    role!: UserRole;
 
     @ApiPropertyOptional({
         description:

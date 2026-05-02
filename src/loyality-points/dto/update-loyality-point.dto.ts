@@ -34,6 +34,26 @@ export class UpdateLoyalityPointDto {
     points?: number;
 
     @ApiPropertyOptional({
+        description:
+            'Minimum total amount required for this loyalty rule to apply (inclusive).',
+        example: 20,
+    })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    conditionMinAmount?: number;
+
+    @ApiPropertyOptional({
+        description:
+            'Maximum total amount allowed for this loyalty rule to apply (inclusive).',
+        example: 200,
+    })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    conditionMaxAmount?: number;
+
+    @ApiPropertyOptional({
         description: 'Start date (ISO 8601)',
         example: '2026-03-01T00:00:00.000Z',
     })

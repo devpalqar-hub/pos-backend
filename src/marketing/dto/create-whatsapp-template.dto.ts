@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class CreateWhatsappTemplateDto {
@@ -21,6 +22,7 @@ export class CreateWhatsappTemplateDto {
         example: 'UTILITY',
         enum: ['AUTHENTICATION', 'MARKETING', 'UTILITY'],
     })
+    @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
     @IsString()
     category!: string;
 
@@ -29,6 +31,7 @@ export class CreateWhatsappTemplateDto {
         example: 'positional',
         enum: ['named', 'positional'],
     })
+    @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
     @IsOptional()
     @IsIn(['named', 'positional'])
     @IsString()

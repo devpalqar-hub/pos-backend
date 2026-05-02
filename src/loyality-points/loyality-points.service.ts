@@ -36,12 +36,18 @@ export class LoyalityPointsService {
         dto: CreateLoyalityPointDto,
     ) {
         await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+        this.validateConditionAmountRange(
+            dto.conditionMinAmount,
+            dto.conditionMaxAmount,
+        );
 
         return this.prisma.loyalityPoint.create({
             data: {
                 restaurantId,
                 name: dto.name,
                 points: dto.points ?? 0,
+                conditionMinAmount: dto.conditionMinAmount ?? null,
+                conditionMaxAmount: dto.conditionMaxAmount ?? null,
                 isGroup: dto.isGroup ?? false,
                 startDate: dto.startDate ? new Date(dto.startDate) : null,
                 endDate: dto.endDate ? new Date(dto.endDate) : null,
@@ -186,6 +192,25 @@ export class LoyalityPointsService {
                 `Loyalty point rule ${id} not found in restaurant ${restaurantId}`,
             );
         }
+        const existingRule = existing as any;
+
+        const nextConditionMinAmount =
+            dto.conditionMinAmount !== undefined
+                ? dto.conditionMinAmount
+                : existingRule.conditionMinAmount
+                    ? Number(existingRule.conditionMinAmount)
+                    : undefined;
+        const nextConditionMaxAmount =
+            dto.conditionMaxAmount !== undefined
+                ? dto.conditionMaxAmount
+                : existingRule.conditionMaxAmount
+                    ? Number(existingRule.conditionMaxAmount)
+                    : undefined;
+
+        this.validateConditionAmountRange(
+            nextConditionMinAmount,
+            nextConditionMaxAmount,
+        );
 
         return this.prisma.$transaction(async (tx) => {
             // ── Replace weekDays (delete old, create new) ─────────────────────
@@ -208,6 +233,12 @@ export class LoyalityPointsService {
                 data: {
                     ...(dto.name !== undefined && { name: dto.name }),
                     ...(dto.points !== undefined && { points: dto.points }),
+                    ...(dto.conditionMinAmount !== undefined && {
+                        conditionMinAmount: dto.conditionMinAmount,
+                    }),
+                    ...(dto.conditionMaxAmount !== undefined && {
+                        conditionMaxAmount: dto.conditionMaxAmount,
+                    }),
                     ...(dto.isGroup !== undefined && { isGroup: dto.isGroup }),
                     ...(dto.startDate !== undefined && {
                         startDate: dto.startDate ? new Date(dto.startDate) : null,
@@ -382,6 +413,21 @@ export class LoyalityPointsService {
 
     private isEmail(value: string): boolean {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
+
+    private validateConditionAmountRange(
+        conditionMinAmount?: number,
+        conditionMaxAmount?: number,
+    ): void {
+        if (
+            conditionMinAmount !== undefined &&
+            conditionMaxAmount !== undefined &&
+            conditionMinAmount > conditionMaxAmount
+        ) {
+            throw new BadRequestException(
+                'conditionMinAmount cannot be greater than conditionMaxAmount',
+            );
+        }
     }
 
     // ─── Scheduled Task: Deactivate Expired Loyalty Points ─────────────────────

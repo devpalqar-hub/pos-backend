@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as nodemailer from 'nodemailer';
-import axios, { all } from 'axios';
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   User,
@@ -163,6 +163,8 @@ export class MarketingService {
     restaurantId: string,
     dto: CreateWhatsappTemplateDto,
   ) {
+    this.logger.log(`[WHATSAPP] Creating template: restaurantId=${restaurantId}, name=${dto.name}`);
+    
     await this.assertRestaurantAccess(actor, restaurantId, 'manage');
 
     const settings = await this.prisma.marketingSettings.findUnique({
@@ -170,42 +172,79 @@ export class MarketingService {
     });
 
     if (!settings?.waBaId || !settings?.waAccessToken) {
+      this.logger.error(`[WHATSAPP] Settings not configured for restaurantId=${restaurantId}`);
       throw new BadRequestException('WhatsApp settings are not configured for this restaurant');
     }
+    this.logger.log(`[WHATSAPP] Settings found - waBaId=${settings.waBaId}`);
 
     if (!/^[a-z0-9_]{1,512}$/.test(dto.name.trim())) {
+      this.logger.error(`[WHATSAPP] Invalid template name format: ${dto.name}`);
       throw new BadRequestException('WhatsApp template name must use lowercase letters, numbers, and underscores only');
     }
 
+    const normalizedCategory = String(dto.category ?? '').trim().toUpperCase();
+    if (!['AUTHENTICATION', 'MARKETING', 'UTILITY'].includes(normalizedCategory)) {
+      this.logger.error(`[WHATSAPP] Invalid category: ${dto.category}`);
+      throw new BadRequestException('WhatsApp template category must be one of AUTHENTICATION, MARKETING, or UTILITY');
+    }
+    this.logger.log(`[WHATSAPP] Category validated: ${normalizedCategory}`);
+
+    const helperParameterFormat =
+      ((dto.parameter_format?.trim().toLowerCase() as WhatsAppParameterFormat | undefined) ??
+        'positional');
+    const metaParameterFormat = helperParameterFormat.toUpperCase();
+    this.logger.log(`[WHATSAPP] Parameter format: ${helperParameterFormat} (Meta: ${metaParameterFormat})`);
+
     await this.ensureWhatsappTemplatesTable();
+    this.logger.log(`[WHATSAPP] Templates table ready`);
 
     const payload = {
       name: dto.name.trim(),
       language: dto.language.trim(),
-      category: dto.category.trim().toLowerCase(),
-      parameter_format: (dto.parameter_format?.trim() as WhatsAppParameterFormat | undefined) ?? 'positional',
+      category: normalizedCategory,
+      parameter_format: metaParameterFormat,
       components: buildWhatsAppTemplateComponents(
         dto.components,
-        (dto.parameter_format?.trim() as WhatsAppParameterFormat | undefined) ?? 'positional',
+        helperParameterFormat,
       ),
       ...(dto.allow_category_change !== undefined
         ? { allow_category_change: dto.allow_category_change }
         : { allow_category_change: true }),
     };
 
-    const response = await axios.post(
-      `https://graph.facebook.com/v25.0/${settings.waBaId}/message_templates`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${settings.waAccessToken}`,
-          'Content-Type': 'application/json',
+    this.logger.log(`[WHATSAPP] Payload built: ${JSON.stringify(payload)}`);
+    this.logger.log(`[WHATSAPP] Submitting to Meta API at https://graph.facebook.com/v25.0/${settings.waBaId}/message_templates`);
+
+    let response: any;
+    try {
+      response = await axios.post(
+        `https://graph.facebook.com/v25.0/${settings.waBaId}/message_templates`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${settings.waAccessToken}`,
+            'Content-Type': 'application/json',
+          },
         },
-      },
-    );
+      );
+      this.logger.log(`[WHATSAPP] Meta API success! Response: ${JSON.stringify(response.data)}`);
+    } catch (error: any) {
+      const metaMessage =
+        error?.response?.data?.error?.error_user_msg ||
+        error?.response?.data?.error?.message ||
+        error?.message ||
+        'Unknown Meta API error';
+
+      this.logger.error(
+        `[WHATSAPP] Meta API failed for restaurant ${restaurantId}: ${metaMessage}`,
+        error?.response?.data || error.stack,
+      );
+      throw new BadRequestException(`WhatsApp template create failed: ${metaMessage}`);
+    }
 
     const metaStatus = String(response.data?.status ?? 'PENDING');
     const metaTemplateId = response.data?.id ? String(response.data.id) : null;
+    this.logger.log(`[WHATSAPP] Meta template created - ID: ${metaTemplateId}, Status: ${metaStatus}`);
 
     const template = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
       `SELECT * FROM whatsapp_templates WHERE restaurantId = ? AND templateName = ? AND languageCode = ? LIMIT 1`,
@@ -215,11 +254,12 @@ export class MarketingService {
     );
 
     if (template.length > 0) {
+      this.logger.log(`[WHATSAPP] Template exists locally, updating record id=${template[0].id}`);
       await this.prisma.$executeRawUnsafe(
         `UPDATE whatsapp_templates SET waBaId = ?, category = ?, parameterFormat = ?, components = ?, status = ?, metaTemplateId = ?, metaPayload = ?, metaResponse = ?, isActive = 1, lastSyncedAt = NOW(), updatedAt = NOW() WHERE id = ?`,
         settings.waBaId,
         payload.category,
-        payload.parameter_format ?? null,
+        helperParameterFormat,
         JSON.stringify(payload.components),
         metaStatus,
         metaTemplateId,
@@ -227,7 +267,9 @@ export class MarketingService {
         JSON.stringify(response.data ?? null),
         template[0].id,
       );
+      this.logger.log(`[WHATSAPP] Template updated successfully`);
     } else {
+      this.logger.log(`[WHATSAPP] Creating new local template record`);
       await this.prisma.$executeRawUnsafe(
         `INSERT INTO whatsapp_templates (id, restaurantId, waBaId, templateName, languageCode, category, parameterFormat, components, status, metaTemplateId, metaPayload, metaResponse, isActive, lastSyncedAt, createdAt, updatedAt) VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW(), NOW())`,
         restaurantId,
@@ -235,16 +277,19 @@ export class MarketingService {
         payload.name,
         payload.language,
         payload.category,
-        payload.parameter_format ?? null,
+        helperParameterFormat,
         JSON.stringify(payload.components),
         metaStatus,
         metaTemplateId,
         JSON.stringify(payload),
         JSON.stringify(response.data ?? null),
       );
+      this.logger.log(`[WHATSAPP] New template created in local database`);
     }
 
-    return this.getWhatsappTemplateByKey(actor, restaurantId, payload.name, payload.language, { sync: false });
+    const result = await this.getWhatsappTemplateByKey(actor, restaurantId, payload.name, payload.language, { sync: false });
+    this.logger.log(`[WHATSAPP] ✅ Template creation completed successfully - name=${payload.name}, language=${payload.language}, status=${metaStatus}`);
+    return result;
   }
 
   async listWhatsappTemplates(

@@ -91,6 +91,7 @@ export class UsersService {
             data: {
                 name: dto.name,
                 email: dto.email,
+                profileImage: dto.profileImage ?? null,
                 role: dto.role,
                 restaurantId: dto.restaurantId ?? null,
                 createdById: actor.id,
@@ -247,6 +248,7 @@ export class UsersService {
             data: {
                 ...(dto.name && { name: dto.name }),
                 ...(dto.email && { email: dto.email }),
+                ...(dto.profileImage !== undefined && { profileImage: dto.profileImage }),
                 ...(dto.role && { role: dto.role }),
                 ...(dto.restaurantId !== undefined && {
                     restaurantId: dto.restaurantId,
@@ -283,7 +285,10 @@ export class UsersService {
     async updateProfile(actor: User, dto: UpdateProfileDto): Promise<object> {
         const updated = await this.prisma.user.update({
             where: { id: actor.id },
-            data: { ...(dto.name && { name: dto.name }) },
+            data: {
+                ...(dto.name && { name: dto.name }),
+                ...(dto.profileImage !== undefined && { profileImage: dto.profileImage }),
+            },
             include: { restaurant: { select: { id: true, name: true } } },
         });
         return this.filterResponse(actor.role, updated);
@@ -401,6 +406,7 @@ export class UsersService {
             id: user.id,
             name: user.name,
             email: user.email,
+            profileImage: user.profileImage ?? null,
             role: user.role,
             isActive: user.isActive,
             restaurantId: user.restaurantId ?? null,

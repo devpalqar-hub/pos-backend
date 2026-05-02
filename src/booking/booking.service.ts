@@ -185,6 +185,7 @@ export class BookingService {
             }
 
             const now = new Date();
+            const loyaltyEligibleAmount = Math.max(0, subtotal - discountAmount);
             const redemptions = await this.prisma.loyalityPointRedemption.findMany({
                 where: {
                     customerId: actor.id,
@@ -196,7 +197,21 @@ export class BookingService {
                             { endDate: null }, // No end date (never expires)
                             { endDate: { gte: now } }, // End date is in the future
                         ],
-                    },
+                        AND: [
+                            {
+                                OR: [
+                                    { conditionMinAmount: null },
+                                    { conditionMinAmount: { lte: loyaltyEligibleAmount } },
+                                ],
+                            },
+                            {
+                                OR: [
+                                    { conditionMaxAmount: null },
+                                    { conditionMaxAmount: { gte: loyaltyEligibleAmount } },
+                                ],
+                            },
+                        ],
+                    } as any,
                 },
             });
 

@@ -1140,6 +1140,7 @@ export class OrdersService {
         let loyaltyDiscount = 0;
         let appliedLoyalty: any = null; // ✅ ADD
         let loyaltyPointsToConsume = 0;
+        let loyaltyEligibleAmount = 0;
         let customer: any;
         if (hasCustomerDataInRequest) {
             customer = await this.prisma.customer.findFirst({
@@ -1166,27 +1167,6 @@ export class OrdersService {
             }
             if (dto.claimedLoyalityPoints) {
                 const now = new Date();
-                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
-                    where: {
-                        customerId: customer.id,
-                        loyalityPoint: {
-                            restaurantId,
-                            isActive: true,
-                            // Exclude loyalty points with endDate in the past
-                            OR: [
-                                { endDate: null }, // No end date (never expires)
-                                { endDate: { gte: now } }, // End date is in the future
-                            ],
-                        },
-                    },
-                    include: {
-                        loyalityPoint: {
-                            select: { id: true, name: true },
-                        },
-                    },
-                });
-
-
                 let converter = await this.prisma.loyalityPointsConverter.findFirst({
                     where: {
                         restaurantId,
@@ -1198,17 +1178,8 @@ export class OrdersService {
                     throw new BadRequestException('Loyalty converter not configured');
                 }
 
-                const totalPoints = redemptions.reduce(
-                    (sum, r) => sum + Number(r.pointsAwarded),
-                    0,
-                );
-
                 const conversionRate =
                     Number(converter.value) / Number(converter.points);
-
-                const maxPossibleDiscount = parseFloat(
-                    (totalPoints * conversionRate).toFixed(2),
-                );
 
                 // grossAmount is calculated after this block in previewBill,
                 // so we use subtotal + estimated tax as a safe cap here
@@ -1226,6 +1197,53 @@ export class OrdersService {
                 const remainingAfterOtherDiscounts = Math.max(
                     0,
                     grossAmountTemp - manualDiscountTemp - couponDiscount,
+                );
+                loyaltyEligibleAmount = remainingAfterOtherDiscounts;
+
+                const amountConditionFilter = {
+                    AND: [
+                        {
+                            OR: [
+                                { conditionMinAmount: null },
+                                { conditionMinAmount: { lte: loyaltyEligibleAmount } },
+                            ],
+                        },
+                        {
+                            OR: [
+                                { conditionMaxAmount: null },
+                                { conditionMaxAmount: { gte: loyaltyEligibleAmount } },
+                            ],
+                        },
+                    ],
+                };
+
+                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                    where: {
+                        customerId: customer.id,
+                        loyalityPoint: {
+                            restaurantId,
+                            isActive: true,
+                            OR: [
+                                { endDate: null },
+                                { endDate: { gte: now } },
+                            ],
+                            ...amountConditionFilter,
+                        } as any,
+                    },
+                    include: {
+                        loyalityPoint: {
+                            select: { id: true, name: true },
+                        },
+                    },
+                });
+
+                const totalPoints = redemptions.reduce(
+                    (sum, r) => sum + Number(r.pointsAwarded),
+                    0,
+                );
+
+                const maxPossibleDiscount = parseFloat(
+                    (totalPoints * conversionRate).toFixed(2),
                 );
 
                 loyaltyDiscount = parseFloat(
@@ -1345,7 +1363,7 @@ export class OrdersService {
             await tx.orderSession.update({
                 where: { id: sessionId },
                 data: {
-                    status: 'BILLED' as any,
+                    status: 'PAID' as any,
                     subtotal,
                     taxAmount,
                     discountAmount: totalDiscount,
@@ -1359,7 +1377,7 @@ export class OrdersService {
                     updatedAt: session.createdAt,
                     fieldChanged: "order status",
                     oldValue: session.status,
-                    newValue: SessionStatus.BILLED
+                    newValue: SessionStatus.PAID
                 },
             });
 
@@ -1373,7 +1391,21 @@ export class OrdersService {
                             restaurantId,
                             isActive: true,
                             OR: [{ endDate: null }, { endDate: { gte: now } }],
-                        },
+                            AND: [
+                                {
+                                    OR: [
+                                        { conditionMinAmount: null },
+                                        { conditionMinAmount: { lte: loyaltyEligibleAmount } },
+                                    ],
+                                },
+                                {
+                                    OR: [
+                                        { conditionMaxAmount: null },
+                                        { conditionMaxAmount: { gte: loyaltyEligibleAmount } },
+                                    ],
+                                },
+                            ],
+                        } as any,
                     },
                     orderBy: { redeemedAt: 'asc' },
                     select: {
@@ -1436,7 +1468,7 @@ export class OrdersService {
         this.gateway.emitToBilling(restaurantId, 'bill:generated', bill);
         this.gateway.emitToRestaurant(restaurantId, 'session:status:changed', {
             sessionId,
-            status: 'BILLED',
+            status: 'PAID',
             billNumber,
         });
         console.log(`Bill ${billNumber} generated and events emitted successfully`);
@@ -1713,26 +1745,6 @@ export class OrdersService {
             console.log(dto.claimedLoyalityPoints, "claimedLoyalityPoints")
             if (dto.claimedLoyalityPoints) {
                 const now = new Date();
-                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
-                    where: {
-                        customerId: customer.id,
-                        loyalityPoint: {
-                            restaurantId,
-                            isActive: true,
-                            // Exclude loyalty points with endDate in the past
-                            // OR: [
-                            //     { endDate: null }, // No end date (never expires)
-                            //     { endDate: { gte: now } }, // End date is in the future
-                            // ],
-                        },
-                    },
-                    include: {
-                        loyalityPoint: {
-                            select: { id: true, name: true },
-                        },
-                    },
-                });
-
                 const converter = await this.prisma.loyalityPointsConverter.findFirst({
                     where: {
                         restaurantId,
@@ -1744,18 +1756,9 @@ export class OrdersService {
                     throw new BadRequestException('Loyalty converter not configured');
                 }
 
-                const totalPoints = redemptions.reduce(
-                    (sum, r) => sum + Number(r.pointsAwarded),
-                    0,
-                );
-
                 // Convert points → money
                 const conversionRate =
                     Number(converter.value) / Number(converter.points);
-
-                const maxPossibleDiscount = parseFloat(
-                    (totalPoints * conversionRate).toFixed(2),
-                );
 
                 // grossAmount is calculated after this block in previewBill,
                 // so we use subtotal + estimated tax as a safe cap here
@@ -1773,6 +1776,48 @@ export class OrdersService {
                 const remainingAfterOtherDiscounts = Math.max(
                     0,
                     grossAmountTemp - manualDiscountTemp - couponDiscount,
+                );
+
+                const redemptions = await this.prisma.loyalityPointRedemption.findMany({
+                    where: {
+                        customerId: customer.id,
+                        loyalityPoint: {
+                            restaurantId,
+                            isActive: true,
+                            OR: [
+                                { endDate: null },
+                                { endDate: { gte: now } },
+                            ],
+                            AND: [
+                                {
+                                    OR: [
+                                        { conditionMinAmount: null },
+                                        { conditionMinAmount: { lte: remainingAfterOtherDiscounts } },
+                                    ],
+                                },
+                                {
+                                    OR: [
+                                        { conditionMaxAmount: null },
+                                        { conditionMaxAmount: { gte: remainingAfterOtherDiscounts } },
+                                    ],
+                                },
+                            ],
+                        } as any,
+                    },
+                    include: {
+                        loyalityPoint: {
+                            select: { id: true, name: true },
+                        },
+                    },
+                });
+
+                const totalPoints = redemptions.reduce(
+                    (sum, r) => sum + Number(r.pointsAwarded),
+                    0,
+                );
+
+                const maxPossibleDiscount = parseFloat(
+                    (totalPoints * conversionRate).toFixed(2),
                 );
 
                 loyaltyDiscount = parseFloat(

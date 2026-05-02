@@ -30,6 +30,16 @@ export class UpdateUserDto {
     email?: string;
 
     @ApiPropertyOptional({
+        description: 'Profile image URL of the user',
+        example: 'https://cdn.example.com/users/jane-smith.png',
+        maxLength: 1000,
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(1000)
+    profileImage?: string;
+
+    @ApiPropertyOptional({
         description: 'Role to assign to the user (Super Admin only)',
         enum: UserRole,
     })
@@ -65,4 +75,14 @@ export class UpdateProfileDto {
     @IsString()
     @MaxLength(255)
     name?: string;
+
+    @ApiPropertyOptional({
+        description: 'Your profile image URL',
+        example: 'https://cdn.example.com/users/jane-smith.png',
+        maxLength: 1000,
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(1000)
+    profileImage?: string;
 }
