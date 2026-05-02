@@ -83,6 +83,14 @@ Each rule has a \`condition\` and a \`value\`:
 | ORDER_CHANNEL | \`DINE_IN\` \\| \`ONLINE_OWN\` \\| \`UBER_EATS\` |
 | MIN_LOYALTY_POINTS | minimum total loyalty points earned |
 
+// MIN_ORDERS: user order count >= value
+// MAX_ORDERS: user order count <= value
+// MIN_SPEND: lifetime spend >= value
+// MAX_SPEND: lifetime spend <= value
+// LAST_ORDER_WITHIN_DAYS: last order date must be within past N days
+// ORDER_CHANNEL: user must have at least one order in that channel
+// MIN_LOYALTY_POINTS: total awarded loyalty points >= value
+
 \`ruleOperator\` determines how multiple rules combine: \`AND\` (all must match) or \`OR\` (any match).
 
 ### Scheduling

@@ -23,6 +23,11 @@ import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { TriggerCampaignDto } from './dto/trigger-campaign.dto';
 import { CreateWhatsappTemplateDto } from './dto/create-whatsapp-template.dto';
+import {
+  buildWhatsAppTemplateComponents,
+  WhatsAppParameterFormat,
+} from './whatsapp-template';
+import { renderText } from './whatsapp-template';
 
 type WhatsAppTemplateRow = {
   id: string;
@@ -50,6 +55,8 @@ type CampaignWhatsappTemplateSource = {
   restaurantId: string;
   name: string;
   subject: string | null;
+  textContent?: string | null;
+  whatsappParameterFormat?: WhatsAppParameterFormat | null;
   channels: { channel: MarketingChannel }[];
 };
 
@@ -175,9 +182,12 @@ export class MarketingService {
     const payload = {
       name: dto.name.trim(),
       language: dto.language.trim(),
-      category: dto.category.trim().toUpperCase(),
-      components: dto.components,
-      ...(dto.parameter_format ? { parameter_format: dto.parameter_format.trim() } : {}),
+      category: dto.category.trim().toLowerCase(),
+      parameter_format: (dto.parameter_format?.trim() as WhatsAppParameterFormat | undefined) ?? 'positional',
+      components: buildWhatsAppTemplateComponents(
+        dto.components,
+        (dto.parameter_format?.trim() as WhatsAppParameterFormat | undefined) ?? 'positional',
+      ),
       ...(dto.allow_category_change !== undefined
         ? { allow_category_change: dto.allow_category_change }
         : { allow_category_change: true }),
@@ -251,6 +261,19 @@ export class MarketingService {
 
     const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
       `SELECT * FROM whatsapp_templates WHERE restaurantId = ? ${options.includeInactive ? '' : 'AND isActive = 1'} ORDER BY createdAt DESC`,
+      restaurantId,
+    );
+
+    return rows.map((row) => this.mapWhatsappTemplateRow(row));
+  }
+
+  async listWhatsappTemplatesFromMeta(actor: User, restaurantId: string) {
+    await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+    await this.ensureWhatsappTemplatesTable();
+    await this.syncWhatsappTemplatesFromMeta(actor, restaurantId);
+
+    const rows = await this.prisma.$queryRawUnsafe<WhatsAppTemplateRow[]>(
+      `SELECT * FROM whatsapp_templates WHERE restaurantId = ? ORDER BY createdAt DESC`,
       restaurantId,
     );
 
@@ -404,9 +427,23 @@ export class MarketingService {
     }
 
     if (campaign.channels.some((entry) => entry.channel === MarketingChannel.WHATSAPP)) {
-      this.syncCampaignWhatsappTemplate(campaign).catch((err) =>
-        this.logger.warn(`Campaign ${campaign.id} WhatsApp template sync failed: ${err.message}`),
-      );
+      const templateName = String(campaign.name ?? '').replace(/\s+/g, '_').toLowerCase().slice(0, 512);
+      const templateBody = String(campaign.textContent ?? campaign.subject ?? campaign.name).trim() || campaign.name;
+      const dtoTpl: CreateWhatsappTemplateDto = {
+        name: templateName,
+        language: 'en_US',
+        category: 'MARKETING',
+        components: [{ type: 'BODY', text: templateBody } as any],
+        parameter_format: dto.whatsappParameterFormat ?? 'named',
+        allow_category_change: true,
+      };
+
+      // Try to create and submit the template to Meta/WhatsApp for approval.
+      // Do not fail campaign creation if template submission fails; just log a warning.
+      this.createWhatsappTemplate(actor, campaign.restaurantId, dtoTpl as any)
+        .catch((err: any) =>
+          this.logger.warn(`Campaign ${campaign.id} WhatsApp template create failed: ${err?.message ?? String(err)}`),
+        );
     }
 
     return campaign;
@@ -1202,12 +1239,18 @@ export class MarketingService {
     customerName: string,
     restaurantName: string,
   ) {
-    const body = this.renderTemplate(
-      campaign.textContent ?? campaign.name,
-      customerName,
-      restaurantName,
-      campaign.imageUrl,
-    );
+    const templateText = String(campaign.textContent ?? campaign.name);
+    let body: string;
+    try {
+      body = renderText(templateText, {
+        name: customerName,
+        restaurant: restaurantName,
+        imageUrl: campaign.imageUrl ?? '',
+      });
+    } catch (err) {
+      // Fall back to the simple renderer for backwards compatibility
+      body = this.renderTemplate(templateText, customerName, restaurantName, campaign.imageUrl);
+    }
     this.logger.log(`[WHATSAPP] Preparing message → to: ${toPhone}`);
     this.logger.log(`[WHATSAPP] PhoneNumberId: ${settings.waPhoneNumberId}`);
 
@@ -1287,9 +1330,9 @@ export class MarketingService {
       where: { restaurantId: campaign.restaurantId },
     });
 
-    const templateName = `campaign_${campaign.id.replace(/-/g, '_')}`;
+    const templateName = campaign.name.replace(/\s+/g, '_');
     const templateLanguageCode = 'en_US';
-    const templateBody = (campaign.subject ?? campaign.name).trim() || campaign.name;
+    const templateBody = String(campaign.textContent ?? campaign.subject ?? campaign.name).trim() || campaign.name;
     const components = [{ type: 'BODY', text: templateBody }];
 
     await this.prisma.$executeRawUnsafe(

@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import type { WhatsAppParameterFormat } from '../whatsapp-template';
 
 // Mirror of Prisma enums — avoids importing from @prisma/client in DTOs
 export enum MarketingChannelEnum {
@@ -42,7 +43,7 @@ export class CampaignRuleDto {
     example: RuleConditionTypeEnum.MIN_ORDERS,
   })
   @IsEnum(RuleConditionTypeEnum)
-  condition: RuleConditionTypeEnum;
+  condition!: RuleConditionTypeEnum;
 
   @ApiPropertyOptional({
     description:
@@ -58,7 +59,7 @@ export class CampaignRuleDto {
 export class CreateCampaignDto {
   @ApiProperty({ example: 'Weekend Special Promo', description: 'Internal campaign name' })
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Internal description / notes' })
   @IsOptional()
@@ -84,6 +85,17 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsString()
   textContent?: string;
+
+  @ApiPropertyOptional({
+    enum: ['named', 'positional'],
+    default: 'named',
+    description:
+      'WhatsApp template parameter format used when auto-submitting a template for WhatsApp campaigns.',
+  })
+  @IsOptional()
+  @IsIn(['named', 'positional'])
+  @IsString()
+  whatsappParameterFormat?: WhatsAppParameterFormat;
 
   @ApiPropertyOptional({
     description:
@@ -113,7 +125,7 @@ export class CreateCampaignDto {
   @IsArray()
   @ArrayMinSize(1)
   @IsEnum(MarketingChannelEnum, { each: true })
-  channels: MarketingChannelEnum[];
+  channels!: MarketingChannelEnum[];
 
   // ─── Targeting ────────────────────────────────────────────────────────────
 

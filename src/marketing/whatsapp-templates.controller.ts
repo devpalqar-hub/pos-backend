@@ -56,6 +56,26 @@ export class WhatsappTemplatesController {
         };
     }
 
+    @Get('meta')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Sync WhatsApp templates from Meta',
+        description:
+            'Fetches the current WhatsApp templates from Meta Business Manager, syncs them into the local store, and returns the synced list for this restaurant.',
+    })
+    @ApiResponse({ status: 200, description: 'Meta templates synced and returned.' })
+    @ApiResponse({ status: 400, description: 'WhatsApp settings are not configured.' })
+    async findFromMeta(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    ) {
+        return {
+            message: 'WhatsApp templates synced from Meta successfully',
+            data: await this.marketingService.listWhatsappTemplatesFromMeta(actor, restaurantId),
+        };
+    }
+
     @Get()
     @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class CreateWhatsappTemplateDto {
     @ApiProperty({
@@ -27,8 +27,10 @@ export class CreateWhatsappTemplateDto {
     @ApiPropertyOptional({
         description: 'Named or positional parameter format',
         example: 'positional',
+        enum: ['named', 'positional'],
     })
     @IsOptional()
+    @IsIn(['named', 'positional'])
     @IsString()
     parameter_format?: string;
 

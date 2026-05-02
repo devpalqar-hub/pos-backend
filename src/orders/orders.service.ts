@@ -22,6 +22,7 @@ import { AddPaymentDto } from './dto/add-payment.dto';
 import { generateShortId } from './utils/id-generator';
 import { OrdersGateway } from './orders.gateway';
 import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
+import { validateSessionStatusTransition } from './utils/session-status-machine';
 import { table } from 'console';
 
 // ─── Include clauses ──────────────────────────────────────────────────────────
@@ -403,12 +404,8 @@ export class OrdersService {
                 throw new NotFoundException(`Session ${sessionId} not found`);
             }
 
-            // ✅ RULE: Prevent updates if already BILLED
-            if (session.status === SessionStatus.BILLED) {
-                throw new BadRequestException(
-                    'Session status cannot be changed once it is BILLED',
-                );
-            }
+            // ✅ VALIDATE STATE MACHINE: Enforce strict status transitions
+            validateSessionStatusTransition(session.status as SessionStatus, dto.status);
 
             const updated = await tx.orderSession.update({
                 where: { id: sessionId },

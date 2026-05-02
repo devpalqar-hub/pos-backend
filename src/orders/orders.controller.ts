@@ -145,16 +145,36 @@ export class OrdersController {
 
     /**
      * PATCH /restaurants/:restaurantId/sessions/:sessionId/status
+     * 
+     * State Machine Validation:
+     * Valid transitions:
+     * - OPEN → BILLED (generate bill)
+     * - OPEN → CANCELLED (cancel before billing)
+     * - BILLED → PAID (payment received)
+     * - BILLED → VOID (admin override)
+     * 
+     * Terminal states (no further transitions): PAID, CANCELLED, VOID
+     * No reverse or cross-flow transitions allowed.
      */
     @Patch('restaurants/:restaurantId/sessions/:sessionId/status')
     @Roles(...MANAGE_ROLES)
     @ApiOperation({
-        summary: 'Manually update session status',
+        summary: 'Update session status with state machine validation',
         description:
-            'Admin override. Normal flow: OPEN → BILLED (via generate-bill) → PAID (via payment).',
+            'Updates order session status with strict state machine rules. ' +
+            'Valid flows: (1) OPEN → BILLED → PAID, (2) OPEN → CANCELLED, (3) BILLED → VOID. ' +
+            'Reverse and cross-flow transitions are blocked.',
     })
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiParam({ name: 'sessionId', description: 'Session UUID' })
+    @ApiResponse({
+        status: 200,
+        description: 'Session status updated successfully',
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Invalid status transition (state machine violation)',
+    })
     updateSessionStatus(
         @CurrentUser() actor: User,
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,

@@ -82,7 +82,15 @@ export class AnalyticsService {
             where: {
                 restaurantId: { in: restaurantIds },
                 status: BillStatus.PAID,
-                paidAt: { gte: start, lte: end },
+                OR: [
+                    {
+                        paidAt: { gte: start, lte: end },
+                    },
+                    {
+                        paidAt: null,
+                        createdAt: { gte: start, lte: end },
+                    },
+                ],
             },
         });
         return this.toNumber(result._sum.totalAmount);
@@ -880,10 +888,21 @@ export class AnalyticsService {
                 bill: {
                     restaurantId,
                     status: 'PAID',
-                    createdAt: {
-                        gte: previousStart,
-                        lt: startDateObj,
-                    },
+                    OR: [
+                        {
+                            paidAt: {
+                                gte: previousStart,
+                                lt: startDateObj,
+                            },
+                        },
+                        {
+                            paidAt: null,
+                            createdAt: {
+                                gte: previousStart,
+                                lt: startDateObj,
+                            },
+                        },
+                    ],
                 },
             },
             _sum: {
@@ -910,10 +929,21 @@ export class AnalyticsService {
                 bill: {
                     restaurantId,
                     status: 'PAID',
-                    createdAt: {
-                        gte: startDateObj,
-                        lte: endDateObj,
-                    },
+                    OR: [
+                        {
+                            paidAt: {
+                                gte: startDateObj,
+                                lte: endDateObj,
+                            },
+                        },
+                        {
+                            paidAt: null,
+                            createdAt: {
+                                gte: startDateObj,
+                                lte: endDateObj,
+                            },
+                        },
+                    ],
                 },
             },
             _sum: {
@@ -988,10 +1018,21 @@ export class AnalyticsService {
             where: {
                 restaurantId,
                 status: 'PAID',
-                createdAt: {
-                    gte: startDateObj,
-                    lte: endDateObj,
-                },
+                OR: [
+                    {
+                        paidAt: {
+                            gte: startDateObj,
+                            lte: endDateObj,
+                        },
+                    },
+                    {
+                        paidAt: null,
+                        createdAt: {
+                            gte: startDateObj,
+                            lte: endDateObj,
+                        },
+                    },
+                ],
             },
             _sum: { totalAmount: true },
         });
@@ -1000,10 +1041,21 @@ export class AnalyticsService {
             where: {
                 restaurantId,
                 status: 'PAID',
-                createdAt: {
-                    gte: previousStart,
-                    lt: startDateObj,
-                },
+                OR: [
+                    {
+                        paidAt: {
+                            gte: previousStart,
+                            lt: startDateObj,
+                        },
+                    },
+                    {
+                        paidAt: null,
+                        createdAt: {
+                            gte: previousStart,
+                            lt: startDateObj,
+                        },
+                    },
+                ],
             },
             _sum: { totalAmount: true },
         });
@@ -1028,10 +1080,21 @@ export class AnalyticsService {
                 bill: {
                     restaurantId,
                     status: 'PAID',
-                    createdAt: {
-                        gte: startDateObj,
-                        lte: endDateObj,
-                    },
+                    OR: [
+                        {
+                            paidAt: {
+                                gte: startDateObj,
+                                lte: endDateObj,
+                            },
+                        },
+                        {
+                            paidAt: null,
+                            createdAt: {
+                                gte: startDateObj,
+                                lte: endDateObj,
+                            },
+                        },
+                    ],
                 },
             },
             _sum: {
@@ -1146,14 +1209,26 @@ export class AnalyticsService {
             where: {
                 restaurantId,
                 status: 'PAID',
-                createdAt: {
-                    gte: startDateObj,
-                    lte: endDateObj,
-                },
+                OR: [
+                    {
+                        paidAt: {
+                            gte: startDateObj,
+                            lte: endDateObj,
+                        },
+                    },
+                    {
+                        paidAt: null,
+                        createdAt: {
+                            gte: startDateObj,
+                            lte: endDateObj,
+                        },
+                    },
+                ],
             },
             select: {
                 id: true,
                 createdAt: true,
+                paidAt: true,
                 totalAmount: true,
             },
         });
@@ -1167,7 +1242,8 @@ export class AnalyticsService {
         > = {};
 
         bills.forEach((bill) => {
-            const date = new Date(bill.createdAt).toISOString().split('T')[0];
+            const revenueDate = bill.paidAt ?? bill.createdAt;
+            const date = new Date(revenueDate).toISOString().split('T')[0];
 
             if (!dateMap[date]) {
                 dateMap[date] = {
