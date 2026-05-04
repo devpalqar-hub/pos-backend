@@ -983,7 +983,7 @@ export class OrdersService {
             include: { bill: true },
         });
         if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
-        if (session.status !== 'OPEN') {
+        if (session.status !== 'OPEN' && session.status !== 'BILLED') {
             throw new BadRequestException(`Session is already "${session.status}" — cannot regenerate bill`);
         }
         if (session.bill) {
@@ -995,6 +995,11 @@ export class OrdersService {
         const hasCustomerDataInRequest = Boolean(
             dto.customerName?.trim() || dto.customerEmail?.trim() || dto.customerPhone?.trim(),
         );
+
+        // Validate that loyalty operations require customer data
+        if ((dto.claimedLoyalityPoints || dto.loyalityOfferId) && !hasCustomerDataInRequest) {
+            throw new BadRequestException('Customer details (name, email, or phone) are required to use loyalty points or redemption offers');
+        }
 
         // Collect all non-cancelled items from all batches
         const items = await this.prisma.orderItem.findMany({
@@ -1088,6 +1093,9 @@ export class OrdersService {
         let appliedCoupon: any = null; // ✅ ADD
 
         if (dto.couponName) {
+            if (!hasCustomerDataInRequest) {
+                throw new BadRequestException('Customer details (name, email, or phone) are required to apply a coupon');
+            }
             const coupon = await this.prisma.coupon.findFirst({
                 where: {
                     code: dto.couponName,
@@ -1628,6 +1636,11 @@ export class OrdersService {
             dto.customerName?.trim() || dto.customerEmail?.trim() || dto.customerPhone?.trim(),
         );
 
+        // Validate that loyalty operations require customer data
+        if ((dto.claimedLoyalityPoints || dto.loyalityOfferId) && !hasCustomerDataInRequest) {
+            throw new BadRequestException('Customer details (name, email, or phone) are required to use loyalty points or redemption offers');
+        }
+
 
         // ================================
         // ITEMS
@@ -1728,6 +1741,9 @@ export class OrdersService {
         let appliedCoupon: any = null; // ✅ ADD
 
         if (dto.couponName) {
+            if (!hasCustomerDataInRequest) {
+                throw new BadRequestException('Customer details (name, email, or phone) are required to apply a coupon');
+            }
             const coupon = await this.prisma.coupon.findFirst({
                 where: {
                     code: dto.couponName,
@@ -2420,7 +2436,7 @@ export class OrdersService {
                 ? {
                     createdAt: {
                         gte: new Date(startDate),
-                        lte: new Date(endDate),
+                        lt: new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000),
                     },
                 }
                 : {};
@@ -2445,7 +2461,7 @@ export class OrdersService {
         if (startDate && endDate) {
             billWhere.createdAt = {
                 gte: new Date(startDate),
-                lte: new Date(endDate),
+                lt: new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000),
             };
         }
 
@@ -2524,7 +2540,7 @@ export class OrdersService {
         };
     }
 
-
+    Guest
     async getOrdersWithAnalytics(
         actor: User,
         restaurantId: string,
@@ -2644,8 +2660,8 @@ export class OrdersService {
             timestamp: s.createdAt.toISOString(),
 
             customer: {
-                name: s.customerName ?? 'Guest',
-                email: s.customerEmail ?? null,
+                name: s.customerName,
+                email: s.customerEmail
             },
 
             channel: s.channel,
@@ -2733,6 +2749,19 @@ export class OrdersService {
         const startTime = session.createdAt;
         const estimatedCheckout = session.closedAt ?? null;
 
+        // Prefer explicit update times when available — fall back to session fields
+        const updateTimes = session.orderSessionUpdateTimes ?? [];
+        const findUpdateTime = (target: string) => {
+            if (!updateTimes || updateTimes.length === 0) return null;
+            const up = updateTimes.find((u) => {
+                if (!u) return false;
+                const newV = (u.newValue ?? '').toString().toUpperCase();
+                const oldV = (u.oldValue ?? '').toString().toUpperCase();
+                return newV === target || oldV === target || newV.includes(target) || oldV.includes(target);
+            });
+            return up ? up.updatedAt : null;
+        };
+
         const timeline = [
             {
                 status: 'Received',
@@ -2740,21 +2769,22 @@ export class OrdersService {
                 is_completed: true,
             },
             {
-                status: 'Preparing',
-                timestamp: session.batches.length
-                    ? session.batches[0].createdAt
-                    : null,
-                is_completed: session.batches.length > 0,
+                status: 'Served',
+                // prefer explicit 'SERVED' update time, else use first batch createdAt if present
+                timestamp: findUpdateTime('SERVED') ?? (session.batches.length ? session.batches[0].createdAt : null),
+                is_completed: session.batches.length > 0 || Boolean(findUpdateTime('SERVED')),
             },
             {
-                status: 'Ready',
-                timestamp: session.closedAt ?? null,
-                is_completed: session.status === 'BILLED' || session.status === 'PAID',
+                status: 'Billed',
+                // prefer explicit 'BILLED' update time, else fallback to session.closedAt
+                timestamp: findUpdateTime('BILLED') ?? session.closedAt ?? null,
+                is_completed: session.status === 'BILLED' || session.status === 'PAID' || Boolean(findUpdateTime('BILLED')),
             },
             {
-                status: 'Completed',
-                timestamp: session.bill?.paidAt ?? null,
-                is_completed: session.status === 'PAID',
+                status: 'Paid',
+                // prefer explicit 'PAID' update time, else fallback to bill.paidAt
+                timestamp: findUpdateTime('PAID') ?? session.bill?.paidAt ?? null,
+                is_completed: session.status === 'PAID' || Boolean(findUpdateTime('PAID')),
             },
         ];
 
