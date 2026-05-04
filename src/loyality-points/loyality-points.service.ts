@@ -530,10 +530,10 @@ export class LoyalityPointsService {
                 }),
                 ...(dto.type === LoyalityOfferTypeDto.AMOUNT &&
                     dto.menuItemIds === undefined && {
-                        menuItems: {
-                            set: [],
-                        },
-                    }),
+                    menuItems: {
+                        set: [],
+                    },
+                }),
                 ...(dto.validFrom !== undefined && {
                     validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
                 }),

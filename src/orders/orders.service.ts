@@ -1527,6 +1527,16 @@ export class OrdersService {
                         'Loyalty points changed during billing. Please retry bill generation.',
                     );
                 }
+
+                // Decrement customer's loyalty wallet by the points consumed
+                await tx.customer.update({
+                    where: { id: customer.id },
+                    data: {
+                        loyaltyWallet: {
+                            decrement: new Prisma.Decimal(loyaltyPointsToConsume),
+                        },
+                    },
+                });
             }
 
             return createdBill;
@@ -2369,6 +2379,17 @@ export class OrdersService {
 
         if (awards.length > 0) {
             await tx.loyalityPointRedemption.createMany({ data: awards });
+
+            // Update customer's loyalty wallet by summing all awarded points
+            const totalPointsAwarded = awards.reduce((sum, award) => sum + Number(award.pointsAwarded), 0);
+            await tx.customer.update({
+                where: { id: customerId },
+                data: {
+                    loyaltyWallet: {
+                        increment: new Prisma.Decimal(totalPointsAwarded),
+                    },
+                },
+            });
         }
     }
 
