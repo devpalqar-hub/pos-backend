@@ -10,6 +10,7 @@ import {
     IsOptional,
     IsString,
     IsUUID,
+    Max,
     MaxLength,
     Min,
 } from 'class-validator';
@@ -32,6 +33,17 @@ export class UpdateLoyalityPointDto {
     @IsNumber()
     @Min(0)
     points?: number;
+
+    @ApiPropertyOptional({
+        description:
+            'Optional ratio (0 to 1) of total bill amount to convert to loyalty points. Awarded points are capped by `points`.',
+        example: 0.5,
+    })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(1)
+    loyalityDiscountRatio?: number;
 
     @ApiPropertyOptional({
         description:

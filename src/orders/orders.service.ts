@@ -1142,6 +1142,7 @@ export class OrdersService {
         let loyaltyPointsToConsume = 0;
         let loyaltyEligibleAmount = 0;
         let customer: any;
+        let selectedLoyalityOffer: any = null;
         if (hasCustomerDataInRequest) {
             customer = await this.prisma.customer.findFirst({
                 where: {
@@ -1167,19 +1168,29 @@ export class OrdersService {
             }
             if (dto.claimedLoyalityPoints) {
                 const now = new Date();
-                let converter = await this.prisma.loyalityPointsConverter.findFirst({
-                    where: {
-                        restaurantId,
-                        isActive: true,
-                    },
-                });
+                if (dto.loyalityOfferId) {
+                    selectedLoyalityOffer = await this.prisma.loyalityOffer.findFirst({
+                        where: {
+                            id: dto.loyalityOfferId,
+                            restaurantId,
+                            isActive: true,
+                            AND: [
+                                { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+                                { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+                            ],
+                        },
+                        include: {
+                            menuItems: { select: { id: true, name: true } },
+                        },
+                    });
 
-                if (!converter) {
-                    throw new BadRequestException('Loyalty converter not configured');
+                    if (!selectedLoyalityOffer) {
+                        throw new NotFoundException('Loyalty offer not found');
+                    }
                 }
 
-                const conversionRate =
-                    Number(converter.value) / Number(converter.points);
+                let conversionRate = 0;
+                let converter: any = null;
 
                 // grossAmount is calculated after this block in previewBill,
                 // so we use subtotal + estimated tax as a safe cap here
@@ -1242,15 +1253,72 @@ export class OrdersService {
                     0,
                 );
 
-                const maxPossibleDiscount = parseFloat(
-                    (totalPoints * conversionRate).toFixed(2),
-                );
+                let pointsConsumed = 0;
 
-                loyaltyDiscount = parseFloat(
-                    Math.min(maxPossibleDiscount, remainingAfterOtherDiscounts).toFixed(2),
-                );
+                if (selectedLoyalityOffer) {
+                    const offerPointsRequired = Number(selectedLoyalityOffer.pointsRequired);
+                    if (totalPoints < offerPointsRequired) {
+                        throw new BadRequestException(
+                            'Not enough loyalty points for the selected offer',
+                        );
+                    }
 
-                const pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                    if (selectedLoyalityOffer.type === 'AMOUNT') {
+                        const offerAmount = Number(selectedLoyalityOffer.redeemAmount ?? 0);
+                        if (offerAmount <= 0) {
+                            throw new BadRequestException(
+                                'Selected amount offer is not configured correctly',
+                            );
+                        }
+
+                        loyaltyDiscount = parseFloat(
+                            Math.min(offerAmount, remainingAfterOtherDiscounts).toFixed(2),
+                        );
+                        pointsConsumed = offerPointsRequired;
+                    } else {
+                        const eligibleBillItem = items.find((item) =>
+                            selectedLoyalityOffer.menuItems.some(
+                                (menuItem: { id: string }) =>
+                                    menuItem.id === item.menuItemId,
+                            ),
+                        );
+
+                        if (!eligibleBillItem) {
+                            throw new BadRequestException(
+                                'Selected food offer does not match any item in this bill',
+                            );
+                        }
+
+                        loyaltyDiscount = parseFloat(
+                            Math.min(Number(eligibleBillItem.unitPrice), remainingAfterOtherDiscounts).toFixed(2),
+                        );
+                        pointsConsumed = offerPointsRequired;
+                    }
+                } else {
+                    converter = await this.prisma.loyalityPointsConverter.findFirst({
+                        where: {
+                            restaurantId,
+                            isActive: true,
+                        },
+                    });
+
+                    if (!converter) {
+                        throw new BadRequestException('Loyalty converter not configured');
+                    }
+
+                    conversionRate = Number(converter.value) / Number(converter.points);
+
+                    const maxPossibleDiscount = parseFloat(
+                        (totalPoints * conversionRate).toFixed(2),
+                    );
+
+                    loyaltyDiscount = parseFloat(
+                        Math.min(maxPossibleDiscount, remainingAfterOtherDiscounts).toFixed(2),
+                    );
+
+                    pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                }
+
                 loyaltyPointsToConsume = pointsConsumed;
                 const pointsRemaining = totalPoints - pointsConsumed;
 
@@ -1263,6 +1331,15 @@ export class OrdersService {
                     pointsRemaining,
                     convertedAmount: loyaltyDiscount.toString(),
                     conversionRate: conversionRate.toString(),
+                    selectedLoyalityOffer: selectedLoyalityOffer
+                        ? {
+                            id: selectedLoyalityOffer.id,
+                            name: selectedLoyalityOffer.name,
+                            type: selectedLoyalityOffer.type,
+                            pointsRequired: selectedLoyalityOffer.pointsRequired.toString(),
+                            redeemAmount: selectedLoyalityOffer.redeemAmount?.toString() ?? null,
+                        }
+                        : null,
                     redemptions: redemptions.map((r) => ({
                         id: r.id,
                         points: r.pointsAwarded.toString(),
@@ -1701,6 +1778,7 @@ export class OrdersService {
         let loyaltyDiscount = 0;
         let appliedLoyalty: any = null; // ✅ ADD
         let customer: any;
+        let selectedLoyalityOffer: any = null;
         if (hasCustomerDataInRequest) {
             // here either email, phone or restaurantId can be used. if no email exists use phone, if no phone exist use restaurantId
             customer = await this.prisma.customer.findFirst({
@@ -1745,20 +1823,29 @@ export class OrdersService {
             console.log(dto.claimedLoyalityPoints, "claimedLoyalityPoints")
             if (dto.claimedLoyalityPoints) {
                 const now = new Date();
-                const converter = await this.prisma.loyalityPointsConverter.findFirst({
-                    where: {
-                        restaurantId,
-                        isActive: true,
-                    },
-                });
+                if (dto.loyalityOfferId) {
+                    selectedLoyalityOffer = await this.prisma.loyalityOffer.findFirst({
+                        where: {
+                            id: dto.loyalityOfferId,
+                            restaurantId,
+                            isActive: true,
+                            AND: [
+                                { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+                                { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+                            ],
+                        },
+                        include: {
+                            menuItems: { select: { id: true, name: true } },
+                        },
+                    });
 
-                if (!converter) {
-                    throw new BadRequestException('Loyalty converter not configured');
+                    if (!selectedLoyalityOffer) {
+                        throw new NotFoundException('Loyalty offer not found');
+                    }
                 }
 
-                // Convert points → money
-                const conversionRate =
-                    Number(converter.value) / Number(converter.points);
+                let conversionRate = 0;
+                let converter: any = null;
 
                 // grossAmount is calculated after this block in previewBill,
                 // so we use subtotal + estimated tax as a safe cap here
@@ -1816,15 +1903,73 @@ export class OrdersService {
                     0,
                 );
 
-                const maxPossibleDiscount = parseFloat(
-                    (totalPoints * conversionRate).toFixed(2),
-                );
+                let pointsConsumed = 0;
 
-                loyaltyDiscount = parseFloat(
-                    Math.min(maxPossibleDiscount, remainingAfterOtherDiscounts).toFixed(2),
-                );
+                if (selectedLoyalityOffer) {
+                    const offerPointsRequired = Number(selectedLoyalityOffer.pointsRequired);
+                    if (totalPoints < offerPointsRequired) {
+                        throw new BadRequestException(
+                            'Not enough loyalty points for the selected offer',
+                        );
+                    }
 
-                const pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                    if (selectedLoyalityOffer.type === 'AMOUNT') {
+                        const offerAmount = Number(selectedLoyalityOffer.redeemAmount ?? 0);
+                        if (offerAmount <= 0) {
+                            throw new BadRequestException(
+                                'Selected amount offer is not configured correctly',
+                            );
+                        }
+
+                        loyaltyDiscount = parseFloat(
+                            Math.min(offerAmount, remainingAfterOtherDiscounts).toFixed(2),
+                        );
+                        pointsConsumed = offerPointsRequired;
+                    } else {
+                        const eligibleBillItem = items.find((item) =>
+                            selectedLoyalityOffer.menuItems.some(
+                                (menuItem: { id: string }) =>
+                                    menuItem.id === item.menuItemId,
+                            ),
+                        );
+
+                        if (!eligibleBillItem) {
+                            throw new BadRequestException(
+                                'Selected food offer does not match any item in this bill',
+                            );
+                        }
+
+                        loyaltyDiscount = parseFloat(
+                            Math.min(Number(eligibleBillItem.unitPrice), remainingAfterOtherDiscounts).toFixed(2),
+                        );
+                        pointsConsumed = offerPointsRequired;
+                    }
+                } else {
+                    converter = await this.prisma.loyalityPointsConverter.findFirst({
+                        where: {
+                            restaurantId,
+                            isActive: true,
+                        },
+                    });
+
+                    if (!converter) {
+                        throw new BadRequestException('Loyalty converter not configured');
+                    }
+
+                    // Convert points → money
+                    conversionRate = Number(converter.value) / Number(converter.points);
+
+                    const maxPossibleDiscount = parseFloat(
+                        (totalPoints * conversionRate).toFixed(2),
+                    );
+
+                    loyaltyDiscount = parseFloat(
+                        Math.min(maxPossibleDiscount, remainingAfterOtherDiscounts).toFixed(2),
+                    );
+
+                    pointsConsumed = Math.ceil(loyaltyDiscount / conversionRate);
+                }
+
                 const pointsRemaining = totalPoints - pointsConsumed;
 
                 // ✅ STORE FOR RESPONSE
@@ -1836,6 +1981,15 @@ export class OrdersService {
                     pointsRemaining,
                     convertedAmount: loyaltyDiscount.toString(),
                     conversionRate: conversionRate.toString(),
+                    selectedLoyalityOffer: selectedLoyalityOffer
+                        ? {
+                            id: selectedLoyalityOffer.id,
+                            name: selectedLoyalityOffer.name,
+                            type: selectedLoyalityOffer.type,
+                            pointsRequired: selectedLoyalityOffer.pointsRequired.toString(),
+                            redeemAmount: selectedLoyalityOffer.redeemAmount?.toString() ?? null,
+                        }
+                        : null,
                     redemptions: redemptions.map((r) => ({
                         id: r.id,
                         points: r.pointsAwarded.toString(),
@@ -2026,6 +2180,16 @@ export class OrdersService {
                     where: { id: bill.session.id },
                     data: { status: 'PAID' as any, closedAt: new Date() },
                 });
+
+                if (bill.customerId) {
+                    await this.awardLoyaltyPointsForPaidBill(
+                        tx,
+                        restaurantId,
+                        billId,
+                        bill.customerId,
+                        Number(bill.totalAmount),
+                    );
+                }
             }
 
             return created;
@@ -2066,6 +2230,159 @@ export class OrdersService {
         }
 
         return { payment, isFullyPaid };
+    }
+
+    private async awardLoyaltyPointsForPaidBill(
+        tx: Prisma.TransactionClient,
+        restaurantId: string,
+        billId: string,
+        customerId: string,
+        billAmount: number,
+    ): Promise<void> {
+        if (billAmount <= 0) return;
+
+        const now = new Date();
+        const currentDay = now
+            .toLocaleDateString('en-US', { weekday: 'long' })
+            .toUpperCase() as any;
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        const billItems = await tx.billItem.findMany({
+            where: { billId },
+            select: {
+                menuItemId: true,
+                menuItem: {
+                    select: {
+                        categoryId: true,
+                    },
+                },
+            },
+        });
+
+        const billMenuItemIds = new Set(billItems.map((item) => item.menuItemId));
+        const billCategoryIds = new Set(billItems.map((item) => item.menuItem.categoryId));
+
+        const rules = await tx.loyalityPoint.findMany({
+            where: {
+                restaurantId,
+                isActive: true,
+                AND: [
+                    {
+                        OR: [{ startDate: null }, { startDate: { lte: now } }],
+                    },
+                    {
+                        OR: [{ endDate: null }, { endDate: { gte: now } }],
+                    },
+                    {
+                        OR: [
+                            { conditionMinAmount: null },
+                            { conditionMinAmount: { lte: billAmount } },
+                        ],
+                    },
+                    {
+                        OR: [
+                            { conditionMaxAmount: null },
+                            { conditionMaxAmount: { gte: billAmount } },
+                        ],
+                    },
+                ],
+            },
+            include: {
+                days: { select: { day: true } },
+                menuItems: { select: { id: true } },
+                categories: { select: { id: true } },
+            },
+        });
+
+        const awards: {
+            loyalityPointId: string;
+            customerId: string;
+            pointsAwarded: Prisma.Decimal;
+        }[] = [];
+
+        for (const rule of rules as any[]) {
+            if (rule.days.length > 0) {
+                const activeDays = new Set(rule.days.map((d) => d.day));
+                if (!activeDays.has(currentDay)) continue;
+            }
+
+            if (!this.isWithinLoyaltyTimeWindow(currentMinutes, rule.startTime, rule.endTime)) {
+                continue;
+            }
+
+            if (rule.menuItems.length > 0) {
+                const hasMatchingItem = rule.menuItems.some((m) => billMenuItemIds.has(m.id));
+                if (!hasMatchingItem) continue;
+            }
+
+            if (rule.categories.length > 0) {
+                const hasMatchingCategory = rule.categories.some((c) =>
+                    billCategoryIds.has(c.id),
+                );
+                if (!hasMatchingCategory) continue;
+            }
+
+            if (rule.maxUsagePerCustomer !== null) {
+                const usageCount = await tx.loyalityPointRedemption.count({
+                    where: {
+                        loyalityPointId: rule.id,
+                        customerId,
+                    },
+                });
+                if (usageCount >= rule.maxUsagePerCustomer) continue;
+            }
+
+            const maxPoints = Number(rule.points ?? 0);
+            if (maxPoints <= 0) continue;
+
+            let pointsToAward = maxPoints;
+            if (rule.loyalityDiscountRatio !== null) {
+                const ratioPoints = billAmount * Number(rule.loyalityDiscountRatio);
+                pointsToAward = Math.min(ratioPoints, maxPoints);
+            }
+
+            const roundedPoints = parseFloat(pointsToAward.toFixed(2));
+            if (roundedPoints <= 0) continue;
+
+            awards.push({
+                loyalityPointId: rule.id,
+                customerId,
+                pointsAwarded: new Prisma.Decimal(roundedPoints),
+            });
+        }
+
+        if (awards.length > 0) {
+            await tx.loyalityPointRedemption.createMany({ data: awards });
+        }
+    }
+
+    private isWithinLoyaltyTimeWindow(
+        currentMinutes: number,
+        startTime?: string | null,
+        endTime?: string | null,
+    ): boolean {
+        const start = this.parseTimeToMinutes(startTime);
+        const end = this.parseTimeToMinutes(endTime);
+
+        if (start === null && end === null) return true;
+        if (start !== null && end === null) return currentMinutes >= start;
+        if (start === null && end !== null) return currentMinutes <= end;
+
+        if (start! <= end!) {
+            return currentMinutes >= start! && currentMinutes <= end!;
+        }
+
+        return currentMinutes >= start! || currentMinutes <= end!;
+    }
+
+    private parseTimeToMinutes(time?: string | null): number | null {
+        if (!time) return null;
+
+        const [hh, mm] = time.split(':').map((v) => Number(v));
+        if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+        if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+
+        return hh * 60 + mm;
     }
 
     async getPaymentsForBill(actor: User, billId: string) {

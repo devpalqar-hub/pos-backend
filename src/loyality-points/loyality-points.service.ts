@@ -10,6 +10,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { paginate } from '../common/utlility/pagination.util';
 import { CreateLoyalityPointDto } from './dto/create-loyality-point.dto';
 import { UpdateLoyalityPointDto } from './dto/update-loyality-point.dto';
+import {
+    CreateLoyalityOfferDto,
+    LoyalityOfferTypeDto,
+} from './dto/create-loyality-offer.dto';
+import { UpdateLoyalityOfferDto } from './dto/update-loyality-offer.dto';
 import { User, UserRole } from '@prisma/client';
 import { isUUID } from 'class-validator';
 
@@ -28,6 +33,11 @@ export class LoyalityPointsService {
         menuItems: { select: { id: true, name: true, price: true } },
     };
 
+    private readonly defaultOfferInclude = {
+        restaurant: { select: { id: true, name: true } },
+        menuItems: { select: { id: true, name: true, price: true } },
+    };
+
     // ─── Create ───────────────────────────────────────────────────────────────
 
     async create(
@@ -40,12 +50,14 @@ export class LoyalityPointsService {
             dto.conditionMinAmount,
             dto.conditionMaxAmount,
         );
+        this.validateLoyalityDiscountRatio(dto.loyalityDiscountRatio);
 
         return this.prisma.loyalityPoint.create({
             data: {
                 restaurantId,
                 name: dto.name,
                 points: dto.points ?? 0,
+                loyalityDiscountRatio: dto.loyalityDiscountRatio ?? null,
                 conditionMinAmount: dto.conditionMinAmount ?? null,
                 conditionMaxAmount: dto.conditionMaxAmount ?? null,
                 isGroup: dto.isGroup ?? false,
@@ -211,6 +223,7 @@ export class LoyalityPointsService {
             nextConditionMinAmount,
             nextConditionMaxAmount,
         );
+        this.validateLoyalityDiscountRatio(dto.loyalityDiscountRatio);
 
         return this.prisma.$transaction(async (tx) => {
             // ── Replace weekDays (delete old, create new) ─────────────────────
@@ -233,6 +246,9 @@ export class LoyalityPointsService {
                 data: {
                     ...(dto.name !== undefined && { name: dto.name }),
                     ...(dto.points !== undefined && { points: dto.points }),
+                    ...(dto.loyalityDiscountRatio !== undefined && {
+                        loyalityDiscountRatio: dto.loyalityDiscountRatio,
+                    }),
                     ...(dto.conditionMinAmount !== undefined && {
                         conditionMinAmount: dto.conditionMinAmount,
                     }),
@@ -360,6 +376,197 @@ export class LoyalityPointsService {
         };
     }
 
+    // ─── Offers CRUD ─────────────────────────────────────────────────────────
+
+    async createOffer(
+        actor: User,
+        restaurantId: string,
+        dto: CreateLoyalityOfferDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+        await this.validateOfferPayload(restaurantId, dto.type, {
+            redeemAmount: dto.redeemAmount,
+            menuItemIds: dto.menuItemIds,
+            validFrom: dto.validFrom,
+            validTo: dto.validTo,
+        });
+
+        return (this.prisma as any).loyalityOffer.create({
+            data: {
+                restaurantId,
+                name: dto.name,
+                type: dto.type,
+                pointsRequired: dto.pointsRequired,
+                redeemAmount: dto.redeemAmount ?? null,
+                validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
+                validTo: dto.validTo ? new Date(dto.validTo) : null,
+                isActive: dto.isActive ?? true,
+                ...(dto.menuItemIds?.length && {
+                    menuItems: {
+                        connect: dto.menuItemIds.map((id) => ({ id })),
+                    },
+                }),
+            },
+            include: this.defaultOfferInclude,
+        });
+    }
+
+    async findAllOffers(
+        actor: User,
+        restaurantId: string,
+        page = 1,
+        limit = 10,
+        search?: string,
+        status?: string,
+        type?: LoyalityOfferTypeDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        return paginate({
+            prismaModel: (this.prisma as any).loyalityOffer,
+            page,
+            limit,
+            where: {
+                restaurantId,
+                ...(search && {
+                    name: {
+                        contains: search,
+                    },
+                }),
+                ...(status !== undefined && {
+                    isActive: status === 'true',
+                }),
+                ...(type && { type }),
+            },
+            orderBy: [{ createdAt: 'desc' }],
+            include: this.defaultOfferInclude,
+        } as any);
+    }
+
+    async findOneOffer(actor: User, restaurantId: string, id: string) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        const record = await (this.prisma as any).loyalityOffer.findFirst({
+            where: { id, restaurantId },
+            include: this.defaultOfferInclude,
+        });
+
+        if (!record) {
+            throw new NotFoundException(
+                `Loyalty offer ${id} not found in restaurant ${restaurantId}`,
+            );
+        }
+
+        return record;
+    }
+
+    async updateOffer(
+        actor: User,
+        restaurantId: string,
+        id: string,
+        dto: UpdateLoyalityOfferDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+
+        const existing = await (this.prisma as any).loyalityOffer.findFirst({
+            where: { id, restaurantId },
+            include: {
+                menuItems: { select: { id: true } },
+            },
+        });
+
+        if (!existing) {
+            throw new NotFoundException(
+                `Loyalty offer ${id} not found in restaurant ${restaurantId}`,
+            );
+        }
+
+        const nextType = dto.type ?? existing.type;
+        const nextRedeemAmount =
+            dto.redeemAmount !== undefined
+                ? dto.redeemAmount
+                : existing.redeemAmount !== null
+                    ? Number(existing.redeemAmount)
+                    : undefined;
+        const nextMenuItemIds =
+            dto.menuItemIds !== undefined
+                ? dto.menuItemIds
+                : existing.menuItems.map((m: { id: string }) => m.id);
+        const nextValidFrom =
+            dto.validFrom !== undefined
+                ? dto.validFrom
+                : existing.validFrom
+                    ? new Date(existing.validFrom).toISOString()
+                    : undefined;
+        const nextValidTo =
+            dto.validTo !== undefined
+                ? dto.validTo
+                : existing.validTo
+                    ? new Date(existing.validTo).toISOString()
+                    : undefined;
+
+        await this.validateOfferPayload(restaurantId, nextType, {
+            redeemAmount: nextRedeemAmount,
+            menuItemIds: nextMenuItemIds,
+            validFrom: nextValidFrom,
+            validTo: nextValidTo,
+        });
+
+        return (this.prisma as any).loyalityOffer.update({
+            where: { id },
+            data: {
+                ...(dto.name !== undefined && { name: dto.name }),
+                ...(dto.type !== undefined && { type: dto.type }),
+                ...(dto.pointsRequired !== undefined && {
+                    pointsRequired: dto.pointsRequired,
+                }),
+                ...(dto.redeemAmount !== undefined && {
+                    redeemAmount: dto.redeemAmount,
+                }),
+                ...(dto.menuItemIds !== undefined && {
+                    menuItems: {
+                        set: dto.menuItemIds.map((id) => ({ id })),
+                    },
+                }),
+                ...(dto.type === LoyalityOfferTypeDto.AMOUNT &&
+                    dto.menuItemIds === undefined && {
+                        menuItems: {
+                            set: [],
+                        },
+                    }),
+                ...(dto.validFrom !== undefined && {
+                    validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
+                }),
+                ...(dto.validTo !== undefined && {
+                    validTo: dto.validTo ? new Date(dto.validTo) : null,
+                }),
+                ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+            },
+            include: this.defaultOfferInclude,
+        });
+    }
+
+    async removeOffer(actor: User, restaurantId: string, id: string) {
+        this.assertAdminOrAbove(actor);
+        await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+
+        const record = await (this.prisma as any).loyalityOffer.findFirst({
+            where: { id, restaurantId },
+        });
+
+        if (!record) {
+            throw new NotFoundException(
+                `Loyalty offer ${id} not found in restaurant ${restaurantId}`,
+            );
+        }
+
+        await (this.prisma as any).loyalityOffer.delete({ where: { id } });
+
+        return {
+            message: `Loyalty offer "${record.name}" deleted successfully`,
+        };
+    }
+
     // ─── Permission Helpers ───────────────────────────────────────────────────
 
     private async assertRestaurantAccess(
@@ -426,6 +633,68 @@ export class LoyalityPointsService {
         ) {
             throw new BadRequestException(
                 'conditionMinAmount cannot be greater than conditionMaxAmount',
+            );
+        }
+    }
+
+    private validateLoyalityDiscountRatio(loyalityDiscountRatio?: number): void {
+        if (loyalityDiscountRatio === undefined) return;
+
+        if (loyalityDiscountRatio < 0 || loyalityDiscountRatio > 1) {
+            throw new BadRequestException(
+                'loyalityDiscountRatio must be between 0 and 1',
+            );
+        }
+    }
+
+    private async validateOfferPayload(
+        restaurantId: string,
+        type: LoyalityOfferTypeDto,
+        payload: {
+            redeemAmount?: number;
+            menuItemIds?: string[];
+            validFrom?: string;
+            validTo?: string;
+        },
+    ): Promise<void> {
+        if (payload.validFrom && payload.validTo) {
+            const validFrom = new Date(payload.validFrom);
+            const validTo = new Date(payload.validTo);
+            if (validFrom > validTo) {
+                throw new BadRequestException(
+                    'validFrom cannot be greater than validTo',
+                );
+            }
+        }
+
+        if (type === LoyalityOfferTypeDto.AMOUNT) {
+            if (payload.redeemAmount === undefined || payload.redeemAmount <= 0) {
+                throw new BadRequestException(
+                    'redeemAmount is required and must be positive when type is AMOUNT',
+                );
+            }
+            return;
+        }
+
+        if (!payload.menuItemIds?.length) {
+            throw new BadRequestException(
+                'menuItemIds is required when type is FOOD',
+            );
+        }
+
+        const menuItems = await this.prisma.menuItem.findMany({
+            where: {
+                id: {
+                    in: payload.menuItemIds,
+                },
+                restaurantId,
+            },
+            select: { id: true },
+        });
+
+        if (menuItems.length !== payload.menuItemIds.length) {
+            throw new NotFoundException(
+                `One or more menu items were not found in restaurant ${restaurantId}`,
             );
         }
     }

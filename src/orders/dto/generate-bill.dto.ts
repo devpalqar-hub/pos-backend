@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDecimal, IsEmail, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsDecimal, IsEmail, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
 
 export class GenerateBillDto {
     @ApiPropertyOptional({
@@ -49,6 +49,15 @@ export class GenerateBillDto {
     @IsOptional()
     @IsBoolean()
     claimedLoyalityPoints?: boolean;
+
+    @ApiPropertyOptional({
+        required: false,
+        description: 'Selected loyalty offer UUID to apply during preview/generate bill',
+        example: '550e8400-e29b-41d4-a716-446655440000',
+    })
+    @IsOptional()
+    @IsUUID('4')
+    loyalityOfferId?: string;
 
     @ApiProperty({
         required: false,

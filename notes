@@ -1,4 +1,22 @@
-whatsapp template details change from setting  
-add latitude and longitude in public restaurant api -- done
-watermark supermeals doc  -- done
+campaign testing with request body from client side
 samasta data migration 
+loyality points percentage. 
+
+rules - bill amount corresponding
+offers - amount korach kodukam, food kodukam
+
+
+messmeals support
+pos support
+
+
+add a loyalityDiscountRatio field in LoyalityPoint table. if the bill amount is between the conditionMax and conditionMin then apply loyalityDiscountRatio of that total bill amount. like if the loyalityDiscountRatio is .5 then 50% of the bill amount will be credited to the customer's loyality points. The customer will get loyality points upto to value on points attribute of the LoyalityPoint table.
+if no loalityDiscountRatio is provided then the value of points attribute will be credited to the customer's loyality points.
+create a new table called Loyalityoffers, where we can set offers to set how loyalitypoints can be redeemed. loyalityOffers instance can be created for a particular restaurant and can be of two types - amount or food. if the type is amount then the customer can redeem a particular amount on the bill by redeeming a particular number of loyality points. if the type is food then the customer can redeem a particular food item by redeeming a particular number of loyality points. we can also set a validity period for the offer.
+
+
+
+
+todo:
+timeline - order details page. 
+created at backend il utc akunundo enn noknm?

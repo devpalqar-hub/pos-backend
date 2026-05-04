@@ -35,6 +35,11 @@ enum CouponDiscountType {
   FIXED
 }
 
+enum LoyalityOfferType {
+  AMOUNT
+  FOOD
+}
+
 enum UserRole {
   SUPER_ADMIN
   OWNER
@@ -355,6 +360,7 @@ model Restaurant {
   carts                    Cart[]
   features                 RestaurantFeatureFlag[]
   loyalityPointsConverters LoyalityPointsConverter[]
+  loyalityOffers           LoyalityOffer[]
   toastSettings            ToastSettings?
   toastSyncState           ToastSyncState?
   toastSyncLogs            ToastSyncLog[]
@@ -440,6 +446,7 @@ model MenuItem {
   orderItems       OrderItem[]
   billItems        BillItem[]
   loyalityPoints   LoyalityPoint[]
+  loyalityOffers   LoyalityOffer[]
   doorDashMappings DoorDashItemMapping[]
   uberEatsMappings UberEatsItemMapping[]
   toastMappings    ToastMenuItemMapping[]
@@ -820,6 +827,7 @@ model LoyalityPoint {
   isGroup            Boolean  @default(false) //to make loyality point for single item and multiple item
   name               String   @db.VarChar(255)
   points             Decimal  @default(0) @db.Decimal(10, 2) // Points awarded per qualifying purchase
+  loyalityDiscountRatio Decimal? @db.Decimal(5, 4) // Optional ratio (0-1) of bill amount to award as points, capped by `points`
   conditionMinAmount Decimal? @db.Decimal(10, 2) // Apply when total amount is >= this value
   conditionMaxAmount Decimal? @db.Decimal(10, 2) // Apply when total amount is <= this value
 
@@ -847,6 +855,27 @@ model LoyalityPoint {
 
   @@index([restaurantId])
   @@map("loyality_points")
+}
+
+model LoyalityOffer {
+  id             String           @id @default(uuid())
+  restaurantId   String
+  name           String           @db.VarChar(255)
+  type           LoyalityOfferType
+  pointsRequired Decimal          @db.Decimal(10, 2)
+  redeemAmount   Decimal?         @db.Decimal(10, 2)
+  validFrom      DateTime?
+  validTo        DateTime?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItems  MenuItem[]
+
+  @@index([restaurantId])
+  @@index([type])
+  @@map("loyality_offers")
 }
 
 model LoyalityPointDay {

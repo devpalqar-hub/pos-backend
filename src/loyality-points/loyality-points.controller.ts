@@ -24,6 +24,11 @@ import {
 import { LoyalityPointsService } from './loyality-points.service';
 import { CreateLoyalityPointDto } from './dto/create-loyality-point.dto';
 import { UpdateLoyalityPointDto } from './dto/update-loyality-point.dto';
+import {
+    CreateLoyalityOfferDto,
+    LoyalityOfferTypeDto,
+} from './dto/create-loyality-offer.dto';
+import { UpdateLoyalityOfferDto } from './dto/update-loyality-offer.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -185,6 +190,121 @@ The system auto-detects the type:
                 search,
             ),
         };
+    }
+
+    // ─── Loyalty Offers ──────────────────────────────────────────────────────
+
+    @Post('offers')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @HttpCode(HttpStatus.CREATED)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({ summary: 'Create a loyalty offer' })
+    async createOffer(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Body() dto: CreateLoyalityOfferDto,
+    ) {
+        return {
+            message: 'Loyalty offer created successfully',
+            data: await this.loyalityPointsService.createOffer(actor, restaurantId, dto),
+        };
+    }
+
+    @Get('offers')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+    @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+    @ApiQuery({
+        name: 'search',
+        required: false,
+        type: String,
+        description: 'Search loyalty offers by name',
+    })
+    @ApiQuery({
+        name: 'status',
+        required: false,
+        type: Boolean,
+        description: 'Filter by active status',
+    })
+    @ApiQuery({
+        name: 'type',
+        required: false,
+        enum: LoyalityOfferTypeDto,
+        description: 'AMOUNT | FOOD',
+    })
+    @ApiOperation({ summary: 'List loyalty offers for a restaurant' })
+    async findAllOffers(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('status') status?: string,
+        @Query('type') type?: LoyalityOfferTypeDto,
+    ) {
+        return {
+            message: 'Loyalty offers fetched successfully',
+            data: await this.loyalityPointsService.findAllOffers(
+                actor,
+                restaurantId,
+                parseInt(page ?? '1'),
+                parseInt(limit ?? '10'),
+                search,
+                status,
+                type,
+            ),
+        };
+    }
+
+    @Get('offers/:offerId')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'offerId', description: 'Loyalty offer UUID' })
+    @ApiOperation({ summary: 'Get a loyalty offer by ID' })
+    async findOneOffer(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('offerId', ParseUUIDPipe) offerId: string,
+    ) {
+        return {
+            message: 'Loyalty offer fetched successfully',
+            data: await this.loyalityPointsService.findOneOffer(actor, restaurantId, offerId),
+        };
+    }
+
+    @Patch('offers/:offerId')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'offerId', description: 'Loyalty offer UUID' })
+    @ApiOperation({ summary: 'Update a loyalty offer' })
+    async updateOffer(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('offerId', ParseUUIDPipe) offerId: string,
+        @Body() dto: UpdateLoyalityOfferDto,
+    ) {
+        return {
+            message: 'Loyalty offer updated successfully',
+            data: await this.loyalityPointsService.updateOffer(
+                actor,
+                restaurantId,
+                offerId,
+                dto,
+            ),
+        };
+    }
+
+    @Delete('offers/:offerId')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @HttpCode(HttpStatus.OK)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiParam({ name: 'offerId', description: 'Loyalty offer UUID' })
+    @ApiOperation({ summary: 'Delete a loyalty offer' })
+    async removeOffer(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Param('offerId', ParseUUIDPipe) offerId: string,
+    ) {
+        return await this.loyalityPointsService.removeOffer(actor, restaurantId, offerId);
     }
 
     // ─── Get One ──────────────────────────────────────────────────────────────
