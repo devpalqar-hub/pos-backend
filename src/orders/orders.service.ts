@@ -1539,6 +1539,17 @@ export class OrdersService {
                 });
             }
 
+            // Award loyalty points for this paid bill (if customer exists)
+            if (customerId) {
+                await this.awardLoyaltyPointsForPaidBill(
+                    tx,
+                    restaurantId,
+                    createdBill.id,
+                    customerId,
+                    Number(createdBill.totalAmount),
+                );
+            }
+
             return createdBill;
         });
 

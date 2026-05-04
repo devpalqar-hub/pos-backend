@@ -702,10 +702,10 @@ export class LoyalityPointsService {
     // ─── Scheduled Task: Deactivate Expired Loyalty Points ─────────────────────
 
     /**
-     * Runs daily at 2:00 AM.
+     * Runs every minute.
      * Automatically sets isActive = false for loyalty points where endDate has passed.
      */
-    @Cron(CronExpression.EVERY_DAY_AT_2AM)
+    @Cron(CronExpression.EVERY_MINUTE)
     async deactivateExpiredLoyaltyPoints(): Promise<void> {
         try {
             this.logger.log('🔄 CRON: Starting deactivation of expired loyalty points...');
@@ -735,6 +735,47 @@ export class LoyalityPointsService {
             const errorStack = error instanceof Error ? error.stack : undefined;
             this.logger.error(
                 `❌ CRON: Error deactivating expired loyalty points: ${errorMessage}`,
+                errorStack,
+            );
+        }
+    }
+
+    // ─── Scheduled Task: Deactivate Expired Loyalty Offers ────────────────────
+
+    /**
+     * Runs every minute.
+     * Automatically sets isActive = false for loyalty offers where validTo has passed.
+     */
+    @Cron(CronExpression.EVERY_MINUTE)
+    async deactivateExpiredLoyaltyOffers(): Promise<void> {
+        try {
+            this.logger.log('🔄 CRON: Starting deactivation of expired loyalty offers...');
+
+            const now = new Date();
+            const updated = await this.prisma.loyalityOffer.updateMany({
+                where: {
+                    isActive: true,
+                    validTo: {
+                        lt: now,
+                    },
+                },
+                data: {
+                    isActive: false,
+                },
+            });
+
+            if (updated.count > 0) {
+                this.logger.log(
+                    `✅ CRON: ${updated.count} expired loyalty offer(s) deactivated successfully`,
+                );
+            } else {
+                this.logger.log('ℹ️  CRON: No expired loyalty offers to deactivate');
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            this.logger.error(
+                `❌ CRON: Error deactivating expired loyalty offers: ${errorMessage}`,
                 errorStack,
             );
         }
