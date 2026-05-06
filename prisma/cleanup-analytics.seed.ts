@@ -67,7 +67,7 @@ async function cleanup() {
     for (const lp of loyalityPoints) {
         await prisma.loyalityPoint.update({
             where: { id: lp.id },
-            data: { menuItems: { set: [] }, categories: { set: [] } },
+            data: { menuItem: { disconnect: true }, categories: { set: [] } },
         })
     }
     await prisma.loyalityPointRedemption.deleteMany({ where: { loyalityPoint: { restaurantId } } })

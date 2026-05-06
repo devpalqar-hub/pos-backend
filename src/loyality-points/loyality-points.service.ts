@@ -30,7 +30,7 @@ export class LoyalityPointsService {
         restaurant: { select: { id: true, name: true } },
         days: { select: { id: true, day: true } },
         categories: { select: { id: true, name: true } },
-        menuItems: { select: { id: true, name: true, price: true } },
+        menuItem: { select: { id: true, name: true, price: true } },
     };
 
     private readonly defaultOfferInclude = {
@@ -50,14 +50,13 @@ export class LoyalityPointsService {
             dto.conditionMinAmount,
             dto.conditionMaxAmount,
         );
-        this.validateLoyalityDiscountRatio(dto.loyalityDiscountRatio);
 
         return this.prisma.loyalityPoint.create({
             data: {
                 restaurantId,
                 name: dto.name,
                 points: dto.points ?? 0,
-                loyalityDiscountRatio: dto.loyalityDiscountRatio ?? null,
+                menuItemId: dto.menuItemIds?.[0] ?? null,
                 conditionMinAmount: dto.conditionMinAmount ?? null,
                 conditionMaxAmount: dto.conditionMaxAmount ?? null,
                 isGroup: dto.isGroup ?? false,
@@ -76,11 +75,6 @@ export class LoyalityPointsService {
                         connect: dto.categoryIds.map((id) => ({ id })),
                     },
                 }),
-                ...(dto.menuItemIds?.length && {
-                    menuItems: {
-                        connect: dto.menuItemIds.map((id) => ({ id })),
-                    },
-                }),
             },
             include: this.defaultInclude,
         });
@@ -92,8 +86,8 @@ export class LoyalityPointsService {
         switch (type) {
             case 'menu':
                 return {
-                    menuItems: {
-                        some: {},
+                    menuItem: {
+                        isNot: null,
                     },
                 };
 
@@ -223,7 +217,6 @@ export class LoyalityPointsService {
             nextConditionMinAmount,
             nextConditionMaxAmount,
         );
-        this.validateLoyalityDiscountRatio(dto.loyalityDiscountRatio);
 
         return this.prisma.$transaction(async (tx) => {
             // ── Replace weekDays (delete old, create new) ─────────────────────
@@ -246,8 +239,8 @@ export class LoyalityPointsService {
                 data: {
                     ...(dto.name !== undefined && { name: dto.name }),
                     ...(dto.points !== undefined && { points: dto.points }),
-                    ...(dto.loyalityDiscountRatio !== undefined && {
-                        loyalityDiscountRatio: dto.loyalityDiscountRatio,
+                    ...(dto.menuItemIds !== undefined && {
+                        menuItemId: dto.menuItemIds[0] ?? null,
                     }),
                     ...(dto.conditionMinAmount !== undefined && {
                         conditionMinAmount: dto.conditionMinAmount,
@@ -275,11 +268,7 @@ export class LoyalityPointsService {
                         },
                     }),
                     // ── Replace menu items (disconnect all, reconnect) ────────
-                    ...(dto.menuItemIds !== undefined && {
-                        menuItems: {
-                            set: dto.menuItemIds.map((mid) => ({ id: mid })),
-                        },
-                    }),
+
                 },
                 include: this.defaultInclude,
             });
@@ -633,16 +622,6 @@ export class LoyalityPointsService {
         ) {
             throw new BadRequestException(
                 'conditionMinAmount cannot be greater than conditionMaxAmount',
-            );
-        }
-    }
-
-    private validateLoyalityDiscountRatio(loyalityDiscountRatio?: number): void {
-        if (loyalityDiscountRatio === undefined) return;
-
-        if (loyalityDiscountRatio < 0 || loyalityDiscountRatio > 1) {
-            throw new BadRequestException(
-                'loyalityDiscountRatio must be between 0 and 1',
             );
         }
     }

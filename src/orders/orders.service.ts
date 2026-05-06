@@ -1152,23 +1152,35 @@ export class OrdersService {
         let customer: any;
         let selectedLoyalityOffer: any = null;
         if (hasCustomerDataInRequest) {
+            const customerLookup: any = { restaurantId };
+            const lookupConditions: Array<{ email?: string; phone?: string }> = [];
+
+            if (dto.customerEmail) {
+                lookupConditions.push({ email: dto.customerEmail });
+            }
+            if (dto.customerPhone) {
+                lookupConditions.push({ phone: dto.customerPhone });
+            }
+
+            if (lookupConditions.length > 0) {
+                customerLookup.OR = lookupConditions;
+            }
+
             customer = await this.prisma.customer.findFirst({
-                where: {
-                    email: dto.customerEmail ?? undefined,
-                    phone: dto.customerPhone ?? undefined,
-                    restaurantId,
-                },
+                where: customerLookup,
             });
+
             if (!customer) {
-                await this.prisma.customer.create({
+                customer = await this.prisma.customer.create({
                     data: {
                         restaurantId,
                         name: dto.customerName ?? 'Guest',
                         email: dto.customerEmail ?? null,
                         phone: dto.customerPhone ?? '',
-                    }
-                })
+                    },
+                });
             }
+
             if (dto.claimedLoyalityPoints && !customer) {
                 throw new BadRequestException(
                     'Customer must exist to redeem loyalty points',
@@ -1553,22 +1565,24 @@ export class OrdersService {
             return createdBill;
         });
 
-        const sessions = await this.prisma.orderSession.findMany({
-            where: {
-                restaurantId,
-                tableId: session.tableId,
-                status: {
-                    notIn: [SessionStatus.PAID, SessionStatus.BILLED, SessionStatus.CANCELLED],
+        if (session.tableId) {
+            const sessions = await this.prisma.orderSession.findMany({
+                where: {
+                    restaurantId,
+                    tableId: session.tableId,
+                    status: {
+                        notIn: [SessionStatus.PAID, SessionStatus.BILLED, SessionStatus.CANCELLED],
+                    },
                 },
-            },
-        });
-
-        // If there are no sessions with status other than PAID, mark the table as available
-        if (sessions.length === 0) {
-            await this.prisma.table.update({
-                where: { id: session.tableId! },
-                data: { status: TableStatus.AVAILABLE },
             });
+
+            // If there are no sessions with status other than PAID, mark the table as available
+            if (sessions.length === 0) {
+                await this.prisma.table.update({
+                    where: { id: session.tableId },
+                    data: { status: TableStatus.AVAILABLE },
+                });
+            }
         }
 
         this.gateway.emitToBilling(restaurantId, 'bill:generated', bill);
@@ -1818,16 +1832,23 @@ export class OrdersService {
         let selectedLoyalityOffer: any = null;
         if (hasCustomerDataInRequest) {
             // here either email, phone or restaurantId can be used. if no email exists use phone, if no phone exist use restaurantId
+            const customerLookup: any = { restaurantId };
+            const lookupConditions: Array<{ email?: string; phone?: string }> = [];
+
+            if (dto.customerEmail) {
+                lookupConditions.push({ email: dto.customerEmail });
+            }
+            if (dto.customerPhone) {
+                lookupConditions.push({ phone: dto.customerPhone });
+            }
+
+            if (lookupConditions.length > 0) {
+                customerLookup.OR = lookupConditions;
+            }
+
             customer = await this.prisma.customer.findFirst({
-                where: {
-                    OR: [
-                        { email: dto.customerEmail ?? undefined },
-                        { phone: dto.customerPhone ?? undefined },
-                    ]
-                },
+                where: customerLookup,
             });
-            console.log("Customer lookup with email:", dto.customerEmail, "phone:", dto.customerPhone, "restaurantId:", restaurantId);
-            console.log("Customer lookup result:", customer);
             if (!customer) {
                 customer = await this.prisma.customer.create({
                     data: {
@@ -1857,7 +1878,6 @@ export class OrdersService {
                     data: { phone: dto.customerPhone },
                 });
             }
-            console.log(dto.claimedLoyalityPoints, "claimedLoyalityPoints")
             if (dto.claimedLoyalityPoints) {
                 const now = new Date();
                 if (dto.loyalityOfferId) {
@@ -2326,7 +2346,7 @@ export class OrdersService {
             },
             include: {
                 days: { select: { day: true } },
-                menuItems: { select: { id: true } },
+                menuItem: { select: { id: true } },
                 categories: { select: { id: true } },
             },
         });
@@ -2347,9 +2367,8 @@ export class OrdersService {
                 continue;
             }
 
-            if (rule.menuItems.length > 0) {
-                const hasMatchingItem = rule.menuItems.some((m) => billMenuItemIds.has(m.id));
-                if (!hasMatchingItem) continue;
+            if (rule.menuItem) {
+                if (!billMenuItemIds.has(rule.menuItem.id)) continue;
             }
 
             if (rule.categories.length > 0) {
@@ -2372,13 +2391,7 @@ export class OrdersService {
             const maxPoints = Number(rule.points ?? 0);
             if (maxPoints <= 0) continue;
 
-            let pointsToAward = maxPoints;
-            if (rule.loyalityDiscountRatio !== null) {
-                const ratioPoints = billAmount * Number(rule.loyalityDiscountRatio);
-                pointsToAward = Math.min(ratioPoints, maxPoints);
-            }
-
-            const roundedPoints = parseFloat(pointsToAward.toFixed(2));
+            const roundedPoints = parseFloat(maxPoints.toFixed(2));
             if (roundedPoints <= 0) continue;
 
             awards.push({

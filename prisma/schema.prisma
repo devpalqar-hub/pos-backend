@@ -823,14 +823,13 @@ model Customer {
 // ─── Loyality Points ─────────────────────────────────────────────────────────
 
 model LoyalityPoint {
-  id                    String   @id @default(uuid())
-  restaurantId          String
-  isGroup               Boolean  @default(false) //to make loyality point for single item and multiple item
-  name                  String   @db.VarChar(255)
-  points                Decimal  @default(0) @db.Decimal(10, 2) // Points awarded per qualifying purchase
-  loyalityDiscountRatio Decimal? @db.Decimal(5, 4) // Optional ratio (0-1) of bill amount to award as points, capped by `points`
-  conditionMinAmount    Decimal? @db.Decimal(10, 2) // Apply when total amount is >= this value
-  conditionMaxAmount    Decimal? @db.Decimal(10, 2) // Apply when total amount is <= this value
+  id                 String   @id @default(uuid())
+  restaurantId       String
+  isGroup            Boolean  @default(false) //to make loyality point for single item and multiple item
+  name               String   @db.VarChar(255)
+  points             Decimal  @default(0) @db.Decimal(10, 2) // Points awarded per qualifying purchase
+  conditionMinAmount Decimal? @db.Decimal(10, 2) // Apply when total amount is >= this value
+  conditionMaxAmount Decimal? @db.Decimal(10, 2) // Apply when total amount is <= this value
 
   // ── Date range (optional) ─────────────────────────────────────────────────
   startDate DateTime?
@@ -849,10 +848,12 @@ model LoyalityPoint {
 
   restaurant Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   categories MenuCategory[]
-  menuItems  MenuItem[]
+  // menuItems  MenuItem[]
   days       LoyalityPointDay[]
 
   redemptions LoyalityPointRedemption[]
+  menuItem    MenuItem?                 @relation(fields: [menuItemId], references: [id])
+  menuItemId  String?
 
   @@index([restaurantId])
   @@map("loyality_points")
@@ -863,13 +864,18 @@ model LoyalityOffer {
   restaurantId   String
   name           String            @db.VarChar(255)
   type           LoyalityOfferType
-  pointsRequired Decimal           @db.Decimal(10, 2)
+  pointsRequired Decimal?          @db.Decimal(10, 2)
   redeemAmount   Decimal?          @db.Decimal(10, 2)
   validFrom      DateTime?
   validTo        DateTime?
   isActive       Boolean           @default(true)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+
+  loyalityDiscountRatio Decimal? @db.Decimal(5, 4) // Optional ratio (0-1) of bill amount to award as points, capped by `points`
+  conditionMinAmount    Decimal? @db.Decimal(10, 2) // Apply when total amount is >= this value
+  conditionMaxAmount    Decimal? @db.Decimal(10, 2) // Apply when total amount is <= this value
+  maxUsagePerCustomer   Int? // null = unlimited
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   menuItems  MenuItem[]
