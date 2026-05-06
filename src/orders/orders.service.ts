@@ -2319,6 +2319,7 @@ export class OrdersService {
         const billMenuItemIds = new Set(billItems.map((item) => item.menuItemId));
         const billCategoryIds = new Set(billItems.map((item) => item.menuItem.categoryId));
 
+        const billAmountDecimal = new Prisma.Decimal(billAmount);
         const rules = await tx.loyalityPoint.findMany({
             where: {
                 restaurantId,
@@ -2333,13 +2334,13 @@ export class OrdersService {
                     {
                         OR: [
                             { conditionMinAmount: null },
-                            { conditionMinAmount: { lte: billAmount } },
+                            { conditionMinAmount: { lte: billAmountDecimal } },
                         ],
                     },
                     {
                         OR: [
                             { conditionMaxAmount: null },
-                            { conditionMaxAmount: { gte: billAmount } },
+                            { conditionMaxAmount: { gte: billAmountDecimal } },
                         ],
                     },
                 ],
