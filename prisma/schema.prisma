@@ -847,14 +847,13 @@ model LoyalityPoint {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   categories MenuCategory[]
-  // menuItems  MenuItem[]
-  days       LoyalityPointDay[]
+
+  days LoyalityPointDay[]
 
   redemptions LoyalityPointRedemption[]
-  menuItem    MenuItem?                 @relation(fields: [menuItemId], references: [id])
-  menuItemId  String?
+  menuItems   MenuItem[]
 
   @@index([restaurantId])
   @@map("loyality_points")

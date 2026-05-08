@@ -193,7 +193,7 @@ export class BillService {
             },
             include: {
                 days: { select: { day: true } },
-                menuItem: { select: { id: true } },
+                menuItems: { select: { id: true } },
                 categories: { select: { id: true } },
             },
         });

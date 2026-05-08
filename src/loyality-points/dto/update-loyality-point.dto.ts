@@ -35,6 +35,16 @@ export class UpdateLoyalityPointDto {
 
     @ApiPropertyOptional({
         description:
+            'Optional ratio (0-1) of bill amount to award as points. If provided with `points`, points acts as the maximum cap.',
+        example: 0.5,
+    })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    loyalityDiscountRatio?: number;
+
+    @ApiPropertyOptional({
+        description:
             'Minimum total amount required for this loyalty rule to apply (inclusive).',
         example: 20,
     })

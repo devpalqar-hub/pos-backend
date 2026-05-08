@@ -293,7 +293,7 @@ export class BookingService {
                             { OR: [{ conditionMaxAmount: null }, { conditionMaxAmount: { gte: billAmountDecimal } }] },
                         ],
                     },
-                    include: { days: { select: { day: true } }, menuItem: true, categories: true },
+                    include: { days: { select: { day: true } }, menuItems: true, categories: true },
                 });
 
                 const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
@@ -308,8 +308,10 @@ export class BookingService {
 
                     if (!this.isWithinLoyaltyTimeWindow(currentMinutes, rule.startTime, rule.endTime)) continue;
 
-                    if (rule.menuItem) {
-                        if (!menuIds.includes(rule.menuItem.id)) continue;
+                    if (rule.menuItems && rule.menuItems.length > 0) {
+                        const ruleMenuItemIds = new Set(rule.menuItems.map((mi: any) => mi.id));
+                        const hasMatchingItem = menuIds.some((id) => ruleMenuItemIds.has(id));
+                        if (!hasMatchingItem) continue;
                     }
 
                     if (rule.categories.length > 0) {

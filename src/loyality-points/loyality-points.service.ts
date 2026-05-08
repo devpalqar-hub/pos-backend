@@ -30,7 +30,7 @@ export class LoyalityPointsService {
         restaurant: { select: { id: true, name: true } },
         days: { select: { id: true, day: true } },
         categories: { select: { id: true, name: true } },
-        menuItem: { select: { id: true, name: true, price: true } },
+        menuItems: { select: { id: true, name: true, price: true } },
     };
 
     private readonly defaultOfferInclude = {
@@ -56,7 +56,7 @@ export class LoyalityPointsService {
                 restaurantId,
                 name: dto.name,
                 points: dto.points ?? 0,
-                menuItemId: dto.menuItemIds?.[0] ?? null,
+                loyalityDiscountRatio: dto.loyalityDiscountRatio ?? null,
                 conditionMinAmount: dto.conditionMinAmount ?? null,
                 conditionMaxAmount: dto.conditionMaxAmount ?? null,
                 isGroup: dto.isGroup ?? false,
@@ -75,6 +75,11 @@ export class LoyalityPointsService {
                         connect: dto.categoryIds.map((id) => ({ id })),
                     },
                 }),
+                ...(dto.menuItemIds?.length && {
+                    menuItems: {
+                        connect: dto.menuItemIds.map((id) => ({ id })),
+                    },
+                }),
             },
             include: this.defaultInclude,
         });
@@ -86,8 +91,8 @@ export class LoyalityPointsService {
         switch (type) {
             case 'menu':
                 return {
-                    menuItem: {
-                        isNot: null,
+                    menuItems: {
+                        some: {},
                     },
                 };
 
@@ -239,9 +244,7 @@ export class LoyalityPointsService {
                 data: {
                     ...(dto.name !== undefined && { name: dto.name }),
                     ...(dto.points !== undefined && { points: dto.points }),
-                    ...(dto.menuItemIds !== undefined && {
-                        menuItemId: dto.menuItemIds[0] ?? null,
-                    }),
+                    ...(dto.loyalityDiscountRatio !== undefined && { loyalityDiscountRatio: dto.loyalityDiscountRatio }),
                     ...(dto.conditionMinAmount !== undefined && {
                         conditionMinAmount: dto.conditionMinAmount,
                     }),
@@ -268,7 +271,11 @@ export class LoyalityPointsService {
                         },
                     }),
                     // ── Replace menu items (disconnect all, reconnect) ────────
-
+                    ...(dto.menuItemIds !== undefined && {
+                        menuItems: {
+                            set: dto.menuItemIds.map((mid) => ({ id: mid })),
+                        },
+                    }),
                 },
                 include: this.defaultInclude,
             });

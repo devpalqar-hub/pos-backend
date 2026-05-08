@@ -2418,7 +2418,7 @@ export class OrdersService {
                     },
                 ],
             },
-            include: { days: { select: { day: true } }, menuItem: true, categories: true },
+            include: { days: { select: { day: true } }, menuItems: true, categories: true },
         });
 
         const breakdown: Array<{ loyalityPointId: string; name?: string | null; pointsAwarded: number }> = [];
@@ -2436,8 +2436,10 @@ export class OrdersService {
 
             if (!this.isWithinLoyaltyTimeWindow(currentMinutes, rule.startTime, rule.endTime)) continue;
 
-            if (rule.menuItem) {
-                if (!billMenuItemIds.has(rule.menuItem.id)) continue;
+            if (rule.menuItems && rule.menuItems.length > 0) {
+                const ruleMenuItemIds = new Set(rule.menuItems.map((mi: any) => mi.id));
+                const hasMatchingItem = Array.from(billMenuItemIds).some((id) => ruleMenuItemIds.has(id));
+                if (!hasMatchingItem) continue;
             }
 
             if (rule.categories.length > 0) {
