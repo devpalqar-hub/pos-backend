@@ -827,13 +827,14 @@ model LoyalityPoint {
   restaurantId       String
   isGroup            Boolean  @default(false) //to make loyality point for single item and multiple item
   name               String   @db.VarChar(255)
-  points             Decimal  @default(0) @db.Decimal(10, 2) // Points awarded per qualifying purchase
+  points             Decimal? @default(0) @db.Decimal(10, 2) // Points awarded per qualifying purchase
   conditionMinAmount Decimal? @db.Decimal(10, 2) // Apply when total amount is >= this value
   conditionMaxAmount Decimal? @db.Decimal(10, 2) // Apply when total amount is <= this value
 
+  loyalityDiscountRatio Decimal?  @db.Decimal(5, 4) // Optional ratio (0-1) of bill amount to award as points, capped by `points`
   // ── Date range (optional) ─────────────────────────────────────────────────
-  startDate DateTime?
-  endDate   DateTime?
+  startDate             DateTime?
+  endDate               DateTime?
 
   // ── Time window (optional, 24-hr HH:MM) ──────────────────────────────────
   startTime String? @db.VarChar(10) // e.g. "09:00"

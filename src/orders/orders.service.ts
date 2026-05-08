@@ -2087,6 +2087,26 @@ export class OrdersService {
         );
 
         // ================================
+        // LOYALTY EARNINGS PREVIEW
+        // ================================
+        let loyaltyEarningsPreview: any = null;
+        try {
+            if (customer) {
+                const award = await this.computeLoyaltyAwards(
+                    this.prisma,
+                    restaurantId,
+                    totalAmount,
+                    items.map((it) => ({ menuItemId: it.menuItemId })),
+                    customer.id,
+                );
+                loyaltyEarningsPreview = award;
+            }
+        } catch (err) {
+            // Do not fail preview on loyalty calculation errors
+            this.logger.debug('Loyalty earnings preview failed: ' + (err as any).message);
+        }
+
+        // ================================
         // RESPONSE SHAPING
         // ================================
 
@@ -2159,7 +2179,7 @@ export class OrdersService {
 
             // ✅ ADD THESE TWO
             coupon: appliedCoupon,
-            loyalty: appliedLoyalty,
+            loyalty: appliedLoyalty ? { ...appliedLoyalty, willEarn: loyaltyEarningsPreview } : (loyaltyEarningsPreview ? { willEarn: loyaltyEarningsPreview } : null),
         };
     }
 
@@ -2304,6 +2324,7 @@ export class OrdersService {
             .toUpperCase() as any;
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+        // Fetch bill items (menu items + category) then compute awards using helper
         const billItems = await tx.billItem.findMany({
             where: { billId },
             select: {
@@ -2316,21 +2337,73 @@ export class OrdersService {
             },
         });
 
-        const billMenuItemIds = new Set(billItems.map((item) => item.menuItemId));
-        const billCategoryIds = new Set(billItems.map((item) => item.menuItem.categoryId));
+        const computed = await this.computeLoyaltyAwards(tx, restaurantId, billAmount, billItems, customerId);
+
+        if (computed.breakdown.length > 0) {
+            const rows = computed.breakdown.map((b) => ({
+                loyalityPointId: b.loyalityPointId,
+                customerId,
+                pointsAwarded: new Prisma.Decimal(b.pointsAwarded.toFixed(2)),
+            }));
+
+            await tx.loyalityPointRedemption.createMany({ data: rows });
+
+            const totalPointsAwarded = computed.totalPoints;
+            await tx.customer.update({
+                where: { id: customerId },
+                data: {
+                    loyaltyWallet: {
+                        increment: new Prisma.Decimal(totalPointsAwarded),
+                    },
+                },
+            });
+        }
+    }
+
+    private async computeLoyaltyAwards(
+        client: any,
+        restaurantId: string,
+        billAmount: number,
+        billItems: Array<{ menuItemId: string; menuItem?: { categoryId?: string | null } }>,
+        customerId?: string,
+    ): Promise<{
+        totalPoints: number;
+        breakdown: Array<{ loyalityPointId: string; name?: string | null; pointsAwarded: number }>;
+    }> {
+        const now = new Date();
 
         const billAmountDecimal = new Prisma.Decimal(billAmount);
-        const rules = await tx.loyalityPoint.findMany({
+
+        // Ensure we have category ids for items
+        const menuItemIds = Array.from(new Set(billItems.map((i) => i.menuItemId)));
+        const needFetch = billItems.some((i) => !i.menuItem || i.menuItem.categoryId === undefined);
+        if (needFetch && menuItemIds.length) {
+            const fetched = await client.menuItem.findMany({
+                where: { id: { in: menuItemIds } },
+                select: { id: true, categoryId: true },
+            });
+            const map = new Map(fetched.map((m: any) => [m.id, m.categoryId]));
+            billItems.forEach((it) => {
+                if (!it.menuItem) {
+                    const v = map.get(it.menuItemId) as string | null | undefined;
+                    it.menuItem = { categoryId: v ?? null } as any;
+                } else if (it.menuItem.categoryId === undefined) {
+                    const v = map.get(it.menuItemId) as string | null | undefined;
+                    it.menuItem.categoryId = v ?? null;
+                }
+            });
+        }
+
+        const billMenuItemIds = new Set(billItems.map((item) => item.menuItemId));
+        const billCategoryIds = new Set(billItems.map((item) => item.menuItem?.categoryId).filter(Boolean));
+
+        const rules = await client.loyalityPoint.findMany({
             where: {
                 restaurantId,
                 isActive: true,
                 AND: [
-                    {
-                        OR: [{ startDate: null }, { startDate: { lte: now } }],
-                    },
-                    {
-                        OR: [{ endDate: null }, { endDate: { gte: now } }],
-                    },
+                    { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+                    { OR: [{ endDate: null }, { endDate: { gte: now } }] },
                     {
                         OR: [
                             { conditionMinAmount: null },
@@ -2345,18 +2418,15 @@ export class OrdersService {
                     },
                 ],
             },
-            include: {
-                days: { select: { day: true } },
-                menuItem: { select: { id: true } },
-                categories: { select: { id: true } },
-            },
+            include: { days: { select: { day: true } }, menuItem: true, categories: true },
         });
 
-        const awards: {
-            loyalityPointId: string;
-            customerId: string;
-            pointsAwarded: Prisma.Decimal;
-        }[] = [];
+        const breakdown: Array<{ loyalityPointId: string; name?: string | null; pointsAwarded: number }> = [];
+
+        const currentDay = now
+            .toLocaleDateString('en-US', { weekday: 'long' })
+            .toUpperCase() as any;
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
         for (const rule of rules as any[]) {
             if (rule.days.length > 0) {
@@ -2364,58 +2434,47 @@ export class OrdersService {
                 if (!activeDays.has(currentDay)) continue;
             }
 
-            if (!this.isWithinLoyaltyTimeWindow(currentMinutes, rule.startTime, rule.endTime)) {
-                continue;
-            }
+            if (!this.isWithinLoyaltyTimeWindow(currentMinutes, rule.startTime, rule.endTime)) continue;
 
             if (rule.menuItem) {
                 if (!billMenuItemIds.has(rule.menuItem.id)) continue;
             }
 
             if (rule.categories.length > 0) {
-                const hasMatchingCategory = rule.categories.some((c) =>
-                    billCategoryIds.has(c.id),
-                );
+                const hasMatchingCategory = rule.categories.some((c: any) => billCategoryIds.has(c.id));
                 if (!hasMatchingCategory) continue;
             }
 
-            if (rule.maxUsagePerCustomer !== null) {
-                const usageCount = await tx.loyalityPointRedemption.count({
-                    where: {
-                        loyalityPointId: rule.id,
-                        customerId,
-                    },
+            if (rule.maxUsagePerCustomer !== null && customerId) {
+                const usageCount = await client.loyalityPointRedemption.count({
+                    where: { loyalityPointId: rule.id, customerId },
                 });
                 if (usageCount >= rule.maxUsagePerCustomer) continue;
             }
 
-            const maxPoints = Number(rule.points ?? 0);
-            if (maxPoints <= 0) continue;
+            // Compute points using ratio if present
+            const ratio = rule.loyalityDiscountRatio ? Number(rule.loyalityDiscountRatio) : null;
+            const ruleMaxPoints = rule.points !== null && rule.points !== undefined ? Number(rule.points) : null;
 
-            const roundedPoints = parseFloat(maxPoints.toFixed(2));
-            if (roundedPoints <= 0) continue;
+            let awarded = 0;
 
-            awards.push({
-                loyalityPointId: rule.id,
-                customerId,
-                pointsAwarded: new Prisma.Decimal(roundedPoints),
-            });
+            if (ratio !== null && !Number.isNaN(ratio)) {
+                awarded = Number(billAmount) * ratio;
+                if (ruleMaxPoints !== null) {
+                    awarded = Math.min(awarded, ruleMaxPoints);
+                }
+            } else if (ruleMaxPoints !== null) {
+                awarded = ruleMaxPoints;
+            }
+
+            awarded = parseFloat(awarded.toFixed(2));
+            if (awarded <= 0) continue;
+
+            breakdown.push({ loyalityPointId: rule.id, name: rule.name ?? null, pointsAwarded: awarded });
         }
 
-        if (awards.length > 0) {
-            await tx.loyalityPointRedemption.createMany({ data: awards });
-
-            // Update customer's loyalty wallet by summing all awarded points
-            const totalPointsAwarded = awards.reduce((sum, award) => sum + Number(award.pointsAwarded), 0);
-            await tx.customer.update({
-                where: { id: customerId },
-                data: {
-                    loyaltyWallet: {
-                        increment: new Prisma.Decimal(totalPointsAwarded),
-                    },
-                },
-            });
-        }
+        const totalPoints = breakdown.reduce((s, b) => s + b.pointsAwarded, 0);
+        return { totalPoints, breakdown };
     }
 
     private isWithinLoyaltyTimeWindow(

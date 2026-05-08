@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { StripeService } from '../stripe/stripe.service';
 
@@ -19,6 +20,35 @@ export class BookingService {
         private stripeService: StripeService,
         private configService: ConfigService,
     ) { }
+
+    private isWithinLoyaltyTimeWindow(
+        currentMinutes: number,
+        startTime?: string | null,
+        endTime?: string | null,
+    ): boolean {
+        const start = this.parseTimeToMinutes(startTime);
+        const end = this.parseTimeToMinutes(endTime);
+
+        if (start === null && end === null) return true;
+        if (start !== null && end === null) return currentMinutes >= start;
+        if (start === null && end !== null) return currentMinutes <= end;
+
+        if (start! <= end!) {
+            return currentMinutes >= start! && currentMinutes <= end!;
+        }
+
+        return currentMinutes >= start! || currentMinutes <= end!;
+    }
+
+    private parseTimeToMinutes(time?: string | null): number | null {
+        if (!time) return null;
+
+        const [hh, mm] = time.split(':').map((v) => Number(v));
+        if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+        if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+
+        return hh * 60 + mm;
+    }
 
     async createBooking(
         actor: any,
@@ -235,6 +265,87 @@ export class BookingService {
             throw new BadRequestException('Final payable amount must be greater than 0 for online Stripe checkout');
         }
 
+        // ================================
+        // LOYALTY EARNINGS PREVIEW (for authenticated users)
+        // ================================
+        let loyaltyWillEarn: any = null;
+        try {
+            if (actor) {
+                const now = new Date();
+                const billAmountDecimal = new Prisma.Decimal(finalTotal);
+                const menuIds = Array.from(new Set(items.map((i) => i.menuItemId)));
+                const fetched = await this.prisma.menuItem.findMany({
+                    where: { id: { in: menuIds } },
+                    select: { id: true, categoryId: true },
+                });
+                const categoryMap = new Map(fetched.map((m) => [m.id, m.categoryId]));
+
+                const billItemsForCalc = items.map((it) => ({ menuItemId: it.menuItemId, menuItem: { categoryId: categoryMap.get(it.menuItemId) ?? null } }));
+
+                const rules = await this.prisma.loyalityPoint.findMany({
+                    where: {
+                        restaurantId,
+                        isActive: true,
+                        AND: [
+                            { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+                            { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+                            { OR: [{ conditionMinAmount: null }, { conditionMinAmount: { lte: billAmountDecimal } }] },
+                            { OR: [{ conditionMaxAmount: null }, { conditionMaxAmount: { gte: billAmountDecimal } }] },
+                        ],
+                    },
+                    include: { days: { select: { day: true } }, menuItem: true, categories: true },
+                });
+
+                const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+                const breakdown: Array<any> = [];
+                for (const rule of rules as any[]) {
+                    if (rule.days.length > 0) {
+                        const activeDays = new Set(rule.days.map((d) => d.day));
+                        if (!activeDays.has(currentDay)) continue;
+                    }
+
+                    if (!this.isWithinLoyaltyTimeWindow(currentMinutes, rule.startTime, rule.endTime)) continue;
+
+                    if (rule.menuItem) {
+                        if (!menuIds.includes(rule.menuItem.id)) continue;
+                    }
+
+                    if (rule.categories.length > 0) {
+                        const hasMatchingCategory = rule.categories.some((c: any) => billItemsForCalc.some((bi) => bi.menuItem.categoryId === c.id));
+                        if (!hasMatchingCategory) continue;
+                    }
+
+                    if (rule.maxUsagePerCustomer !== null) {
+                        const usageCount = await this.prisma.loyalityPointRedemption.count({ where: { loyalityPointId: rule.id, customerId: actor.id } });
+                        if (usageCount >= rule.maxUsagePerCustomer) continue;
+                    }
+
+                    const ratio = rule.loyalityDiscountRatio ? Number(rule.loyalityDiscountRatio) : null;
+                    const ruleMaxPoints = rule.points !== null && rule.points !== undefined ? Number(rule.points) : null;
+
+                    let awarded = 0;
+                    if (ratio !== null && !Number.isNaN(ratio)) {
+                        awarded = Number(finalTotal) * ratio;
+                        if (ruleMaxPoints !== null) awarded = Math.min(awarded, ruleMaxPoints);
+                    } else if (ruleMaxPoints !== null) {
+                        awarded = ruleMaxPoints;
+                    }
+
+                    awarded = parseFloat(awarded.toFixed(2));
+                    if (awarded <= 0) continue;
+
+                    breakdown.push({ loyalityPointId: rule.id, name: rule.name ?? null, pointsAwarded: awarded });
+                }
+
+                const totalPoints = breakdown.reduce((s, b) => s + b.pointsAwarded, 0);
+                loyaltyWillEarn = { totalPoints, breakdown };
+            }
+        } catch (err) {
+            this.logger.debug('Loyalty preview failed: ' + (err as any).message);
+        }
+
         const customerEmail = dto.customerEmail || actor?.email;
 
         if (!customerEmail) {
@@ -263,6 +374,7 @@ export class BookingService {
             subtotal,
             discountAmount: totalDiscount,
             totalAmount: finalTotal,
+            loyaltyWillEarn: loyaltyWillEarn,
             paymentLink: stripeCheckoutSession.url,
             checkoutSessionId: stripeCheckoutSession.id,
             cartId: cart.id,
