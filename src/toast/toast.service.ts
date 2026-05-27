@@ -1158,14 +1158,13 @@ export class ToastService {
         return;
       }
 
-      // ── 4. If there is already a Toast order link, skip (first-batch only) ─
-      if (session.toastOrderLink) {
-        this.logger.warn(
+      // ── 4. Check for existing Toast order link ─
+      const existingToastOrderGuid = session.toastOrderLink?.toastOrderGuid;
+      if (existingToastOrderGuid) {
+        this.logger.debug(
           `tryPushBatchToToast: session ${sessionId} already linked to Toast order ` +
-            `${session.toastOrderLink.toastOrderGuid}. Subsequent batch not pushed — ` +
-            'update existing Toast order is not yet implemented.',
+            `${existingToastOrderGuid}. Will push subsequent batch as an update.`,
         );
-        return;
       }
 
       // ── 5. Resolve menu items to their Toast GUIDs ────────────────────────
@@ -1210,10 +1209,11 @@ export class ToastService {
       const orderPayload: Record<string, unknown> = {
         entityType: 'Order',
         source: 'POS',
+        ...(existingToastOrderGuid ? { guid: existingToastOrderGuid } : {}),
         checks: [
           {
             entityType: 'Check',
-            ...(session.customerName ? { customer: {
+            ...(!existingToastOrderGuid && session.customerName ? { customer: {
               entityType: 'Customer',
               firstName: session.customerName.split(' ')[0] ?? session.customerName,
               lastName: session.customerName.split(' ').slice(1).join(' ') || undefined,
@@ -1223,8 +1223,8 @@ export class ToastService {
             selections,
           },
         ],
-        ...(session.specialInstructions ? { deliveryInfo: { notes: session.specialInstructions } } : {}),
-        ...(isDelivery ? {
+        ...(!existingToastOrderGuid && session.specialInstructions ? { deliveryInfo: { notes: session.specialInstructions } } : {}),
+        ...(!existingToastOrderGuid && isDelivery ? {
           deliveryInfo: {
             address1: session.deliveryAddress,
             deliveryType: 'DELIVERY',
@@ -1253,17 +1253,19 @@ export class ToastService {
         return;
       }
 
-      // ── 8. Record the link so we don't push again ─────────────────────────
-      await this.prisma.toastOrderLink.create({
-        data: {
-          restaurantId,
-          orderSessionId: sessionId,
-          toastOrderGuid,
-        },
-      });
+      // ── 8. Record the link so we don't push again (if new order) ───────────
+      if (!existingToastOrderGuid) {
+        await this.prisma.toastOrderLink.create({
+          data: {
+            restaurantId,
+            orderSessionId: sessionId,
+            toastOrderGuid,
+          },
+        });
+      }
 
       this.logger.log(
-        `tryPushBatchToToast: session ${sessionId} pushed to Toast — Toast order GUID: ${toastOrderGuid}`,
+        `tryPushBatchToToast: session ${sessionId} ${existingToastOrderGuid ? 'updated on' : 'pushed to'} Toast — Toast order GUID: ${toastOrderGuid}`,
       );
     } catch (err) {
       // Fire-and-forget: log but never propagate — local order must never fail because of Toast

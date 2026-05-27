@@ -117,13 +117,65 @@ export class CartService {
 
         const summary = await this.buildCartSummaryWithPayable(restaurantId, query, cart);
 
+        // ── Applicable Loyalty Offers ─────────────────────────────────────────
+        // Only resolve for logged-in customers (customerId present in query)
+        let applicableLoyaltyOffers: any[] = [];
+        if (query?.customerId) {
+            try {
+                const customer = await this.prisma.customer.findUnique({
+                    where: { id: query.customerId },
+                    select: { loyaltyWallet: true },
+                });
+
+                if (customer) {
+                    const wallet = Number(customer.loyaltyWallet ?? 0);
+                    const now = new Date();
+
+                    const allOffers = await this.prisma.loyalityOffer.findMany({
+                        where: {
+                            restaurantId,
+                            isActive: true,
+                            AND: [
+                                { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+                                { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+                            ],
+                        },
+                        include: {
+                            menuItems: { select: { id: true, name: true, price: true } },
+                        },
+                        orderBy: { pointsRequired: 'asc' },
+                    });
+
+                    applicableLoyaltyOffers = allOffers
+                        .map((offer) => ({
+                            id: offer.id,
+                            name: offer.name,
+                            type: offer.type,
+                            pointsRequired: Number(offer.pointsRequired ?? 0),
+                            redeemAmount: offer.redeemAmount !== null ? Number(offer.redeemAmount) : null,
+                            validFrom: offer.validFrom ?? null,
+                            validTo: offer.validTo ?? null,
+                            menuItems: offer.menuItems,
+                            customerCanRedeem: wallet >= Number(offer.pointsRequired ?? 0),
+                            customerWallet: wallet,
+                            pointsShortfall: Math.max(0, Number(offer.pointsRequired ?? 0) - wallet),
+                        }))
+                        .filter((offer) => offer.customerCanRedeem);
+                }
+            } catch {
+                // Never break cart fetch on loyalty offer errors
+            }
+        }
+
         return {
             ...cart,
             payableAmoung: summary.payableAmoung,
             payableAmount: summary.payableAmount,
             summary,
+            applicableLoyaltyOffers,
         };
     }
+
 
     async createCart(restaurantId: string, dto: any) {
         const guestKey = this.getGuestKey(dto);

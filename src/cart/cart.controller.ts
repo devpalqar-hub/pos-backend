@@ -93,9 +93,37 @@ export class CartController {
     })
     @ApiOperation({
         summary: 'Get active cart',
-        description:
-            'Returns the active cart for a customer or guest in the specified restaurant. ' +
-            'Cart is resolved using either `customerId` (logged-in user) or `sessionId` (guest user).',
+        description: `
+Returns the active cart for a customer or guest in the specified restaurant.
+Cart is resolved using either \`customerId\` (logged-in user) or \`sessionId\` (guest user).
+
+### Additional fields in response
+
+| Field | Description |
+|---|---|
+| \`summary\` | Payable amount preview including coupon and loyalty discounts |
+| **\`applicableLoyaltyOffers\`** | **Active loyalty offers the customer can afford with their current wallet balance**, sorted by \`pointsRequired\` ASC. Empty array for guests. |
+
+#### \`applicableLoyaltyOffers\` item shape
+\`\`\`json
+{
+  "id": "<offerId>",
+  "name": "Free Dessert",
+  "type": "FOOD",
+  "pointsRequired": 100,
+  "redeemAmount": null,
+  "validFrom": null,
+  "validTo": "2026-12-31T00:00:00.000Z",
+  "menuItems": [{ "id": "...", "name": "Chocolate Cake", "price": "6.50" }],
+  "customerCanRedeem": true,
+  "customerWallet": 150,
+  "pointsShortfall": 0
+}
+\`\`\`
+
+> **Only offers the customer can currently afford are returned** (\`customerWallet >= pointsRequired\`).
+> Requires a logged-in customer — guest carts return \`applicableLoyaltyOffers: []\`.
+        `,
     })
     @ApiResponse({ status: 200, description: 'Cart retrieved successfully.' })
     @ApiResponse({ status: 404, description: 'Cart not found.' })
