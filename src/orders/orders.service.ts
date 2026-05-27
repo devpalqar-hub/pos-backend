@@ -2121,6 +2121,52 @@ export class OrdersService {
         }
 
         // ================================
+        // APPLICABLE LOYALTY OFFERS
+        // ================================
+        // Show all active offers the customer can afford with their current wallet balance.
+        // The customer can then pass loyalityOfferId in the final bill generation to redeem one.
+        let applicableLoyaltyOffers: any[] = [];
+        try {
+            if (customer) {
+                const customerWallet = Number(customer.loyaltyWallet ?? 0);
+                const now = new Date();
+
+                const allOffers = await this.prisma.loyalityOffer.findMany({
+                    where: {
+                        restaurantId,
+                        isActive: true,
+                        AND: [
+                            { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+                            { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+                        ],
+                    },
+                    include: {
+                        menuItems: { select: { id: true, name: true, price: true } },
+                    },
+                    orderBy: { pointsRequired: 'asc' },
+                });
+
+                applicableLoyaltyOffers = allOffers
+                    .map((offer) => ({
+                        id: offer.id,
+                        name: offer.name,
+                        type: offer.type,
+                        pointsRequired: Number(offer.pointsRequired ?? 0),
+                        redeemAmount: offer.redeemAmount !== null ? Number(offer.redeemAmount) : null,
+                        validFrom: offer.validFrom ?? null,
+                        validTo: offer.validTo ?? null,
+                        menuItems: offer.menuItems,
+                        customerCanRedeem: customerWallet >= Number(offer.pointsRequired ?? 0),
+                        customerWallet,
+                        pointsShortfall: Math.max(0, Number(offer.pointsRequired ?? 0) - customerWallet),
+                    }))
+                    .filter((offer) => offer.customerCanRedeem);
+            }
+        } catch (err) {
+            this.logger.debug('Applicable loyalty offers fetch failed: ' + (err as any).message);
+        }
+
+        // ================================
         // RESPONSE SHAPING
         // ================================
 
@@ -2194,6 +2240,10 @@ export class OrdersService {
             // ✅ ADD THESE TWO
             coupon: appliedCoupon,
             loyalty: appliedLoyalty ? { ...appliedLoyalty, willEarn: loyaltyEarningsPreview } : (loyaltyEarningsPreview ? { willEarn: loyaltyEarningsPreview } : null),
+
+            // List of loyalty offers the customer can currently afford, ordered by pointsRequired ASC.
+            // Use the `id` of an offer in `loyalityOfferId` when calling the generate-bill API to redeem it.
+            applicableLoyaltyOffers,
         };
     }
 

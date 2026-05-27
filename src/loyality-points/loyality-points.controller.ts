@@ -3,6 +3,7 @@ import {
     Get,
     Post,
     Patch,
+    Put,
     Delete,
     Body,
     Param,
@@ -29,6 +30,7 @@ import {
     LoyalityOfferTypeDto,
 } from './dto/create-loyality-offer.dto';
 import { UpdateLoyalityOfferDto } from './dto/update-loyality-offer.dto';
+import { UpsertBillAmountSettingDto } from './dto/upsert-bill-amount-setting.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -385,5 +387,57 @@ The system auto-detects the type:
         return await this.loyalityPointsService.remove(actor, restaurantId, id);
     }
 
+    // ─── Bill-Amount-to-Points Setting ───────────────────────────────────────
+
+    @Put('bill-amount-setting')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+    @HttpCode(HttpStatus.OK)
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Create or update the bill-amount-to-points loyalty setting',
+        description: `
+Enables a loyalty earning method where points are computed directly from the bill amount.
+
+**Formula:** \`pointsAwarded = billAmount × pointsPerAmount\`
+
+Example: \`pointsPerAmount = 0.10\` → a \$100 bill earns **10 loyalty points**.
+
+This candidate competes with all active **LoyalityPoint** rules. Only the **highest** point value is awarded to the customer — not the sum.
+
+Set \`isEnabled: false\` to disable this method without deleting the setting.
+
+**Allowed roles:** SUPER_ADMIN, OWNER, RESTAURANT_ADMIN
+        `,
+    })
+    @ApiResponse({ status: 200, description: 'Bill-amount setting saved.' })
+    @ApiResponse({ status: 400, description: 'pointsPerAmount required when isEnabled is true.' })
+    async upsertBillAmountSetting(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+        @Body() dto: UpsertBillAmountSettingDto,
+    ) {
+        return {
+            message: 'Bill-amount loyalty setting saved successfully',
+            data: await this.loyalityPointsService.upsertBillAmountSetting(actor, restaurantId, dto),
+        };
+    }
+
+    @Get('bill-amount-setting')
+    @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+    @ApiOperation({
+        summary: 'Get the bill-amount-to-points loyalty setting',
+        description: 'Returns the current bill-amount loyalty setting. Returns a default disabled state if not configured yet.',
+    })
+    @ApiResponse({ status: 200, description: 'Setting returned.' })
+    async getBillAmountSetting(
+        @CurrentUser() actor: User,
+        @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    ) {
+        return {
+            message: 'Bill-amount loyalty setting fetched successfully',
+            data: await this.loyalityPointsService.getBillAmountSetting(actor, restaurantId),
+        };
+    }
 
 }
+

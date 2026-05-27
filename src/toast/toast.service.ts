@@ -76,6 +76,13 @@ export class ToastService {
   ) {
     await this.assertRestaurantAccess(actor, restaurantId);
 
+    // Check if this is a first-time integration before saving
+    const existingState = await this.prisma.toastSyncState.findUnique({
+      where: { restaurantId },
+      select: { menuLastUpdatedAt: true },
+    });
+    const isFirstIntegration = !existingState || existingState.menuLastUpdatedAt === null;
+
     const data = {
       restaurantId,
       clientId: dto.clientId,
@@ -104,6 +111,14 @@ export class ToastService {
       update: {},
     });
 
+    // On first-time integration, auto-sync menu in the background (fire-and-forget)
+    if (isFirstIntegration) {
+      this.logger.log(`Toast: first-time integration detected for restaurant ${restaurantId} — triggering initial menu sync`);
+      this.syncMenuInternal(restaurantId).catch((err) =>
+        this.logger.warn(`Toast auto menu sync (first integration) failed for ${restaurantId}: ${err?.message ?? String(err)}`),
+      );
+    }
+
     return this.getSettings(actor, restaurantId);
   }
 
@@ -121,6 +136,171 @@ export class ToastService {
     this.tokenCache.delete(restaurantId);
 
     return { message: 'Toast integration removed successfully' };
+  }
+
+  /**
+   * Internal (actor-less) version of syncMenu used by:
+   *  - Webhook MENU_PUBLISHED handler
+   *  - First-time integration auto-sync (upsertSettings)
+   *
+   * Runs completely in the background; never throws to the caller.
+   */
+  async syncMenuInternal(restaurantId: string): Promise<void> {
+    const settings = await this.prisma.toastSettings.findUnique({
+      where: { restaurantId },
+    });
+
+    if (!settings || !settings.isActive) {
+      this.logger.warn(`syncMenuInternal: Toast not configured or inactive for restaurant ${restaurantId}`);
+      return;
+    }
+
+    const log = await this.prisma.toastSyncLog.create({
+      data: {
+        restaurantId,
+        syncType: ToastSyncType.MENU,
+        status: ToastSyncStatus.SUCCESS,
+      },
+    });
+
+    try {
+      const accessToken = await this.getAccessToken(settings);
+
+      const metadata = await this.toastGet<any>(settings, '/menus/v3/metadata', accessToken);
+
+      const state = await this.prisma.toastSyncState.upsert({
+        where: { restaurantId },
+        create: { restaurantId },
+        update: {},
+      });
+
+      const remoteLastUpdated = metadata?.lastUpdated ? new Date(metadata.lastUpdated) : null;
+
+      if (
+        remoteLastUpdated &&
+        state.menuLastUpdatedAt &&
+        remoteLastUpdated.getTime() <= state.menuLastUpdatedAt.getTime()
+      ) {
+        await this.prisma.toastSyncLog.update({
+          where: { id: log.id },
+          data: {
+            status: ToastSyncStatus.SKIPPED,
+            finishedAt: new Date(),
+            summary: { reason: 'Menu metadata unchanged', remoteLastUpdated: remoteLastUpdated.toISOString() },
+          },
+        });
+        this.logger.log(`syncMenuInternal: Menu unchanged for restaurant ${restaurantId}, skipping`);
+        return;
+      }
+
+      const menuPayload = await this.toastGet<any>(settings, '/menus/v3/menus', accessToken);
+      const extracted = this.extractMenuCandidates(menuPayload);
+
+      if (!extracted.length) {
+        await this.prisma.toastSyncLog.update({
+          where: { id: log.id },
+          data: { status: ToastSyncStatus.FAILED, finishedAt: new Date(), errorMessage: 'No menu items parsed from Toast payload' },
+        });
+        this.logger.warn(`syncMenuInternal: No menu items parsed for restaurant ${restaurantId}`);
+        return;
+      }
+
+      const counters = { categoriesUpserted: 0, itemsUpserted: 0 };
+
+      for (const candidate of extracted) {
+        const category = await this.prisma.menuCategory.upsert({
+          where: { restaurantId_name: { restaurantId, name: candidate.categoryName } },
+          create: { restaurantId, name: candidate.categoryName, isActive: true },
+          update: { isActive: true },
+        });
+        counters.categoriesUpserted += 1;
+
+        const existingByToastGuid = await this.prisma.toastMenuItemMapping.findUnique({
+          where: { restaurantId_toastItemGuid: { restaurantId, toastItemGuid: candidate.toastItemGuid } },
+          include: { menuItem: true },
+        });
+
+        let menuItemId: string;
+
+        if (existingByToastGuid?.menuItem) {
+          const updated = await this.prisma.menuItem.update({
+            where: { id: existingByToastGuid.menuItem.id },
+            data: {
+              categoryId: category.id,
+              name: candidate.name,
+              price: new Prisma.Decimal(candidate.price),
+              isActive: true,
+              isAvailable: true,
+            },
+          });
+          menuItemId = updated.id;
+        } else {
+          const byName = await this.prisma.menuItem.findFirst({ where: { restaurantId, name: candidate.name } });
+          const menuItem = byName
+            ? await this.prisma.menuItem.update({
+                where: { id: byName.id },
+                data: { categoryId: category.id, price: new Prisma.Decimal(candidate.price), isActive: true, isAvailable: true },
+              })
+            : await this.prisma.menuItem.create({
+                data: {
+                  restaurantId,
+                  categoryId: category.id,
+                  name: candidate.name,
+                  price: new Prisma.Decimal(candidate.price),
+                  itemType: 'NON_STOCKABLE',
+                  isActive: true,
+                  isAvailable: true,
+                  sortOrder: 0,
+                },
+              });
+          menuItemId = menuItem.id;
+        }
+
+        counters.itemsUpserted += 1;
+
+        await this.prisma.toastMenuItemMapping.upsert({
+          where: { restaurantId_toastItemGuid: { restaurantId, toastItemGuid: candidate.toastItemGuid } },
+          create: { restaurantId, menuItemId, toastItemGuid: candidate.toastItemGuid, toastItemName: candidate.name },
+          update: { menuItemId, toastItemName: candidate.name },
+        });
+      }
+
+      await this.prisma.toastSyncState.update({
+        where: { restaurantId },
+        data: {
+          menuLastUpdatedAt: remoteLastUpdated ?? new Date(),
+          lastSyncStatus: ToastSyncStatus.SUCCESS,
+          lastSyncError: null,
+          lastSuccessfulAt: new Date(),
+        },
+      });
+
+      await this.prisma.toastSyncLog.update({
+        where: { id: log.id },
+        data: {
+          status: ToastSyncStatus.SUCCESS,
+          finishedAt: new Date(),
+          categoriesUpserted: counters.categoriesUpserted,
+          itemsUpserted: counters.itemsUpserted,
+          summary: { extractedItems: extracted.length, remoteLastUpdated: remoteLastUpdated?.toISOString() ?? null },
+        },
+      });
+
+      this.logger.log(`syncMenuInternal: Completed for restaurant ${restaurantId} — ${counters.itemsUpserted} items upserted`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error during Toast internal menu sync';
+      await this.prisma.toastSyncState.upsert({
+        where: { restaurantId },
+        create: { restaurantId, lastSyncStatus: ToastSyncStatus.FAILED, lastSyncError: errorMessage },
+        update: { lastSyncStatus: ToastSyncStatus.FAILED, lastSyncError: errorMessage },
+      });
+      await this.prisma.toastSyncLog.update({
+        where: { id: log.id },
+        data: { status: ToastSyncStatus.FAILED, finishedAt: new Date(), errorMessage },
+      });
+      this.logger.error(`syncMenuInternal: Failed for restaurant ${restaurantId}: ${errorMessage}`);
+      throw err;
+    }
   }
 
   async syncMenu(actor: User, restaurantId: string, dto: SyncToastMenuDto) {
@@ -1338,10 +1518,12 @@ export class ToastService {
       if (eventType === 'ORDER_CREATED' && settings.autoCreateOrders) {
         sessionId = await this.processToastOrderCreated(restaurantId, payload, settings);
       } else if (eventType === 'MENU_PUBLISHED') {
-        // Trigger an async menu sync — fire-and-forget
-        this.logger.log(`Toast webhook: MENU_PUBLISHED received for restaurant ${restaurantId} — triggering menu sync`);
-        // We can't call syncMenu (it requires actor) — just log; admin can manually trigger
-        status = 'IGNORED';
+        // Trigger an actual background menu sync — fire-and-forget
+        this.logger.log(`Toast webhook: MENU_PUBLISHED received for restaurant ${restaurantId} — triggering background menu sync`);
+        this.syncMenuInternal(restaurantId).catch((err) =>
+          this.logger.warn(`Toast auto menu sync (webhook) failed for ${restaurantId}: ${err?.message ?? String(err)}`),
+        );
+        status = 'PROCESSED';
       } else {
         // ORDER_UPDATED, ORDER_DELETED, ORDER_VOIDED — log only
         status = 'IGNORED';

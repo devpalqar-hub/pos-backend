@@ -198,11 +198,17 @@ export class BillService {
             },
         });
 
-        const awards: {
+        // ── Collect candidates from all active LoyalityPoint rules ────────────
+        type Candidate = {
+            source: 'rule';
             loyalityPointId: string;
-            customerId: string;
-            pointsAwarded: Prisma.Decimal;
-        }[] = [];
+            points: number;
+        } | {
+            source: 'bill_amount';
+            points: number;
+        };
+
+        const candidates: Candidate[] = [];
 
         for (const rule of rules as any[]) {
             if (rule.days.length > 0) {
@@ -214,7 +220,7 @@ export class BillService {
                 continue;
             }
 
-            if (rule.menuItem && !billMenuItemIds.has(rule.menuItem.id)) {
+            if (rule.menuItems.length > 0 && !rule.menuItems.some((m) => billMenuItemIds.has(m.id))) {
                 continue;
             }
 
@@ -225,10 +231,7 @@ export class BillService {
 
             if (rule.maxUsagePerCustomer !== null) {
                 const usageCount = await tx.loyalityPointRedemption.count({
-                    where: {
-                        loyalityPointId: rule.id,
-                        customerId,
-                    },
+                    where: { loyalityPointId: rule.id, customerId },
                 });
                 if (usageCount >= rule.maxUsagePerCustomer) continue;
             }
@@ -236,27 +239,52 @@ export class BillService {
             const points = Number(rule.points ?? 0);
             if (points <= 0) continue;
 
-            awards.push({
-                loyalityPointId: rule.id,
-                customerId,
-                pointsAwarded: new Prisma.Decimal(points.toFixed(2)),
-            });
+            candidates.push({ source: 'rule', loyalityPointId: rule.id, points });
         }
 
-        if (awards.length === 0) return;
+        // ── Also consider bill-amount-to-points setting ───────────────────────
+        const billAmountSetting = await (this.prisma as any).loyaltyBillAmountSetting.findUnique({
+            where: { restaurantId },
+        });
 
-        await tx.loyalityPointRedemption.createMany({ data: awards });
+        if (billAmountSetting?.isEnabled && Number(billAmountSetting.pointsPerAmount) > 0) {
+            const billAmountPoints = billAmount * Number(billAmountSetting.pointsPerAmount);
+            if (billAmountPoints > 0) {
+                candidates.push({ source: 'bill_amount', points: billAmountPoints });
+            }
+        }
 
-        const totalPointsAwarded = awards.reduce((sum, award) => sum + Number(award.pointsAwarded), 0);
+        if (candidates.length === 0) return;
+
+        // ── Pick the single winner with the highest points ────────────────────
+        const winner = candidates.reduce((best, c) => (c.points > best.points ? c : best));
+
+        const pointsToAward = parseFloat(winner.points.toFixed(2));
+
+        if (winner.source === 'rule') {
+            // Create an audit row in LoyalityPointRedemption
+            await tx.loyalityPointRedemption.create({
+                data: {
+                    loyalityPointId: winner.loyalityPointId,
+                    customerId,
+                    pointsAwarded: new Prisma.Decimal(pointsToAward.toFixed(2)),
+                },
+            });
+        }
+        // For bill_amount source: no separate redemption row (wallet-only credit).
+        // If you need an audit trail, add a nullable loyalityPointId to the schema.
+
+        // ── Credit wallet ─────────────────────────────────────────────────────
         await tx.customer.update({
             where: { id: customerId },
             data: {
                 loyaltyWallet: {
-                    increment: new Prisma.Decimal(totalPointsAwarded),
+                    increment: new Prisma.Decimal(pointsToAward.toFixed(2)),
                 },
             },
         });
     }
+
 
     private isWithinLoyaltyTimeWindow(
         currentMinutes: number,

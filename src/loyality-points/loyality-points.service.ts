@@ -15,6 +15,7 @@ import {
     LoyalityOfferTypeDto,
 } from './dto/create-loyality-offer.dto';
 import { UpdateLoyalityOfferDto } from './dto/update-loyality-offer.dto';
+import { UpsertBillAmountSettingDto } from './dto/upsert-bill-amount-setting.dto';
 import { User, UserRole } from '@prisma/client';
 import { isUUID } from 'class-validator';
 
@@ -563,7 +564,60 @@ export class LoyalityPointsService {
         };
     }
 
+    // ─── Bill-Amount-to-Points Setting ───────────────────────────────────────
+
+    /**
+     * Create or update the bill-amount-to-points loyalty setting for a restaurant.
+     *
+     * When enabled, every bill will compute `billAmount × pointsPerAmount` as a
+     * candidate point value that competes with all active LoyalityPoint rules.
+     * Only the **highest** candidate is awarded to the customer.
+     */
+    async upsertBillAmountSetting(
+        actor: User,
+        restaurantId: string,
+        dto: UpsertBillAmountSettingDto,
+    ) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'manage');
+
+        if (dto.isEnabled && (dto.pointsPerAmount === undefined || dto.pointsPerAmount <= 0)) {
+            throw new BadRequestException('pointsPerAmount must be a positive number when isEnabled is true');
+        }
+
+        const data = {
+            restaurantId,
+            isEnabled: dto.isEnabled,
+            pointsPerAmount: dto.pointsPerAmount ?? 0,
+        };
+
+        return (this.prisma as any).loyaltyBillAmountSetting.upsert({
+            where: { restaurantId },
+            create: data,
+            update: { isEnabled: dto.isEnabled, ...(dto.pointsPerAmount !== undefined && { pointsPerAmount: dto.pointsPerAmount }) },
+        });
+    }
+
+    /**
+     * Get the current bill-amount-to-points setting for a restaurant.
+     * Returns null if not yet configured.
+     */
+    async getBillAmountSetting(actor: User, restaurantId: string) {
+        await this.assertRestaurantAccess(actor, restaurantId, 'view');
+
+        const setting = await (this.prisma as any).loyaltyBillAmountSetting.findUnique({
+            where: { restaurantId },
+        });
+
+        return setting ?? {
+            restaurantId,
+            isEnabled: false,
+            pointsPerAmount: 0,
+            note: 'Not configured yet. Use PUT /bill-amount-setting to set it up.',
+        };
+    }
+
     // ─── Permission Helpers ───────────────────────────────────────────────────
+
 
     private async assertRestaurantAccess(
         actor: User,

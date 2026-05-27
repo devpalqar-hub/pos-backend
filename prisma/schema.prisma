@@ -386,6 +386,7 @@ model Restaurant {
   vendorPayments           VendorPayment[]
   ToastMenuItemMapping     ToastMenuItemMapping[]
   deliveryChargeSetting    RestaurantDeliveryCharge?
+  loyaltyBillAmountSetting LoyaltyBillAmountSetting?
 
   @@index([ownerId])
   @@map("restaurants")
@@ -945,6 +946,27 @@ model LoyalityPointsConverter {
 
   @@index([restaurantId])
   @@map("loyality_points_converters")
+}
+
+// ─── Bill-Amount-to-Points Loyalty Setting ────────────────────────────────────
+
+model LoyaltyBillAmountSetting {
+  id              String  @id @default(uuid())
+  restaurantId    String  @unique
+
+  /// When false the bill-amount method is ignored at checkout.
+  isEnabled       Boolean @default(false)
+
+  /// Points awarded per unit of currency.
+  /// Example: 0.10 → every $1 of bill = 0.10 pts  (a $100 bill = 10 pts)
+  pointsPerAmount Decimal @db.Decimal(10, 4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_bill_amount_settings")
 }
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────

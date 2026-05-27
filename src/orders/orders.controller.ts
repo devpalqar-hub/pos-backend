@@ -534,7 +534,42 @@ week  → ignored
 
     @Get('restaurants/:restaurantId/sessions/:sessionId/bill/preview')
     @Roles(...ALL_ORDER_ROLES)
-    @ApiOperation({ summary: 'Preview bill before generating' })
+    @ApiOperation({
+        summary: 'Preview bill before generating',
+        description: `
+Computes a full bill preview without persisting anything.
+
+### Key response fields
+| Field | Description |
+|---|---|
+| \`subtotal\` / \`totalAmount\` | Computed totals including tax and discounts |
+| \`coupon\` | Applied coupon details (if \`couponCode\` passed) |
+| \`loyalty\` | Loyalty points consumed + selected offer details (if \`claimedLoyalityPoints=true\`) |
+| \`loyalty.willEarn\` | Points the customer will earn from **this** bill after payment |
+| **\`applicableLoyaltyOffers\`** | **List of active loyalty offers the customer can afford right now**, ordered by \`pointsRequired\` ASC |
+
+### \`applicableLoyaltyOffers\` item shape
+\`\`\`json
+{
+  "id": "<offerId>",
+  "name": "Free Dessert",
+  "type": "FOOD",
+  "pointsRequired": 100,
+  "redeemAmount": null,
+  "validFrom": null,
+  "validTo": null,
+  "menuItems": [{ "id": "...", "name": "Chocolate Cake", "price": "6.50" }],
+  "customerCanRedeem": true,
+  "customerWallet": 150,
+  "pointsShortfall": 0
+}
+\`\`\`
+
+> **Only offers the customer can currently afford are returned** (\`customerWallet >= pointsRequired\`).
+> Pass the \`id\` as \`loyalityOfferId\` in the generate-bill body to redeem an offer.
+> Requires customer data (\`customerEmail\` / \`customerPhone\`) to be present in the request.
+        `,
+    })
     @ApiParam({ name: 'restaurantId' })
     @ApiParam({ name: 'sessionId' })
     async previewBill(
@@ -553,6 +588,7 @@ week  → ignored
             timestamp: new Date().toISOString(),
         };
     }
+
 
     // =========================================================================
     // PAYMENTS
