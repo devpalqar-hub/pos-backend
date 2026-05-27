@@ -24,22 +24,6 @@ import { User, UserRole } from '@prisma/client';
 import { ToastService } from './toast.service';
 import { SyncToastMenuDto } from './dto/sync-toast-menu.dto';
 import { SyncToastOrdersDto } from './dto/sync-toast-orders.dto';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User, UserRole } from '@prisma/client';
-import { ToastService } from './toast.service';
-import { SyncToastMenuDto } from './dto/sync-toast-menu.dto';
-import { SyncToastOrdersDto } from './dto/sync-toast-orders.dto';
 
 @ApiTags('Toast Integration Sync')
 @ApiBearerAuth('Bearer')
