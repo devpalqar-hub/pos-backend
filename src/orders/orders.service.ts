@@ -24,6 +24,7 @@ import { OrdersGateway } from './orders.gateway';
 import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
 import { validateSessionStatusTransition } from './utils/session-status-machine';
 import { table } from 'console';
+import { ToastService } from '../toast/toast.service';
 
 // ─── Include clauses ──────────────────────────────────────────────────────────
 
@@ -91,6 +92,7 @@ export class OrdersService {
         private readonly prisma: PrismaService,
         @Inject(forwardRef(() => OrdersGateway))
         private readonly gateway: OrdersGateway,
+        private readonly toastService: ToastService,
     ) { }
 
     // =========================================================================
@@ -647,6 +649,18 @@ export class OrdersService {
 
         this.logger.log(
             `Batch ${batchNumber} created in session ${session.sessionNumber} by ${actor.name}`,
+        );
+
+        // ── Push to Toast POS dashboard (fire-and-forget, never blocks local response) ──
+        // Excluded channels: UBER_EATS, DOORDASH, TOAST (handled inside tryPushBatchToToast)
+        void this.toastService.tryPushBatchToToast(
+            restaurantId,
+            sessionId,
+            resolvedItems.map((i) => ({
+                menuItemId: i.menuItemId,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+            })),
         );
 
         return batch;

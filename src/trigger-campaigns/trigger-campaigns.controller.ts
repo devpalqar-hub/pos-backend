@@ -148,7 +148,13 @@ Select one or more: \`EMAIL\`, \`SMS\`, \`WHATSAPP\`.
     @ApiParam({ name: 'id', description: 'Trigger Campaign UUID' })
     @ApiOperation({
         summary: 'Update a trigger campaign',
-        description: 'Cannot edit EXPIRED trigger campaigns.',
+        description:
+            'Update content, rules, channels, or repeat configuration. ' +
+            'Cannot edit content on EXPIRED trigger campaigns. ' +
+            '\n\n**`isActive` toggle** can be set regardless of campaign status:\n' +
+            '- `isActive: false` → campaign is disabled. It will not fire triggers or send messages, and is hidden from non-admin listings.\n' +
+            '- `isActive: true` → re-enables a previously disabled campaign.\n\n' +
+            'Admin roles (OWNER / RESTAURANT_ADMIN) can see inactive campaigns in `GET /trigger-campaigns`.',
     })
     @ApiResponse({ status: 200, description: 'Trigger campaign updated.' })
     @ApiResponse({ status: 400, description: 'Campaign is EXPIRED.' })

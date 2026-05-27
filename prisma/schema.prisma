@@ -103,6 +103,22 @@ enum ToastSyncStatus {
   FAILED
 }
 
+enum ToastWebhookEventType {
+  ORDER_CREATED
+  ORDER_UPDATED
+  ORDER_DELETED
+  ORDER_VOIDED
+  MENU_PUBLISHED
+  UNKNOWN
+}
+
+enum ToastWebhookStatus {
+  RECEIVED    // Raw event stored, not yet processed
+  PROCESSED   // Successfully created / updated a local session
+  IGNORED     // Intentionally skipped (e.g. autoCreateOrders=false, duplicate)
+  FAILED      // Processing threw an error
+}
+
 enum SessionStatus {
   OPEN // Active — accepting new items
   BILLED // Bill generated, awaiting payment
@@ -365,6 +381,7 @@ model Restaurant {
   toastSyncState           ToastSyncState?
   toastSyncLogs            ToastSyncLog[]
   toastOrderLinks          ToastOrderLink[]
+  toastWebhookLogs         ToastWebhookLog[]
   vendors                  Vendor[]
   vendorPayments           VendorPayment[]
   ToastMenuItemMapping     ToastMenuItemMapping[]
@@ -1385,12 +1402,19 @@ model ToastSettings {
   clientSecret              String @db.VarChar(500)
   toastRestaurantExternalId String @db.VarChar(255)
 
+  // Webhook secret — used to verify incoming Toast webhook HMAC signatures
+  // Set this to the secret you configure in the Toast Developer Portal webhook settings
+  webhookSecret String? @db.VarChar(500)
+
   // Optional base URL override (defaults to https://ws-api.toasttab.com)
   apiBaseUrl String @default("https://ws-api.toasttab.com") @db.VarChar(255)
 
   // Optional tuning
   defaultOrderLookbackHours Int     @default(24)
   autoSyncEnabled           Boolean @default(false)
+
+  // When true, incoming ORDER_CREATED webhooks automatically create local OrderSessions
+  autoCreateOrders Boolean @default(true)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -1488,6 +1512,34 @@ model ToastSyncLog {
   @@index([status])
   @@map("toast_sync_logs")
 }
+
+model ToastWebhookLog {
+  id           String @id @default(uuid())
+  restaurantId String?
+
+  // Toast's own event ID (from the X-Toast-Event-Id header or payload)
+  eventId   String?               @db.VarChar(255)
+  eventType ToastWebhookEventType @default(UNKNOWN)
+  status    ToastWebhookStatus    @default(RECEIVED)
+
+  // Full raw JSON body for audit / replay
+  rawPayload Json?
+
+  errorMessage String? @db.Text
+
+  // If an OrderSession was created, link it here
+  sessionId String?
+
+  receivedAt DateTime @default(now())
+
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId])
+  @@index([eventType])
+  @@index([status])
+  @@map("toast_webhook_logs")
+}
+
 
 // ─── Trigger Campaigns (Automated Repeating Marketing) ──────────────────────
 //  This is the parent record — like defining "Send a promo to customers who visit on Mondays, repeat every 7 days, max 5 times."

@@ -77,9 +77,10 @@ export class TriggerCampaignsService {
     ) {
         await this.assertAccess(actor, restaurantId);
 
+        // Admins (OWNER / RESTAURANT_ADMIN / SUPER_ADMIN) see ALL trigger campaigns,
+        // including inactive ones — so they can review and re-enable them.
         const where: any = {
             restaurantId,
-            isActive: true,
             ...(status && { status }),
             ...(search && {
                 OR: [
@@ -116,8 +117,9 @@ export class TriggerCampaignsService {
     async findOne(actor: User, restaurantId: string, id: string) {
         await this.assertAccess(actor, restaurantId);
 
+        // Admins can see inactive campaigns (to re-enable them)
         const campaign = await this.prisma.triggerCampaign.findFirst({
-            where: { id, restaurantId, isActive: true },
+            where: { id, restaurantId },
             include: { rules: true, channels: true },
         });
         if (!campaign) throw new NotFoundException(`Trigger campaign ${id} not found`);
@@ -127,12 +129,27 @@ export class TriggerCampaignsService {
     async update(actor: User, restaurantId: string, id: string, dto: UpdateTriggerCampaignDto) {
         await this.assertAccess(actor, restaurantId);
 
+        // Admins can fetch inactive campaigns (to re-enable them)
         const campaign = await this.prisma.triggerCampaign.findFirst({
-            where: { id, restaurantId, isActive: true },
+            where: { id, restaurantId },
         });
         if (!campaign) throw new NotFoundException(`Trigger campaign ${id} not found`);
 
-        if (campaign.status === TriggerCampaignStatus.EXPIRED) {
+        // Only block EXPIRED edits if changing content (not just toggling isActive)
+        const hasContentChanges = dto.name !== undefined ||
+            dto.description !== undefined ||
+            dto.subject !== undefined ||
+            dto.textContent !== undefined ||
+            dto.htmlContent !== undefined ||
+            dto.imageUrl !== undefined ||
+            dto.ruleOperator !== undefined ||
+            dto.repeatDelayDays !== undefined ||
+            dto.maxTriggersPerCustomer !== undefined ||
+            dto.expiresAt !== undefined ||
+            dto.rules !== undefined ||
+            dto.channels !== undefined;
+
+        if (hasContentChanges && campaign.status === TriggerCampaignStatus.EXPIRED) {
             throw new BadRequestException('Cannot edit an EXPIRED trigger campaign');
         }
 
@@ -183,6 +200,8 @@ export class TriggerCampaignsService {
                     ...(dto.expiresAt !== undefined && {
                         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
                     }),
+                    // isActive toggle — always allowed regardless of campaign status
+                    ...(dto.isActive !== undefined && { isActive: dto.isActive }),
                 },
                 include: { rules: true, channels: true },
             });

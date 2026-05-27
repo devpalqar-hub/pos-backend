@@ -1,8 +1,9 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common"
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
 import { CouponsService } from "./coupons.service"
-import { RestaurantFeature, UserRole } from "@prisma/client"
+import { User, UserRole } from "@prisma/client"
 import { Roles } from "src/common/decorators/roles.decorator"
+import { CurrentUser } from "src/common/decorators/current-user.decorator"
 import { CreateCouponDto } from "./dto/create-coupon.dto"
 import { UpdateCouponDto } from "./dto/update-coupoun.dto"
 import { ValidateCouponDto } from "./dto/validate-coupoun.dto"
@@ -31,17 +32,22 @@ export class CouponsController {
     @Get('coupons')
     @ApiOperation({ summary: 'List coupons' })
     findAll(
+        @CurrentUser() actor: User,
         @Param('restaurantId') restaurantId: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
         @Query('fetchAll') fetchAll?: string,
     ) {
+        const isAdmin = actor.role === UserRole.OWNER
+            || actor.role === UserRole.RESTAURANT_ADMIN
+            || actor.role === UserRole.SUPER_ADMIN;
         console.log({ page, limit, fetchAll })
         return this.couponsService.findAll(
             restaurantId,
             page ? Number(page) : 1,
             limit ? Number(limit) : 10,
             fetchAll === 'true',
+            isAdmin,
         )
     }
 
@@ -55,7 +61,15 @@ export class CouponsController {
     }
 
     @Patch('coupons/:couponId')
-    @ApiOperation({ summary: 'Update coupon' })
+    @ApiOperation({
+        summary: 'Update coupon',
+        description:
+            'Update any coupon field. All fields are optional.\n\n' +
+            '**`isActive` toggle:**\n' +
+            '- `isActive: false` → coupon is disabled. Customers cannot apply it and it is hidden from customer-facing listings.\n' +
+            '- `isActive: true` → re-enables a previously disabled coupon.\n\n' +
+            'Admin roles (OWNER / RESTAURANT_ADMIN) see all coupons (including inactive) in `GET /coupons`.',
+    })
     update(
         @Param('couponId') couponId: string,
         @Body() dto: UpdateCouponDto

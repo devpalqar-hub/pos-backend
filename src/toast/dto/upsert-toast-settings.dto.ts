@@ -50,6 +50,25 @@ export class UpsertToastSettingsDto {
     autoSyncEnabled?: boolean;
 
     @ApiPropertyOptional({
+        example: 'whsec_abc123...',
+        description:
+            'HMAC-SHA256 webhook secret from the Toast Developer Portal. ' +
+            'Used to verify the Toast-Notification-Signature header on incoming webhooks.',
+    })
+    @IsOptional()
+    @IsString()
+    webhookSecret?: string;
+
+    @ApiPropertyOptional({
+        default: true,
+        description:
+            'When true, incoming ORDER_CREATED webhooks automatically create a local OrderSession + OrderBatch.',
+    })
+    @IsOptional()
+    @IsBoolean()
+    autoCreateOrders?: boolean;
+
+    @ApiPropertyOptional({
         default: true,
         description: 'Enable or disable Toast integration for this restaurant.',
     })

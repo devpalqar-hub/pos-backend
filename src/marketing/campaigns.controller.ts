@@ -181,7 +181,11 @@ Each rule has a \`condition\` and a \`value\`:
     summary: 'Update a campaign',
     description:
       'Update content, rules, channels, or schedule. ' +
-      'Only SCHEDULED or PAUSED campaigns can be edited.',
+      'Only SCHEDULED or PAUSED campaigns can have their content edited. ' +
+      '\n\n**`isActive` toggle** can be set on any campaign regardless of status:\n' +
+      '- `isActive: false` → campaign is disabled. It will not be triggered and is hidden from non-admin listings.\n' +
+      '- `isActive: true` → re-enables a previously disabled campaign.\n\n' +
+      'Admin roles (OWNER / RESTAURANT_ADMIN) can see inactive campaigns in `GET /campaigns`.',
   })
   @ApiResponse({ status: 200, description: 'Campaign updated.' })
   @ApiResponse({ status: 400, description: 'Campaign status does not allow editing.' })

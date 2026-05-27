@@ -5,10 +5,12 @@ import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { OrdersGateway } from './orders.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ToastModule } from '../toast/toast.module';
 
 @Module({
     imports: [
         PrismaModule,
+        ToastModule,
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject: [ConfigService],

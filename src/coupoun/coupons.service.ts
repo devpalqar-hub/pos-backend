@@ -43,15 +43,21 @@ export class CouponsService {
         page?: number,
         limit?: number,
         fetchAll?: boolean,
+        isAdmin?: boolean,
     ) {
+        // Admins (OWNER / RESTAURANT_ADMIN) see all coupons including inactive ones.
+        // Customer-facing calls only see active coupons.
+        const where: any = { restaurantId };
+        if (!isAdmin) {
+            where.isActive = true;
+        }
+
         return paginate({
             prismaModel: this.prisma.coupon,
             page: page || 1,
             limit: limit || 10,
             fetchAll: fetchAll || false,
-            where: {
-                restaurantId,
-            },
+            where,
             orderBy: {
                 createdAt: 'desc',
             },
@@ -65,10 +71,14 @@ export class CouponsService {
     }
 
     async update(couponId: string, dto: UpdateCouponDto) {
+        const data: any = { ...dto };
+        // Convert ISO date strings to Date objects for Prisma
+        if (dto.validFrom) data.validFrom = new Date(dto.validFrom);
+        if (dto.validUntil) data.validUntil = new Date(dto.validUntil);
 
         return this.prisma.coupon.update({
             where: { id: couponId },
-            data: dto
+            data,
         })
     }
 

@@ -504,9 +504,10 @@ export class MarketingService {
   ) {
     await this.assertRestaurantAccess(actor, restaurantId, 'manage');
 
+    // Admins (OWNER / RESTAURANT_ADMIN / SUPER_ADMIN) see ALL campaigns including inactive.
+    // Only active campaigns are exposed to customer-facing contexts (enforced at the controller/API-gateway level).
     const where: any = {
       restaurantId,
-      isActive: true,
       ...(status && { status }),
       ...(search && {
         OR: [
@@ -543,8 +544,9 @@ export class MarketingService {
   async findOneCampaign(actor: User, restaurantId: string, id: string) {
     await this.assertRestaurantAccess(actor, restaurantId, 'manage');
 
+    // Admins can fetch a campaign regardless of isActive so they can re-enable it
     const campaign = await this.prisma.campaign.findFirst({
-      where: { id, restaurantId, isActive: true },
+      where: { id, restaurantId },
       include: {
         rules: true,
         channels: true,
@@ -563,12 +565,25 @@ export class MarketingService {
   ) {
     await this.assertRestaurantAccess(actor, restaurantId, 'manage');
 
+    // Admins can fetch the campaign even if it's inactive (to re-enable it)
     const campaign = await this.prisma.campaign.findFirst({
-      where: { id, restaurantId, isActive: true },
+      where: { id, restaurantId },
     });
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
 
-    if (
+    // If changing anything other than isActive, enforce status restrictions
+    const hasContentChanges = dto.name !== undefined ||
+      dto.description !== undefined ||
+      dto.subject !== undefined ||
+      dto.textContent !== undefined ||
+      dto.htmlContent !== undefined ||
+      dto.imageUrl !== undefined ||
+      dto.ruleOperator !== undefined ||
+      dto.scheduledAt !== undefined ||
+      dto.rules !== undefined ||
+      dto.channels !== undefined;
+
+    if (hasContentChanges &&
       campaign.status !== CampaignStatus.PAUSED &&
       campaign.status !== CampaignStatus.SCHEDULED
     ) {
@@ -622,6 +637,8 @@ export class MarketingService {
             scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
             status: CampaignStatus.SCHEDULED,
           }),
+          // isActive toggle — available regardless of campaign status
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         },
         include: { rules: true, channels: true },
       });

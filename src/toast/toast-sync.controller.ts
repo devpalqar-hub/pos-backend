@@ -24,6 +24,22 @@ import { User, UserRole } from '@prisma/client';
 import { ToastService } from './toast.service';
 import { SyncToastMenuDto } from './dto/sync-toast-menu.dto';
 import { SyncToastOrdersDto } from './dto/sync-toast-orders.dto';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { User, UserRole } from '@prisma/client';
+import { ToastService } from './toast.service';
+import { SyncToastMenuDto } from './dto/sync-toast-menu.dto';
+import { SyncToastOrdersDto } from './dto/sync-toast-orders.dto';
 
 @ApiTags('Toast Integration Sync')
 @ApiBearerAuth('Bearer')
@@ -118,6 +134,49 @@ export class ToastSyncController {
         parseInt(page ?? '1', 10),
         parseInt(limit ?? '20', 10),
       )),
+    };
+  }
+
+  // ── Webhook logs (authenticated, for admin audit) ──────────────────────────
+
+  @Get('webhook/logs')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiOperation({ summary: 'List incoming Toast webhook events for debugging and audit' })
+  @ApiResponse({ status: 200, description: 'Webhook logs returned.' })
+  async getWebhookLogs(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return {
+      message: 'Toast webhook logs fetched successfully',
+      ...(await this.toastService.getWebhookLogs(
+        actor,
+        restaurantId,
+        parseInt(page ?? '1', 10),
+        parseInt(limit ?? '20', 10),
+      )),
+    };
+  }
+
+  @Get('webhook/logs/:logId')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN)
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
+  @ApiParam({ name: 'logId', description: 'Webhook log UUID' })
+  @ApiOperation({ summary: 'Get a single Toast webhook log entry with full raw payload' })
+  @ApiResponse({ status: 200, description: 'Webhook log returned.' })
+  async getWebhookLog(
+    @CurrentUser() actor: User,
+    @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
+    @Param('logId', ParseUUIDPipe) logId: string,
+  ) {
+    return {
+      message: 'Toast webhook log fetched successfully',
+      data: await this.toastService.getWebhookLog(actor, restaurantId, logId),
     };
   }
 }

@@ -12,6 +12,7 @@ import {
   User,
   UserRole,
 } from '@prisma/client';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpsertToastSettingsDto } from './dto/upsert-toast-settings.dto';
 import { SyncToastMenuDto } from './dto/sync-toast-menu.dto';
@@ -63,6 +64,7 @@ export class ToastService {
       settings: {
         ...settings,
         clientSecret: '••••••••',
+        webhookSecret: settings.webhookSecret ? '••••••••' : null,
       },
     };
   }
@@ -85,6 +87,8 @@ export class ToastService {
       ),
       defaultOrderLookbackHours: dto.defaultOrderLookbackHours ?? 24,
       autoSyncEnabled: dto.autoSyncEnabled ?? false,
+      autoCreateOrders: dto.autoCreateOrders ?? true,
+      ...(dto.webhookSecret !== undefined ? { webhookSecret: dto.webhookSecret } : {}),
       isActive: dto.isActive ?? true,
     };
 
@@ -912,6 +916,186 @@ export class ToastService {
     return null;
   }
 
+  // ─── Push-to-Toast (fire-and-forget) ──────────────────────────────────────
+
+  /**
+   * Attempts to push a locally-created batch of items to the Toast POS dashboard
+   * as a new order. This method NEVER throws — all errors are caught and logged so
+   * the local order flow is never disrupted.
+   *
+   * Channels that are skipped (already originate from an external platform):
+   *   UBER_EATS, DOORDASH, TOAST
+   *
+   * Only the first batch on a session triggers a new Toast order. Subsequent batches
+   * on the same session are logged as a warning (future: patch existing order).
+   *
+   * @param restaurantId  The restaurant UUID
+   * @param sessionId     The local OrderSession UUID
+   * @param items         Resolved items from the batch: { menuItemId, quantity, unitPrice }
+   */
+  async tryPushBatchToToast(
+    restaurantId: string,
+    sessionId: string,
+    items: Array<{ menuItemId: string; quantity: number; unitPrice: number }>,
+  ): Promise<void> {
+    try {
+      // ── 1. Load Toast settings — silently skip if not configured / inactive ──
+      const settings = await this.prisma.toastSettings.findUnique({
+        where: { restaurantId },
+      });
+
+      if (!settings || !settings.isActive) {
+        return; // Toast not configured for this restaurant
+      }
+
+      // ── 2. Load the session to check its channel ──────────────────────────
+      const session = await this.prisma.orderSession.findUnique({
+        where: { id: sessionId },
+        select: {
+          id: true,
+          channel: true,
+          customerName: true,
+          customerPhone: true,
+          customerEmail: true,
+          deliveryAddress: true,
+          specialInstructions: true,
+          guestCount: true,
+          toastOrderLink: { select: { id: true, toastOrderGuid: true } },
+        },
+      });
+
+      if (!session) {
+        this.logger.warn(`tryPushBatchToToast: session ${sessionId} not found`);
+        return;
+      }
+
+      // ── 3. Skip channels that originate from external platforms ───────────
+      const SKIP_CHANNELS = ['UBER_EATS', 'DOORDASH', 'TOAST'];
+      if (SKIP_CHANNELS.includes(session.channel as string)) {
+        this.logger.debug(
+          `tryPushBatchToToast: skipping session ${sessionId} (channel=${session.channel})`,
+        );
+        return;
+      }
+
+      // ── 4. If there is already a Toast order link, skip (first-batch only) ─
+      if (session.toastOrderLink) {
+        this.logger.warn(
+          `tryPushBatchToToast: session ${sessionId} already linked to Toast order ` +
+            `${session.toastOrderLink.toastOrderGuid}. Subsequent batch not pushed — ` +
+            'update existing Toast order is not yet implemented.',
+        );
+        return;
+      }
+
+      // ── 5. Resolve menu items to their Toast GUIDs ────────────────────────
+      const selections: Array<{ entityType: string; item: { guid: string; entityType: string }; quantity: number }> = [];
+
+      for (const item of items) {
+        const mapping = await this.prisma.toastMenuItemMapping.findUnique({
+          where: {
+            restaurantId_menuItemId: {
+              restaurantId,
+              menuItemId: item.menuItemId,
+            },
+          },
+          select: { toastItemGuid: true, toastItemName: true },
+        });
+
+        if (!mapping) {
+          this.logger.warn(
+            `tryPushBatchToToast: menuItemId ${item.menuItemId} has no Toast GUID mapping — skipping item`,
+          );
+          continue;
+        }
+
+        selections.push({
+          entityType: 'MenuItemSelection',
+          item: { guid: mapping.toastItemGuid, entityType: 'MenuItem' },
+          quantity: item.quantity,
+        });
+      }
+
+      if (!selections.length) {
+        this.logger.warn(
+          `tryPushBatchToToast: session ${sessionId} — no items had Toast GUID mappings; order not pushed`,
+        );
+        return;
+      }
+
+      // ── 6. Build Toast order payload ──────────────────────────────────────
+      const isDelivery =
+        session.channel === 'ONLINE_OWN' && !!session.deliveryAddress;
+
+      const orderPayload: Record<string, unknown> = {
+        entityType: 'Order',
+        source: 'POS',
+        checks: [
+          {
+            entityType: 'Check',
+            ...(session.customerName ? { customer: {
+              entityType: 'Customer',
+              firstName: session.customerName.split(' ')[0] ?? session.customerName,
+              lastName: session.customerName.split(' ').slice(1).join(' ') || undefined,
+              phone: session.customerPhone ?? undefined,
+              email: session.customerEmail ?? undefined,
+            } } : {}),
+            selections,
+          },
+        ],
+        ...(session.specialInstructions ? { deliveryInfo: { notes: session.specialInstructions } } : {}),
+        ...(isDelivery ? {
+          deliveryInfo: {
+            address1: session.deliveryAddress,
+            deliveryType: 'DELIVERY',
+            notes: session.specialInstructions ?? undefined,
+          },
+        } : {}),
+      };
+
+      // ── 7. Authenticate and POST to Toast ─────────────────────────────────
+      const accessToken = await this.getAccessToken(settings);
+      const created = await this.toastPost<any>(
+        settings,
+        '/orders/v2/orders',
+        accessToken,
+        orderPayload,
+      );
+
+      const toastOrderGuid: string | undefined =
+        created?.guid ?? created?.order?.guid ?? created?.[0]?.guid;
+
+      if (!toastOrderGuid) {
+        this.logger.error(
+          `tryPushBatchToToast: Toast response did not include a GUID for session ${sessionId}. ` +
+            `Response: ${JSON.stringify(created).slice(0, 500)}`,
+        );
+        return;
+      }
+
+      // ── 8. Record the link so we don't push again ─────────────────────────
+      await this.prisma.toastOrderLink.create({
+        data: {
+          restaurantId,
+          orderSessionId: sessionId,
+          toastOrderGuid,
+        },
+      });
+
+      this.logger.log(
+        `tryPushBatchToToast: session ${sessionId} pushed to Toast — Toast order GUID: ${toastOrderGuid}`,
+      );
+    } catch (err) {
+      // Fire-and-forget: log but never propagate — local order must never fail because of Toast
+      this.logger.error(
+        `tryPushBatchToToast failed for session ${sessionId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+  }
+
   private async requireSettings(restaurantId: string) {
     const settings = await this.prisma.toastSettings.findUnique({
       where: { restaurantId },
@@ -1005,6 +1189,34 @@ export class ToastService {
     return (await response.json()) as T;
   }
 
+  private async toastPost<T>(
+    settings: { apiBaseUrl: string; toastRestaurantExternalId: string },
+    path: string,
+    accessToken: string,
+    body: unknown,
+  ): Promise<T> {
+    const url = `${settings.apiBaseUrl}${path}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Toast-Restaurant-External-ID': settings.toastRestaurantExternalId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new BadRequestException(
+        `Toast API POST ${path} failed (${response.status}): ${text}`,
+      );
+    }
+
+    return (await response.json()) as T;
+  }
+
   private toToastDate(date: Date): string {
     // Toast examples use ISO-8601 with timezone offset; ISO string is accepted in practice.
     return date.toISOString();
@@ -1064,6 +1276,321 @@ export class ToastService {
     } while (exists);
 
     return id;
+  }
+
+  // ─── Webhook Handling ────────────────────────────────────────────────────────
+
+  /**
+   * Entry point for incoming Toast webhooks.
+   *
+   * Called from the public webhook controller with the raw request body so HMAC
+   * verification is accurate.
+   *
+   * Toast sends: POST /toast/webhook/:restaurantId
+   * Header:      Toast-Notification-Signature: <hmac_sha256_hex>
+   *
+   * Always returns 200 — all processing status is recorded in ToastWebhookLog.
+   */
+  async handleWebhook(
+    restaurantId: string,
+    rawBody: Buffer,
+    signature: string | undefined,
+  ): Promise<{ received: boolean; event: string; sessionId: string | null }> {
+    // ── 1. Parse body ─────────────────────────────────────────────────────────
+    let payload: Record<string, any>;
+    try {
+      payload = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      this.logger.error(`Toast webhook: failed to parse JSON for restaurant ${restaurantId}`);
+      await this.logToastWebhook(restaurantId, null, 'UNKNOWN', rawBody, null, 'FAILED', null, 'Invalid JSON');
+      return { received: true, event: 'INVALID_JSON', sessionId: null };
+    }
+
+    const eventType = this.mapToastEventType(payload.eventType ?? payload.type ?? '');
+    const eventId: string | null = payload.eventId ?? payload.id ?? null;
+
+    // ── 2. Load settings ──────────────────────────────────────────────────────
+    const settings = await this.prisma.toastSettings.findUnique({
+      where: { restaurantId },
+    });
+
+    if (!settings || !settings.isActive) {
+      await this.logToastWebhook(restaurantId, eventId, eventType, rawBody, payload, 'IGNORED', null, 'Toast not configured or inactive');
+      return { received: true, event: eventType, sessionId: null };
+    }
+
+    // ── 3. Verify HMAC signature (if webhookSecret is configured) ─────────────
+    if (settings.webhookSecret) {
+      if (!this.verifyToastSignature(rawBody, signature, settings.webhookSecret)) {
+        this.logger.warn(`Toast webhook: invalid signature for restaurant ${restaurantId}`);
+        await this.logToastWebhook(restaurantId, eventId, eventType, rawBody, payload, 'FAILED', null, 'Invalid signature');
+        // Return 200 to prevent Toast retry floods — mark FAILED internally
+        return { received: true, event: eventType, sessionId: null };
+      }
+    }
+
+    // ── 4. Route by event type ────────────────────────────────────────────────
+    let sessionId: string | null = null;
+    let status: string = 'PROCESSED';
+    let errorMsg: string | null = null;
+
+    try {
+      if (eventType === 'ORDER_CREATED' && settings.autoCreateOrders) {
+        sessionId = await this.processToastOrderCreated(restaurantId, payload, settings);
+      } else if (eventType === 'MENU_PUBLISHED') {
+        // Trigger an async menu sync — fire-and-forget
+        this.logger.log(`Toast webhook: MENU_PUBLISHED received for restaurant ${restaurantId} — triggering menu sync`);
+        // We can't call syncMenu (it requires actor) — just log; admin can manually trigger
+        status = 'IGNORED';
+      } else {
+        // ORDER_UPDATED, ORDER_DELETED, ORDER_VOIDED — log only
+        status = 'IGNORED';
+      }
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      status = 'FAILED';
+      errorMsg = error.message;
+      this.logger.error(`Toast webhook: processing error for restaurant ${restaurantId}: ${error.message}`, error.stack);
+    }
+
+    await this.logToastWebhook(restaurantId, eventId, eventType, rawBody, payload, status, sessionId, errorMsg);
+
+    return { received: true, event: eventType, sessionId };
+  }
+
+  async getWebhookLogs(actor: User, restaurantId: string, page = 1, limit = 20) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+
+    const where = { restaurantId };
+    const [logs, total] = await Promise.all([
+      this.prisma.toastWebhookLog.findMany({
+        where,
+        orderBy: { receivedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          eventId: true,
+          eventType: true,
+          status: true,
+          sessionId: true,
+          errorMessage: true,
+          receivedAt: true,
+          // rawPayload excluded from list — fetch individual log for full payload
+        },
+      }),
+      this.prisma.toastWebhookLog.count({ where }),
+    ]);
+
+    return {
+      data: logs,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  async getWebhookLog(actor: User, restaurantId: string, logId: string) {
+    await this.assertRestaurantAccess(actor, restaurantId);
+
+    const log = await this.prisma.toastWebhookLog.findFirst({
+      where: { id: logId, restaurantId },
+    });
+    if (!log) throw new NotFoundException(`Toast webhook log ${logId} not found`);
+    return log;
+  }
+
+  // ─── Webhook helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Verifies the Toast HMAC-SHA256 signature.
+   * Toast sends: Toast-Notification-Signature: <hex>
+   * Signed over the raw request body using the webhookSecret.
+   */
+  private verifyToastSignature(
+    rawBody: Buffer,
+    signatureHeader: string | undefined,
+    secret: string,
+  ): boolean {
+    if (!signatureHeader) return false;
+    try {
+      // Toast may send "sha256=<hex>" or just "<hex>"
+      const hexSig = signatureHeader.startsWith('sha256=')
+        ? signatureHeader.slice(7)
+        : signatureHeader;
+
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex');
+
+      if (hexSig.length !== expected.length) return false;
+
+      return crypto.timingSafeEqual(
+        Buffer.from(hexSig, 'hex'),
+        Buffer.from(expected, 'hex'),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Creates a local OrderSession + OrderBatch from a Toast ORDER_CREATED webhook payload.
+   *
+   * Toast webhook order payload shape (simplified):
+   * {
+   *   "eventType": "ORDER_CREATED",
+   *   "order": {
+   *     "guid": "...",
+   *     "checks": [{ "selections": [{ "item": { "guid": "..." }, "displayName": "...", "quantity": 1, "price": 1200 }] }],
+   *     "customer": { "name": "...", "phone": "...", "email": "..." },
+   *     "deliveryInfo": { "address1": "...", "notes": "..." },
+   *     "numberOfGuests": 2
+   *   }
+   * }
+   */
+  private async processToastOrderCreated(
+    restaurantId: string,
+    payload: Record<string, any>,
+    settings: { autoCreateOrders: boolean },
+  ): Promise<string> {
+    const order = payload.order ?? payload;
+    const toastOrderGuid: string | undefined = order.guid ?? order.orderGuid;
+
+    if (!toastOrderGuid) {
+      throw new BadRequestException('Toast ORDER_CREATED webhook missing order.guid');
+    }
+
+    // Dedup — if we already have this order, return its session
+    const existing = await this.prisma.toastOrderLink.findUnique({
+      where: { restaurantId_toastOrderGuid: { restaurantId, toastOrderGuid } },
+    });
+    if (existing) {
+      this.logger.warn(`Toast webhook: order ${toastOrderGuid} already imported — skipping`);
+      return existing.orderSessionId;
+    }
+
+    // Resolve items
+    const resolvedItems = await this.resolveToastOrderItems(restaurantId, order);
+
+    if (!resolvedItems.length) {
+      throw new BadRequestException(
+        `Toast webhook order ${toastOrderGuid} has no resolvable menu items. ` +
+        'Run a menu sync first or add Toast menu item mappings.',
+      );
+    }
+
+    const customerName = this.pickFirstString([
+      order?.customer?.name,
+      order?.deliveryInfo?.customer?.name,
+    ]);
+    const customerPhone = this.pickFirstString([
+      order?.customer?.phone,
+      order?.deliveryInfo?.phone,
+    ]);
+    const customerEmail = this.pickFirstString([
+      order?.customer?.email,
+      order?.deliveryInfo?.email,
+    ]);
+    const deliveryAddress = this.pickFirstString([
+      order?.deliveryInfo?.address1,
+      order?.deliveryInfo?.formattedAddress,
+    ]);
+
+    const sessionId = await this.prisma.$transaction(async (tx) => {
+      const sessionNumber = await this.generateUniqueSessionNumber(restaurantId, tx);
+
+      const session = await tx.orderSession.create({
+        data: {
+          restaurantId,
+          sessionNumber,
+          channel: 'TOAST' as any,
+          status: this.mapOrderStatus(order),
+          externalOrderId: toastOrderGuid,
+          externalChannel: 'Toast',
+          customerName,
+          customerPhone,
+          customerEmail,
+          deliveryAddress,
+          guestCount: Number(order?.numberOfGuests ?? 1),
+          specialInstructions: this.pickFirstString([
+            order?.deliveryInfo?.notes,
+            order?.notes,
+          ]),
+          openedById: null,
+        },
+      });
+
+      const batchNumber = await this.generateUniqueBatchNumber(session.id, tx);
+
+      await tx.orderBatch.create({
+        data: {
+          sessionId: session.id,
+          batchNumber,
+          status: 'PENDING' as any,
+          notes: `Toast webhook order #${toastOrderGuid}`,
+          items: {
+            create: resolvedItems.map((item) => ({
+              menuItemId: item.menuItemId,
+              quantity: item.quantity,
+              unitPrice: new Prisma.Decimal(item.unitPrice),
+              totalPrice: new Prisma.Decimal(item.unitPrice * item.quantity),
+              status: 'PENDING' as any,
+            })),
+          },
+        },
+      });
+
+      await tx.toastOrderLink.create({
+        data: { restaurantId, orderSessionId: session.id, toastOrderGuid },
+      });
+
+      return session.id;
+    });
+
+    this.logger.log(
+      `Toast webhook: created session ${sessionId} for Toast order ${toastOrderGuid} in restaurant ${restaurantId}`,
+    );
+    return sessionId;
+  }
+
+  private mapToastEventType(raw: string): string {
+    const upper = (raw ?? '').toUpperCase().replace(/[^A-Z_]/g, '_');
+    const known = ['ORDER_CREATED', 'ORDER_UPDATED', 'ORDER_DELETED', 'ORDER_VOIDED', 'MENU_PUBLISHED'];
+    return known.includes(upper) ? upper : 'UNKNOWN';
+  }
+
+  private async logToastWebhook(
+    restaurantId: string | null,
+    eventId: string | null,
+    eventType: string,
+    rawBody: Buffer,
+    payload: Record<string, any> | null,
+    status: string,
+    sessionId: string | null,
+    errorMessage: string | null,
+  ): Promise<void> {
+    try {
+      await this.prisma.toastWebhookLog.create({
+        data: {
+          restaurantId: restaurantId ?? undefined,
+          eventId: eventId ?? undefined,
+          eventType: eventType as any,
+          status: status as any,
+          rawPayload: payload ?? (JSON.parse(rawBody.toString('utf8')) as any),
+          sessionId: sessionId ?? undefined,
+          errorMessage: errorMessage ?? undefined,
+        },
+      });
+    } catch (err) {
+      this.logger.error('Failed to write ToastWebhookLog', err instanceof Error ? err.stack : String(err));
+    }
   }
 
   private async assertRestaurantAccess(actor: User, restaurantId: string) {
