@@ -16,4 +16,11 @@ export class CreateCartDto {
     @IsOptional()
     @IsString()
     guestId?: string;
+
+    @ApiPropertyOptional({
+        description: 'Loyalty offer UUID to redeem at checkout. Customer must have enough loyalty points.',
+    })
+    @IsOptional()
+    @IsUUID()
+    loyaltyOfferId?: string;
 }

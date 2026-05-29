@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
 
@@ -179,12 +179,117 @@ export class CartService {
 
     async createCart(restaurantId: string, dto: any) {
         const guestKey = this.getGuestKey(dto);
-        return this.prisma.cart.create({
-            data: {
+
+        // ── No loyalty offer: simple cart creation ────────────────────────────
+        if (!dto.loyaltyOfferId) {
+            return this.prisma.cart.create({
+                data: {
+                    restaurantId,
+                    customerId: dto.customerId,
+                    guestId: guestKey,
+                },
+            });
+        }
+
+        // ── Loyalty offer redemption ──────────────────────────────────────────
+        // Only logged-in customers can redeem loyalty offers
+        if (!dto.customerId) {
+            throw new BadRequestException('You must be logged in to redeem a loyalty offer');
+        }
+
+        // 1. Load and validate the offer
+        const offer = await (this.prisma as any).loyalityOffer.findFirst({
+            where: {
+                id: dto.loyaltyOfferId,
                 restaurantId,
-                customerId: dto.customerId,
-                guestId: guestKey,
+                isActive: true,
             },
+            include: {
+                menuItems: { select: { id: true, name: true, price: true } },
+            },
+        });
+
+        if (!offer) {
+            throw new NotFoundException(
+                `Loyalty offer ${dto.loyaltyOfferId} not found or inactive in this restaurant`,
+            );
+        }
+
+        // 2. Check offer validity window
+        const now = new Date();
+        if (offer.validFrom && offer.validFrom > now) {
+            throw new BadRequestException('This loyalty offer is not yet valid');
+        }
+        if (offer.validTo && offer.validTo < now) {
+            throw new BadRequestException('This loyalty offer has expired');
+        }
+
+        // 3. Check customer has enough points
+        const customer = await this.prisma.customer.findUnique({
+            where: { id: dto.customerId },
+            select: { loyaltyWallet: true },
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Customer not found');
+        }
+
+        const customerWallet = Number(customer.loyaltyWallet ?? 0);
+        const pointsRequired = Number(offer.pointsRequired ?? 0);
+
+        if (customerWallet < pointsRequired) {
+            throw new BadRequestException(
+                `Insufficient loyalty points. Required: ${pointsRequired}, Available: ${customerWallet}`,
+            );
+        }
+
+        // 4. Execute atomically: create cart + apply offer + deduct points
+        const result = await this.prisma.$transaction(async (tx) => {
+            // Create the cart
+            const cart = await tx.cart.create({
+                data: {
+                    restaurantId,
+                    customerId: dto.customerId,
+                    guestId: guestKey,
+                },
+            });
+
+            // Deduct loyalty points from wallet
+            await tx.customer.update({
+                where: { id: dto.customerId },
+                data: { loyaltyWallet: { decrement: pointsRequired } },
+            });
+
+            // FOOD offer: add the free menu item(s) to the cart at price 0
+            if (offer.type === 'FOOD' && offer.menuItems?.length) {
+                for (const menuItem of offer.menuItems) {
+                    await tx.cartItem.create({
+                        data: {
+                            cartId: cart.id,
+                            menuItemId: menuItem.id,
+                            quantity: 1,
+                            price: 0,   // Free item
+                            total: 0,
+                        },
+                    });
+                }
+            }
+
+            // AMOUNT offer: store redeemAmount as a discount on the cart
+            if (offer.type === 'AMOUNT' && offer.redeemAmount) {
+                await tx.cart.update({
+                    where: { id: cart.id },
+                    data: { discount: Number(offer.redeemAmount) },
+                });
+            }
+
+            return cart;
+        });
+
+        // Return the fully loaded cart with items
+        return this.prisma.cart.findUnique({
+            where: { id: result.id },
+            include: CartService.CART_ITEMS_INCLUDE,
         });
     }
 

@@ -163,16 +163,28 @@ Cart is resolved using either \`customerId\` (logged-in user) or \`sessionId\` (
     @Post()
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiOperation({
-        summary: 'Create a new cart',
+        summary: 'Create a new cart / redeem a loyalty offer',
         description:
             'Creates a new cart for a restaurant. A cart can belong either to a logged-in customer ' +
-            '(identified by `customerId`) or a guest user (identified by `sessionId`).',
+            '(identified by `customerId`) or a guest user (identified by `sessionId`).' +
+            '\n\n' +
+            '### Loyalty Offer Redemption\n' +
+            'Pass `loyaltyOfferId` in the request body to redeem an active loyalty offer at checkout.\n\n' +
+            '**Rules:**\n' +
+            '- Customer must be logged in (JWT required)\n' +
+            '- Customer must have enough loyalty points (`pointsRequired`)\n' +
+            '- Offer must be active and within its validity window\n' +
+            '- `AMOUNT` offers deduct `redeemAmount` from the cart total\n' +
+            '- `FOOD` offers add the free menu item(s) to the cart\n' +
+            '- Points are deducted from `loyaltyWallet` immediately\n',
     })
     @ApiResponse({ status: 201, description: 'Cart created successfully.' })
-    @ApiResponse({ status: 404, description: 'Restaurant not found.' })
+    @ApiResponse({ status: 400, description: 'Insufficient loyalty points or invalid offer.' })
+    @ApiResponse({ status: 404, description: 'Restaurant or loyalty offer not found.' })
     async createCart(
         @Param('restaurantId', ParseUUIDPipe) restaurantId: string,
         @Req() req: Request,
+        @Body() dto: CreateCartDto,
         @Headers('x-session-id') headerSessionId?: string,
         @Query('sessionId') querySessionId?: string,
         @Query('guestId') legacyGuestId?: string,
@@ -189,6 +201,7 @@ Cart is resolved using either \`customerId\` (logged-in user) or \`sessionId\` (
             data: await this.cartService.createCart(restaurantId, {
                 customerId: user?.id,
                 sessionId,
+                loyaltyOfferId: dto?.loyaltyOfferId,
             }),
         };
     }
