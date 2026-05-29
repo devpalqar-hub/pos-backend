@@ -102,7 +102,9 @@ export class CustomersAuthService {
         this.logger.log(`sendOtp started: ownerId=${ownerId}, email=${dto.email}`);
 
         try {
-            const restaurantId = await this.resolveRestaurantIdByOwner(ownerId);
+            // Resolve ALL restaurants under this owner so we detect existing customers
+            // regardless of which specific restaurant they originally registered in.
+            const restaurantIds = await this.resolveRestaurantIdsByOwner(ownerId);
 
             const invalidatedTokens = await this.prisma.otpToken.updateMany({
                 where: { email: dto.email, isUsed: false },
@@ -113,9 +115,10 @@ export class CustomersAuthService {
                 `sendOtp invalidated old tokens: email=${dto.email}, count=${invalidatedTokens.count}`,
             );
 
+            // Search for the customer across all restaurants owned by this owner
             const customer = await this.prisma.customer.findFirst({
                 where: {
-                    restaurantId,
+                    restaurantId: { in: restaurantIds },
                     email: dto.email,
                 },
             });
@@ -136,10 +139,10 @@ export class CustomersAuthService {
             });
 
             this.logger.log(
-                `sendOtp created token: ownerId=${ownerId}, email=${dto.email}, restaurantId=${restaurantId}, customerExists=${!!customer}`,
+                `sendOtp created token: ownerId=${ownerId}, email=${dto.email}, restaurantIds=${restaurantIds.join(',')}, customerExists=${!!customer}`,
             );
 
-            // await this.sendOtpEmail(restaurantId, dto.email, otp, customer?.name);
+            // await this.sendOtpEmail(restaurantIds[0], dto.email, otp, customer?.name);
 
             return { email: dto.email, otp };
         } catch (error: any) {
@@ -422,7 +425,7 @@ export class CustomersAuthService {
             where: { id: customerId },
             include: {
                 restaurant: {
-                    select: { id: true, name: true },
+                    select: { id: true, name: true, ownerId: true },
                 },
             },
         });
@@ -431,9 +434,69 @@ export class CustomersAuthService {
             throw new NotFoundException('Customer not found');
         }
 
+        // ── Unified loyalty points across ALL restaurants under the same owner ──
+        // We find every Customer record sharing the same email under the same owner,
+        // then sum ALL their LoyalityPointRedemption rows.
+        //
+        // Why live-computed from the redemption table (not loyaltyWallet):
+        //   loyaltyWallet is a precomputed snapshot and can drift if any point
+        //   award/deduct operation fails mid-transaction. The redemption table is
+        //   the immutable audit log and is always the source of truth.
+        const ownerId = (customer as any).restaurant?.ownerId;
+
+        let loyaltyPoints = { totalEarned: 0, totalRedeemed: 0, balance: 0 };
+
+        if (ownerId) {
+            // Step 1: find all restaurants under this owner
+            const ownerRestaurants = await this.prisma.restaurant.findMany({
+                where: { ownerId },
+                select: { id: true },
+            });
+            const restaurantIds = ownerRestaurants.map((r) => r.id);
+
+            // Step 2: find all customer records for this email across those restaurants
+            const allCustomerRecords = await this.prisma.customer.findMany({
+                where: {
+                    email: customer.email ?? undefined,
+                    restaurantId: { in: restaurantIds },
+                },
+                select: { id: true },
+            });
+            const allCustomerIds = allCustomerRecords.map((c) => c.id);
+
+            // Step 3: sum all loyalty redemptions (earnings) across those customer records
+            const [earnedResult, redeemedResult] = await Promise.all([
+                // pointsAwarded on redemption records = points earned per qualifying bill
+                this.prisma.loyalityPointRedemption.aggregate({
+                    _sum: { pointsAwarded: true },
+                    where: { customerId: { in: allCustomerIds } },
+                }),
+                // We don't have a separate "spent" table yet; balance = total earned - redeemed via offers
+                // For future: when offers are redeemed, deduct here. For now balance = totalEarned.
+                this.prisma.loyalityPointRedemption.aggregate({
+                    _sum: { pointsAwarded: true },
+                    where: {
+                        customerId: { in: allCustomerIds },
+                        // Only count redemptions that were actually spent (linked to a bill with discount)
+                        bill: { some: { loyalityPointDiscountAmount: { gt: 0 } } },
+                    },
+                }),
+            ]);
+
+            const totalEarned = Number(earnedResult._sum?.pointsAwarded ?? 0);
+            const totalRedeemed = Number(redeemedResult._sum?.pointsAwarded ?? 0);
+
+            loyaltyPoints = {
+                totalEarned,
+                totalRedeemed,
+                balance: totalEarned - totalRedeemed,
+            };
+        }
+
         return {
             ...this.sanitizeCustomer(customer),
             memberSince: customer.createdAt,
+            loyaltyPoints,
         };
     }
 
