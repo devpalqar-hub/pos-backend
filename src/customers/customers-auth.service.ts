@@ -223,7 +223,16 @@ export class CustomersAuthService {
                 });
             }
 
-            const isNew = !customer || !customer.is_registered;
+            // A customer is "new" (needs to complete profile) only if:
+            //   1. No customer record exists for this email under the owner, OR
+            //   2. The customer exists but has no name/phone yet (truly incomplete profile).
+            //
+            // We do NOT rely solely on `is_registered` because customers can be created
+            // by staff via POS (walk-in orders) with is_registered=false even though
+            // they already have all their data. Those customers should NOT be asked to
+            // fill in their details again.
+            const hasCompleteProfile = !!(customer?.name && customer?.phone);
+            const isNew = !customer || !hasCompleteProfile;
 
             if (isNew) {
                 this.logger.log(`verifyOtp success for new customer flow: email=${email}`);
@@ -232,6 +241,18 @@ export class CustomersAuthService {
                     accessToken: null,
                     customer: null,
                 };
+            }
+
+            // Auto-heal: if the customer has all their data but is_registered was false,
+            // fix it now so future lookups work correctly.
+            if (!customer.is_registered) {
+                this.logger.warn(
+                    `verifyOtp auto-healing is_registered flag for existing customer: email=${email}, customerId=${customer.id}`,
+                );
+                await this.prisma.customer.update({
+                    where: { id: customer.id },
+                    data: { is_registered: true },
+                });
             }
 
             const payload = {
