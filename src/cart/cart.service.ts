@@ -575,6 +575,7 @@ export class CartService {
 
         const couponCode = query?.coupounName ?? query?.couponName;
         const shouldApplyLoyalty = this.parseBooleanQuery(query?.claimedLoyalityPoints);
+        const loyaltyOfferId = query?.loyaltyOfferId;
 
         let couponDiscount = 0;
         if (couponCode) {
@@ -659,8 +660,70 @@ export class CartService {
             }
         }
 
+        // ── Loyalty Offer discount preview (READ-ONLY — no points deducted) ────
+        // When the customer passes a loyaltyOfferId, compute the discount it would
+        // give so the frontend can show the final payable amount before committing.
+        // • AMOUNT offers  → deduct redeemAmount (capped to remaining total)
+        // • FOOD offers    → discount = 0 (free items are added at cart-creation, not here)
+        let loyaltyOfferDiscount = 0;
+        let loyaltyOfferPreview: any = null;
+
+        if (loyaltyOfferId && query?.customerId) {
+            try {
+                const now = new Date();
+                const offer = await (this.prisma as any).loyalityOffer.findFirst({
+                    where: {
+                        id: loyaltyOfferId,
+                        restaurantId,
+                        isActive: true,
+                        AND: [
+                            { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+                            { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+                        ],
+                    },
+                    include: {
+                        menuItems: { select: { id: true, name: true, price: true } },
+                    },
+                });
+
+                if (offer) {
+                    const customer = await this.prisma.customer.findUnique({
+                        where: { id: query.customerId },
+                        select: { loyaltyWallet: true },
+                    });
+
+                    const wallet = Number(customer?.loyaltyWallet ?? 0);
+                    const pointsRequired = Number(offer.pointsRequired ?? 0);
+                    const canRedeem = wallet >= pointsRequired;
+
+                    if (canRedeem && offer.type === 'AMOUNT' && offer.redeemAmount) {
+                        const afterCouponAndLoyalty = Math.max(0, total - couponDiscount - loyaltyDiscount);
+                        loyaltyOfferDiscount = Math.min(
+                            Number(offer.redeemAmount),
+                            afterCouponAndLoyalty,
+                        );
+                    }
+
+                    loyaltyOfferPreview = {
+                        id: offer.id,
+                        name: offer.name,
+                        type: offer.type,
+                        pointsRequired,
+                        redeemAmount: offer.redeemAmount !== null ? Number(offer.redeemAmount) : null,
+                        menuItems: offer.menuItems,
+                        customerCanRedeem: canRedeem,
+                        customerWallet: wallet,
+                        pointsShortfall: Math.max(0, pointsRequired - wallet),
+                        discountApplied: parseFloat(loyaltyOfferDiscount.toFixed(2)),
+                    };
+                }
+            } catch {
+                // Never break cart fetch on loyalty offer preview errors
+            }
+        }
+
         const payableAmount = parseFloat(
-            Math.max(0, total - couponDiscount - loyaltyDiscount).toFixed(2),
+            Math.max(0, total - couponDiscount - loyaltyDiscount - loyaltyOfferDiscount).toFixed(2),
         );
 
         return {
@@ -671,6 +734,8 @@ export class CartService {
             total,
             couponDiscount: parseFloat(couponDiscount.toFixed(2)),
             loyalityDiscount: parseFloat(loyaltyDiscount.toFixed(2)),
+            loyaltyOfferDiscount: parseFloat(loyaltyOfferDiscount.toFixed(2)),
+            ...(loyaltyOfferPreview && { loyaltyOfferPreview }),
             payableAmoung: payableAmount,
             payableAmount,
         };

@@ -91,6 +91,15 @@ export class CartController {
         type: Boolean,
         description: 'If true, loyalty points will be considered in payable amount preview',
     })
+    @ApiQuery({
+        name: 'loyaltyOfferId',
+        required: false,
+        type: String,
+        description:
+            'Loyalty offer UUID to preview the discount for. ' +
+            'Shows `loyaltyOfferDiscount` in summary without deducting points. ' +
+            'Requires a logged-in customer.',
+    })
     @ApiOperation({
         summary: 'Get active cart',
         description: `
@@ -101,8 +110,14 @@ Cart is resolved using either \`customerId\` (logged-in user) or \`sessionId\` (
 
 | Field | Description |
 |---|---|
-| \`summary\` | Payable amount preview including coupon and loyalty discounts |
+| \`summary\` | Payable amount preview including coupon, loyalty points, and loyalty offer discounts |
 | **\`applicableLoyaltyOffers\`** | **Active loyalty offers the customer can afford with their current wallet balance**, sorted by \`pointsRequired\` ASC. Empty array for guests. |
+
+#### \`summary.loyaltyOfferDiscount\`
+Pass \`loyaltyOfferId\` as a query param to preview the discount of a specific loyalty offer.
+- **AMOUNT** offers → deducts \`redeemAmount\` from the total (read-only preview)
+- **FOOD** offers → \`loyaltyOfferDiscount = 0\` (free items are added at checkout, not here)
+- Points are **NOT deducted** on GET — this is a preview only.
 
 #### \`applicableLoyaltyOffers\` item shape
 \`\`\`json
@@ -135,6 +150,7 @@ Cart is resolved using either \`customerId\` (logged-in user) or \`sessionId\` (
         @Query('guestId') legacyGuestId?: string,
         @Query('coupounName') coupounName?: string,
         @Query('claimedLoyalityPoints') claimedLoyalityPoints?: string,
+        @Query('loyaltyOfferId') loyaltyOfferId?: string,
         @CurrentUser() user?: any,
     ) {
         const sessionId = this.resolveSessionId(
@@ -151,6 +167,7 @@ Cart is resolved using either \`customerId\` (logged-in user) or \`sessionId\` (
                 sessionId,
                 coupounName,
                 claimedLoyalityPoints,
+                loyaltyOfferId,
             }),
         };
     }
