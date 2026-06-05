@@ -21,7 +21,7 @@ import { GenerateBillDto } from './dto/generate-bill.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { generateShortId } from './utils/id-generator';
 import { OrdersGateway } from './orders.gateway';
-import { evaluatePriceRule } from 'src/common/utlility/price-rule.helper';
+import { evaluatePriceRule } from '../common/utlility/price-rule.helper';
 import { validateSessionStatusTransition } from './utils/session-status-machine';
 import { table } from 'console';
 import { ToastService } from '../toast/toast.service';

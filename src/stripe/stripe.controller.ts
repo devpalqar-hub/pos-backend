@@ -9,11 +9,11 @@ import {
 import type { Request, Response } from 'express';
 import { WebhookService } from './webhook.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Stripe Payment')
-@Controller({
-  path: 'stripe',
-})
+@Controller()
+@Public()
 export class StripeController {
   constructor(private readonly webhookService: WebhookService) { }
 
@@ -30,7 +30,7 @@ export class StripeController {
       },
     },
   })
-  @Get('webhook')
+  @Get(['stripe/webhook', 'webhooks/stripe'])
   testWebhook() {
     return { ok: true };
   }
@@ -64,8 +64,11 @@ export class StripeController {
    * - Raw body must be enabled in main.ts
    * - No JSON parsing here
    */
-  @Post('webhook')
-  async handleStripeWebhook(@Req() req: Request, @Res() res: Response) {
+  @Post(['stripe/webhook', 'webhooks/stripe'])
+  async handleStripeWebhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Res() res: Response,
+  ) {
     const signature = req.headers['stripe-signature'] as string;
 
     if (!signature) {
@@ -75,9 +78,10 @@ export class StripeController {
     }
 
     try {
-      // ✅ USE req.body (Buffer)
+      // ✅ USE req.rawBody (Buffer) or fallback if parsed
+      const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
       const event = this.webhookService.verifyWebhookSignature(
-        req.body as Buffer,
+        rawBody,
         signature,
       );
 
@@ -90,3 +94,4 @@ export class StripeController {
     }
   }
 }
+

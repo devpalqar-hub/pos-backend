@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StripeController } from './stripe.controller';
 import { StripeService } from './stripe.service';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { mockPrismaService } from '../__mocks__/test-utils';
+import { PrismaService } from '../prisma/prisma.service';
+import { WebhookService } from './webhook.service';
+import { mockPrismaService, mockWebhookService } from '../__mocks__/test-utils';
 
 // Mock StripeService
 const mockStripeService = {
@@ -26,6 +27,10 @@ describe('StripeController', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: WebhookService,
+          useValue: mockWebhookService,
         },
       ],
     }).compile();

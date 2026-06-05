@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StripeService } from './stripe.service';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { OrdersService } from 'src/orders/orders.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { OrdersService } from '../orders/orders.service';
 import { ConfigService } from '@nestjs/config';
 import { WebhookService } from './webhook.service';
 import {
