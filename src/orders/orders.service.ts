@@ -1008,6 +1008,27 @@ export class OrdersService {
             // If the bill already exists and is PAID (e.g. created by Stripe webhook for ONLINE_OWN orders),
             // return it directly — calling POST bill/ again is idempotent for already-paid sessions.
             if (session.bill.status === 'PAID') {
+                await this.prisma.$transaction([
+                    this.prisma.orderSession.update({
+                        where: { id: sessionId },
+                        data: { status: 'PAID' },
+                    }),
+                    this.prisma.orderSessionUpdateTime.create({
+                        data: {
+                            orderSessionId: sessionId,
+                            fieldChanged: 'status',
+                            oldValue: session.status,
+                            newValue: 'PAID',
+                        },
+                    }),
+                ]);
+
+                this.gateway.emitToRestaurant(restaurantId, 'session:status:changed', {
+                    sessionId,
+                    status: 'PAID',
+                    billNumber: session.bill.billNumber,
+                });
+
                 const existingBill = await this.prisma.bill.findUnique({
                     where: { id: session.bill.id },
                     include: {
