@@ -13,6 +13,7 @@ import { Type } from 'class-transformer';
 
 export enum OrderChannel {
     DINE_IN = 'DINE_IN',
+    WALK_IN = 'WALK_IN',
     ONLINE_OWN = 'ONLINE_OWN',
     UBER_EATS = 'UBER_EATS',
     DOORDASH = 'DOORDASH',

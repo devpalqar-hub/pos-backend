@@ -110,7 +110,7 @@ export class OrdersController {
     @ApiParam({ name: 'restaurantId', description: 'Restaurant UUID' })
     @ApiQuery({ name: 'status', enum: SessionStatus, required: false })
     @ApiQuery({ name: 'tableId', required: false, description: 'Filter by table UUID' })
-    @ApiQuery({ name: 'channel', required: false, description: 'Filter by channel (DINE_IN, ONLINE_OWN, UBER_EATS)' })
+    @ApiQuery({ name: 'channel', required: false, description: 'Filter by channel (DINE_IN, WALK_IN, ONLINE_OWN, UBER_EATS)' })
     @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
     @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
     findAllSessions(

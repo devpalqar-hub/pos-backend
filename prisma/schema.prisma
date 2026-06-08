@@ -85,6 +85,7 @@ enum TableStatus {
 
 enum OrderChannel {
   DINE_IN // In-restaurant table service
+  WALK_IN // Walk-in customer
   ONLINE_OWN // Own online ordering platform
   UBER_EATS // Uber Eats integration
   DOORDASH // DoorDash Merchant API

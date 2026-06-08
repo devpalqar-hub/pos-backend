@@ -3169,7 +3169,7 @@ export class OrdersService {
     ORDER BY label
 `);
 
-        const channels = ['DINE_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH'];
+        const channels = ['DINE_IN', 'WALK_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH'];
 
         const datasets = channels.map((channel) => ({
             label: channel,
@@ -3326,7 +3326,7 @@ export class OrdersService {
         ORDER BY label
     `);
 
-        const channels = ['DINE_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH'];
+        const channels = ['DINE_IN', 'WALK_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH'];
 
         const datasets = channels.map((channel) => ({
             label: channel,

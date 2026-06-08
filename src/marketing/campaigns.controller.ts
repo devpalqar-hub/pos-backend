@@ -80,7 +80,7 @@ Each rule has a \`condition\` and a \`value\`:
 | MIN_SPEND | minimum lifetime spend (restaurant currency) |
 | MAX_SPEND | maximum lifetime spend |
 | LAST_ORDER_WITHIN_DAYS | number of days (e.g. \`30\`) |
-| ORDER_CHANNEL | \`DINE_IN\` \\| \`ONLINE_OWN\` \\| \`UBER_EATS\` |
+| ORDER_CHANNEL | \`DINE_IN\` \\| \`WALK_IN\` \\| \`ONLINE_OWN\` \\| \`UBER_EATS\` |
 | MIN_LOYALTY_POINTS | minimum total loyalty points earned |
 
 // MIN_ORDERS: user order count >= value

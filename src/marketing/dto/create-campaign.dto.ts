@@ -48,7 +48,7 @@ export class CampaignRuleDto {
   @ApiPropertyOptional({
     description:
       'Condition value — a number for MIN_ORDERS / MAX_ORDERS / MIN_SPEND / MAX_SPEND / LAST_ORDER_WITHIN_DAYS / MIN_LOYALTY_POINTS; ' +
-      'one of DINE_IN | ONLINE_OWN | UBER_EATS for ORDER_CHANNEL; omit for ALL_CUSTOMERS.',
+      'one of DINE_IN | WALK_IN | ONLINE_OWN | UBER_EATS for ORDER_CHANNEL; omit for ALL_CUSTOMERS.',
     example: '3',
   })
   @IsOptional()
