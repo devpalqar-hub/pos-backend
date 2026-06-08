@@ -29,6 +29,7 @@ export class StripeService {
             currency?: string;
             subtotal: number | string;
             discountAmount: number | string;
+            deliveryCharge?: number | null;
             customerName?: string | null;
             customerPhone?: string | null;
             customerEmail?: string | null;
@@ -68,6 +69,9 @@ export class StripeService {
         if (payment.customerEmail) body.append('metadata[customerEmail]', payment.customerEmail);
         if (payment.deliveryAddress) body.append('metadata[deliveryAddress]', payment.deliveryAddress);
         if (payment.specialInstructions) body.append('metadata[specialInstructions]', payment.specialInstructions);
+        if (payment.deliveryCharge != null && payment.deliveryCharge > 0) {
+            body.append('metadata[deliveryCharge]', String(payment.deliveryCharge));
+        }
 
         body.append('payment_intent_data[metadata][purpose]', 'restaurant_order_booking');
         body.append('payment_intent_data[metadata][restaurantId]', booking.restaurantId);
@@ -80,6 +84,9 @@ export class StripeService {
         if (payment.customerEmail) body.append('payment_intent_data[metadata][customerEmail]', payment.customerEmail);
         if (payment.deliveryAddress) body.append('payment_intent_data[metadata][deliveryAddress]', payment.deliveryAddress);
         if (payment.specialInstructions) body.append('payment_intent_data[metadata][specialInstructions]', payment.specialInstructions);
+        if (payment.deliveryCharge != null && payment.deliveryCharge > 0) {
+            body.append('payment_intent_data[metadata][deliveryCharge]', String(payment.deliveryCharge));
+        }
 
         const response = await axios.post('https://api.stripe.com/v1/checkout/sessions', body.toString(), {
             headers: {

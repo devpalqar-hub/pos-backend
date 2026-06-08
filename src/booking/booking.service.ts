@@ -255,11 +255,21 @@ export class BookingService {
         }
 
         // ================================
-        // STEP 4: FINAL TOTAL
+        // STEP 4: FINAL TOTAL (before delivery)
         // ================================
 
         const totalDiscount = discountAmount + loyaltyDiscount;
-        const finalTotal = Math.max(subtotal - totalDiscount, 0);
+        const afterDiscountTotal = Math.max(subtotal - totalDiscount, 0);
+
+        // ================================
+        // STEP 5: DELIVERY CHARGE
+        // ================================
+
+        const deliveryChargeSetting = await this.prisma.restaurantDeliveryCharge.findUnique({
+            where: { restaurantId },
+        });
+        const deliveryCharge = Number(deliveryChargeSetting?.deliveryCharge ?? 0);
+        const finalTotal = parseFloat((afterDiscountTotal + deliveryCharge).toFixed(2));
 
         if (finalTotal <= 0) {
             throw new BadRequestException('Final payable amount must be greater than 0 for online Stripe checkout');
@@ -361,6 +371,7 @@ export class BookingService {
                 currency: restaurant.currency,
                 subtotal,
                 discountAmount: totalDiscount,
+                deliveryCharge,
                 customerName: dto.customerName ?? actor?.name ?? null,
                 customerPhone: dto.customerPhone ?? null,
                 customerEmail,
@@ -375,6 +386,7 @@ export class BookingService {
         return {
             subtotal,
             discountAmount: totalDiscount,
+            deliveryCharge,
             totalAmount: finalTotal,
             loyaltyWillEarn: loyaltyWillEarn,
             paymentLink: stripeCheckoutSession.url,

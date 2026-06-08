@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BatchStatus, BillStatus, OrderChannel, OrderItemStatus, PaymentMethod, PaymentStatus, SessionStatus } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
+import { DoorDashService } from '../doordash/doordash.service';
 
 type StripeWebhookEvent = {
     id: string;
@@ -21,6 +22,8 @@ export class WebhookService {
         private readonly prisma: PrismaService,
         private readonly configService: ConfigService,
         private readonly gateway: OrdersGateway,
+        @Inject(forwardRef(() => DoorDashService))
+        private readonly doorDashService: DoorDashService,
     ) { }
 
     private async generateSessionNumber(restaurantId: string) {
@@ -199,6 +202,7 @@ export class WebhookService {
         const customerEmail = metadata.customerEmail || cart.customer?.email || null;
         const deliveryAddress = metadata.deliveryAddress || null;
         const specialInstructions = metadata.specialInstructions || null;
+        const deliveryCharge = this.parseMetadataNumber(metadata.deliveryCharge, 0);
         const paymentIntentId =
             typeof session.payment_intent === 'string'
                 ? session.payment_intent
@@ -223,6 +227,7 @@ export class WebhookService {
                     subtotal,
                     discountAmount,
                     totalAmount,
+                    deliveryFee: deliveryCharge > 0 ? deliveryCharge : null,
                 },
             });
 
@@ -328,6 +333,11 @@ export class WebhookService {
             method: 'ONLINE',
         });
         this.gateway.emitToBilling(restaurantId, 'bill:paid', { billId: created.bill.id });
+
+        // Fire-and-forget DoorDash Drive dispatch for ONLINE_OWN delivery orders
+        if (deliveryCharge > 0) {
+            void this.doorDashService.tryDispatchDriveDelivery(restaurantId, created.orderSession.id);
+        }
 
         return { received: true };
     }

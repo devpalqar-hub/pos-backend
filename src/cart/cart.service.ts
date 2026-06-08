@@ -573,6 +573,12 @@ export class CartService {
         const discount = Number(cart.discount ?? 0);
         const total = Number(cart.total ?? 0);
 
+        // ── Delivery charge (ONLINE_OWN orders) ──────────────────────────────
+        const deliveryChargeSetting = await this.prisma.restaurantDeliveryCharge.findUnique({
+            where: { restaurantId },
+        });
+        const deliveryCharge = Number(deliveryChargeSetting?.deliveryCharge ?? 0);
+
         const couponCode = query?.coupounName ?? query?.couponName;
         const shouldApplyLoyalty = this.parseBooleanQuery(query?.claimedLoyalityPoints);
         const loyaltyOfferId = query?.loyaltyOfferId;
@@ -723,7 +729,7 @@ export class CartService {
         }
 
         const payableAmount = parseFloat(
-            Math.max(0, total - couponDiscount - loyaltyDiscount - loyaltyOfferDiscount).toFixed(2),
+            Math.max(0, total - couponDiscount - loyaltyDiscount - loyaltyOfferDiscount + deliveryCharge).toFixed(2),
         );
 
         return {
@@ -732,6 +738,7 @@ export class CartService {
             taxAmount,
             discount,
             total,
+            deliveryCharge: parseFloat(deliveryCharge.toFixed(2)),
             couponDiscount: parseFloat(couponDiscount.toFixed(2)),
             loyalityDiscount: parseFloat(loyaltyDiscount.toFixed(2)),
             loyaltyOfferDiscount: parseFloat(loyaltyOfferDiscount.toFixed(2)),

@@ -1611,6 +1611,23 @@ export class OrdersService {
         });
         console.log(`Bill ${billNumber} generated and events emitted successfully`);
 
+        // For partner-managed delivery channels (DOORDASH, UBER_EATS):
+        // The physical delivery is handled by the partner. Notify kitchen + dashboard
+        // that the order is closed from the POS side — remaining delivery is with the partner.
+        if (session.channel === 'DOORDASH' || session.channel === 'UBER_EATS') {
+            const partnerEvent = {
+                sessionId,
+                channel: session.channel,
+                billNumber,
+                message: `Order closed from POS — delivery managed by ${session.channel === 'DOORDASH' ? 'DoorDash' : 'Uber Eats'}`,
+            };
+            this.gateway.emitToKitchen(restaurantId, 'order:closed:by:biller', partnerEvent);
+            this.gateway.emitToRestaurant(restaurantId, 'order:closed:by:biller', partnerEvent);
+            this.logger.log(
+                `${session.channel} order session ${session.sessionNumber} closed from POS side — delivery remains with partner`,
+            );
+        }
+
         this.logger.log(`Bill ${billNumber} generated for session ${session.sessionNumber}`);
         return {
             ...bill,

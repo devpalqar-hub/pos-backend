@@ -363,6 +363,29 @@ export class DoorDashService {
   //  Drive delivery creation (ONLINE_OWN -> DoorDash Drive)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * Fire-and-forget wrapper for Drive delivery dispatch.
+   * Called after Stripe checkout completes for ONLINE_OWN orders.
+   * Never throws — bill/session are always preserved even if dispatch fails.
+   */
+  async tryDispatchDriveDelivery(restaurantId: string, sessionId: string): Promise<void> {
+    try {
+      const settings = await this.prisma.doorDashSettings.findUnique({ where: { restaurantId } });
+      if (!settings?.isActive) {
+        this.logger.warn(
+          `DoorDash Drive: integration not configured or inactive for restaurant ${restaurantId} — skipping dispatch for session ${sessionId}`,
+        );
+        return;
+      }
+      await this.createDriveDeliveryForSession(restaurantId, sessionId);
+      this.logger.log(`DoorDash Drive: dispatched for session ${sessionId}`);
+    } catch (err: any) {
+      this.logger.error(
+        `DoorDash Drive: dispatch failed for session ${sessionId}: ${err?.message ?? String(err)}`,
+      );
+    }
+  }
+
   async createDriveDeliveryForSession(
     restaurantId: string,
     sessionId: string,
