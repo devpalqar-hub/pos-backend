@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `order_sessions` MODIFY `channel` ENUM('DINE_IN', 'WALK_IN', 'ONLINE_OWN', 'UBER_EATS', 'DOORDASH', 'TOAST') NOT NULL DEFAULT 'DINE_IN';
