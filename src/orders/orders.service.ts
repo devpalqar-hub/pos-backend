@@ -1005,6 +1005,29 @@ export class OrdersService {
             throw new BadRequestException(`Session is already "${session.status}" — cannot regenerate bill`);
         }
         if (session.bill) {
+            // If the bill already exists and is PAID (e.g. created by Stripe webhook for ONLINE_OWN orders),
+            // return it directly — calling POST bill/ again is idempotent for already-paid sessions.
+            if (session.bill.status === 'PAID') {
+                const existingBill = await this.prisma.bill.findUnique({
+                    where: { id: session.bill.id },
+                    include: {
+                        items: true,
+                        payments: true,
+                        generatedBy: { select: { id: true, name: true } },
+                        session: {
+                            select: {
+                                id: true,
+                                sessionNumber: true,
+                                channel: true,
+                                customerName: true,
+                                customerPhone: true,
+                                table: { select: { id: true, name: true } },
+                            },
+                        },
+                    },
+                });
+                return { ...existingBill, coupon: null, loyalty: null };
+            }
             throw new ConflictException(
                 `Bill ${session.bill.billNumber} already exists for this session. Use PATCH to update discount.`,
             );
