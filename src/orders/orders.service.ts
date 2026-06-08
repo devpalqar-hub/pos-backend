@@ -131,10 +131,11 @@ export class OrdersService {
             UserRole.SUPER_ADMIN,
             UserRole.OWNER,
             UserRole.RESTAURANT_ADMIN,
+            UserRole.BILLER,
         ];
         if (!manage.includes(actor.role)) {
             throw new ForbiddenException(
-                'Only RESTAURANT_ADMIN, OWNER, or SUPER_ADMIN can perform this action',
+                'Only RESTAURANT_ADMIN, OWNER, SUPER_ADMIN, or BILLER can perform this action',
             );
         }
     }
@@ -265,6 +266,7 @@ export class OrdersService {
             UserRole.OWNER,
             UserRole.RESTAURANT_ADMIN,
             UserRole.WAITER,
+            UserRole.BILLER,
         ];
 
         if (!allowedCreators.includes(actor.role)) {
@@ -490,9 +492,9 @@ export class OrdersService {
     ) {
         await this.assertRestaurantAccess(actor, restaurantId);
 
-        // Only WAITER, RESTAURANT_ADMIN, OWNER, SUPER_ADMIN can add batches
+        // Only WAITER, BILLER, RESTAURANT_ADMIN, OWNER, SUPER_ADMIN can add batches
         const allowedRoles: UserRole[] = [
-            UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.WAITER,
+            UserRole.SUPER_ADMIN, UserRole.OWNER, UserRole.RESTAURANT_ADMIN, UserRole.WAITER, UserRole.BILLER,
         ];
         if (!allowedRoles.includes(actor.role)) {
             throw new ForbiddenException('You are not allowed to add batches');
@@ -777,7 +779,8 @@ export class OrdersService {
                 actor.role !== UserRole.SUPER_ADMIN &&
                 actor.role !== UserRole.OWNER &&
                 actor.role !== UserRole.RESTAURANT_ADMIN &&
-                actor.role !== UserRole.WAITER
+                actor.role !== UserRole.WAITER &&
+                actor.role !== UserRole.BILLER
             ) {
                 throw new ForbiddenException('Only CHEF can mark items as PREPARING or PREPARED');
             }
@@ -789,7 +792,8 @@ export class OrdersService {
                 actor.role !== UserRole.SUPER_ADMIN &&
                 actor.role !== UserRole.OWNER &&
                 actor.role !== UserRole.RESTAURANT_ADMIN &&
-                actor.role !== UserRole.CHEF
+                actor.role !== UserRole.CHEF &&
+                actor.role !== UserRole.BILLER
             ) {
                 throw new ForbiddenException('Only WAITER can mark items as SERVED');
             }
@@ -1672,13 +1676,9 @@ export class OrdersService {
         });
 
         if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
-        if (session.status !== 'OPEN') {
-            throw new BadRequestException(`Session is already "${session.status}"`);
-        }
-        if (session.bill) {
-            throw new ConflictException(
-                `Bill ${session.bill.billNumber} already exists for this session. Use PATCH to update discount.`,
-            );
+        // Allow previewing for OPEN sessions and BILLED sessions (e.g. online orders)
+        if (session.status !== 'OPEN' && session.status !== 'BILLED') {
+            throw new BadRequestException(`Cannot preview bill for session with status "${session.status}"`);
         }
 
         const hasCustomerDataInRequest = Boolean(
