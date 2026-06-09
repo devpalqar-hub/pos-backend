@@ -611,7 +611,18 @@ export class OrdersService {
                     include: { menuItem: { select: { id: true, name: true, imageUrl: true } } },
                 },
                 createdBy: { select: { id: true, name: true, role: true } },
-                session: { select: { id: true, sessionNumber: true, tableId: true, restaurantId: true } },
+                session: {
+                    select: {
+                        id: true,
+                        sessionNumber: true,
+                        tableId: true,
+                        restaurantId: true,
+                        // ── Kitchen display fields ─────────────────────────────────────
+                        customerName: true,                         // Walk-in / online customer name
+                        channel: true,                              // DINE_IN | ONLINE_OWN | WALK_IN | etc.
+                        table: { select: { id: true, name: true } }, // Table name for dine-in orders
+                    },
+                },
             },
         });
 

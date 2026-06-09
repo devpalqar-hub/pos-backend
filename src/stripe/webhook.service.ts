@@ -1,10 +1,10 @@
 import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { BatchStatus, BillStatus, OrderChannel, OrderItemStatus, PaymentMethod, PaymentStatus, SessionStatus } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { DoorDashService } from '../doordash/doordash.service';
+import { StripeService } from './stripe.service';
 
 type StripeWebhookEvent = {
     id: string;
@@ -14,14 +14,37 @@ type StripeWebhookEvent = {
     };
 };
 
+// ─── Enriched batch include ───────────────────────────────────────────────────
+// Includes table name, customer name, and session number so the kitchen display
+// has all context needed without making secondary requests.
+const KITCHEN_BATCH_INCLUDE = {
+    items: {
+        include: {
+            menuItem: { select: { id: true, name: true, imageUrl: true } },
+        },
+    },
+    createdBy: { select: { id: true, name: true, role: true } },
+    session: {
+        select: {
+            id: true,
+            sessionNumber: true,
+            tableId: true,
+            restaurantId: true,
+            customerName: true,
+            channel: true,
+            table: { select: { id: true, name: true } },
+        },
+    },
+} as const;
+
 @Injectable()
 export class WebhookService {
     private readonly logger = new Logger(WebhookService.name);
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly configService: ConfigService,
         private readonly gateway: OrdersGateway,
+        private readonly stripeService: StripeService,
         @Inject(forwardRef(() => DoorDashService))
         private readonly doorDashService: DoorDashService,
     ) { }
@@ -97,30 +120,78 @@ export class WebhookService {
         return Number.isFinite(parsed) ? parsed : fallback;
     }
 
-    verifyWebhookSignature(body: Buffer, signature: string): StripeWebhookEvent {
-        const endpointSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+    // =========================================================================
+    // WEBHOOK SIGNATURE VERIFICATION
+    // =========================================================================
 
-        if (!endpointSecret) {
-            throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
-        }
-
+    /**
+     * Verify the Stripe webhook signature.
+     *
+     * Strategy — per-restaurant webhook secret with global fallback:
+     *  1. Parse the event body first to extract `restaurantId` from metadata.
+     *  2. Look up the restaurant's `webhookSecret` from `StripeSettings`.
+     *  3. If found, verify with the restaurant-specific secret.
+     *  4. If not found, fall back to the global `STRIPE_WEBHOOK_SECRET` env var.
+     *
+     * This means each restaurant can register its own Stripe webhook endpoint
+     * with a unique secret, and the system will verify accordingly.
+     */
+    async verifyWebhookSignature(body: Buffer, signature: string): Promise<StripeWebhookEvent> {
         const parsed = this.parseStripeSignature(signature);
         if (!parsed.timestamp || !parsed.signatures.length) {
             throw new BadRequestException('Invalid Stripe webhook signature header');
         }
 
-        const payloadToSign = `${parsed.timestamp}.${body.toString('utf8')}`;
-        const expectedSignature = createHmac('sha256', endpointSecret)
-            .update(payloadToSign, 'utf8')
-            .digest('hex');
+        // Parse the raw body to extract restaurantId from metadata
+        let event: StripeWebhookEvent;
+        try {
+            event = JSON.parse(body.toString('utf8')) as StripeWebhookEvent;
+        } catch {
+            throw new BadRequestException('Invalid JSON in webhook body');
+        }
 
-        const isValid = parsed.signatures.some((candidate) => this.safeCompare(candidate, expectedSignature));
+        const restaurantId: string | undefined = event.data?.object?.metadata?.restaurantId;
+
+        // Collect candidate secrets to try
+        const candidateSecrets: string[] = [];
+
+        if (restaurantId) {
+            const restaurantSecret = await this.stripeService.resolveWebhookSecret(restaurantId);
+            if (restaurantSecret) candidateSecrets.push(restaurantSecret);
+        } else {
+            // No restaurantId in metadata — try all restaurant webhook secrets
+            const allSettings = await this.prisma.stripeSettings.findMany({
+                where: { webhookSecret: { not: null } },
+                select: { webhookSecret: true },
+            });
+            candidateSecrets.push(...allSettings.map(s => s.webhookSecret!));
+
+            // Also try global fallback
+            const globalSecret = await this.stripeService.resolveWebhookSecret('');
+            if (globalSecret) candidateSecrets.push(globalSecret);
+        }
+
+        if (candidateSecrets.length === 0) {
+            throw new BadRequestException(
+                'No Stripe webhook secret configured. ' +
+                'Set STRIPE_WEBHOOK_SECRET env var or configure per-restaurant webhookSecret.',
+            );
+        }
+
+        const payloadToSign = `${parsed.timestamp}.${body.toString('utf8')}`;
+
+        const isValid = candidateSecrets.some(secret => {
+            const expected = createHmac('sha256', secret)
+                .update(payloadToSign, 'utf8')
+                .digest('hex');
+            return parsed.signatures.some(sig => this.safeCompare(sig, expected));
+        });
 
         if (!isValid) {
             throw new BadRequestException('Invalid Stripe webhook signature');
         }
 
-        return JSON.parse(body.toString('utf8')) as StripeWebhookEvent;
+        return event;
     }
 
     async processWebhookEvent(event: StripeWebhookEvent) {
@@ -136,6 +207,10 @@ export class WebhookService {
                 return { received: true };
         }
     }
+
+    // =========================================================================
+    // EVENT HANDLERS
+    // =========================================================================
 
     private async handleCheckoutSessionCompleted(session: Record<string, any>) {
         if (session?.metadata?.purpose !== 'restaurant_order_booking') {
@@ -259,14 +334,7 @@ export class WebhookService {
                         })),
                     },
                 },
-                include: {
-                    items: {
-                        include: {
-                            menuItem: { select: { id: true, name: true, imageUrl: true } },
-                        },
-                    },
-                    createdBy: { select: { id: true, name: true, role: true } },
-                },
+                include: KITCHEN_BATCH_INCLUDE,
             });
 
             const billNumber = await this.generateBillNumber(restaurantId);
@@ -324,6 +392,7 @@ export class WebhookService {
         });
 
         this.gateway.emitToRestaurant(restaurantId, 'session:opened', created.orderSession);
+        // Emit enriched batch with session info (sessionNumber, customerName, table) to kitchen
         this.gateway.emitToKitchen(restaurantId, 'batch:created', created.batch);
         this.gateway.emitToRestaurant(restaurantId, 'batch:created', created.batch);
         this.gateway.emitToBilling(restaurantId, 'bill:generated', created.bill);
@@ -362,6 +431,10 @@ export class WebhookService {
         );
         return { received: true };
     }
+
+    // =========================================================================
+    // SIGNATURE HELPERS
+    // =========================================================================
 
     private parseStripeSignature(headerValue: string): { timestamp?: string; signatures: string[] } {
         const result: { timestamp?: string; signatures: string[] } = { signatures: [] };

@@ -191,7 +191,7 @@ export class OrdersGateway
         await client.join(`kitchen:${data.restaurantId}`);
         this.logger.debug(`${user.name} joined kitchen:${data.restaurantId}`);
 
-        // ✅ STEP 1: fetch pending batches
+        // ✅ STEP 1: fetch pending batches with full kitchen context
         const pendingBatches = await this.prisma.orderBatch.findMany({
             where: {
                 session: {
@@ -213,6 +213,10 @@ export class OrdersGateway
                         sessionNumber: true,
                         tableId: true,
                         restaurantId: true,
+                        // ── Kitchen display fields ────────────────────────────────
+                        customerName: true, // Walk-in / online customer name
+                        channel: true,      // DINE_IN | ONLINE_OWN | WALK_IN | etc.
+                        table: { select: { id: true, name: true } }, // Table name for dine-in
                     },
                 },
             },

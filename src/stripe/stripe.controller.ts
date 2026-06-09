@@ -80,7 +80,7 @@ export class StripeController {
     try {
       // ✅ USE req.rawBody (Buffer) or fallback if parsed
       const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body));
-      const event = this.webhookService.verifyWebhookSignature(
+      const event = await this.webhookService.verifyWebhookSignature(
         rawBody,
         signature,
       );

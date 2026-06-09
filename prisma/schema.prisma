@@ -388,6 +388,7 @@ model Restaurant {
   ToastMenuItemMapping     ToastMenuItemMapping[]
   deliveryChargeSetting    RestaurantDeliveryCharge?
   loyaltyBillAmountSetting LoyaltyBillAmountSetting?
+  stripeSettings           StripeSettings?
 
   @@index([ownerId])
   @@map("restaurants")
@@ -1805,6 +1806,32 @@ model RestaurantDeliveryCharge {
 
   @@index([restaurantId])
   @@map("restaurant_delivery_charges")
+}
+
+// ─── Stripe Integration ──────────────────────────────────────────────────────
+
+model StripeSettings {
+  id           String @id @default(uuid())
+  restaurantId String @unique
+
+  // Stripe API keys — scoped to this restaurant's Stripe account
+  secretKey      String  @db.VarChar(500) // sk_live_... or sk_test_...
+  publishableKey String? @db.VarChar(500) // pk_live_... or pk_test_...
+
+  // Webhook endpoint secret — used to verify incoming Stripe webhook HMAC signatures.
+  // Set this to the secret shown in Stripe Dashboard → Webhooks → your endpoint.
+  webhookSecret String? @db.VarChar(500) // whsec_...
+
+  // Default currency for checkout sessions (ISO 4217 lowercase, e.g. "usd", "inr")
+  currency String @default("usd") @db.VarChar(10)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("stripe_settings")
 }
 
 model RestaurantFeatureFlag {
