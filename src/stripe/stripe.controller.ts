@@ -64,12 +64,17 @@ export class StripeController {
    * - Raw body must be enabled in main.ts
    * - No JSON parsing here
    */
-  @Post(['stripe/webhook', 'webhooks/stripe'])
+  @Post([
+    'stripe/webhook',
+    'webhooks/stripe',
+    'restaurants/:restaurantId/stripe/webhook',
+  ])
   async handleStripeWebhook(
     @Req() req: Request & { rawBody?: Buffer },
     @Res() res: Response,
   ) {
     const signature = req.headers['stripe-signature'] as string;
+    const pathRestaurantId = req.params.restaurantId;
 
     if (!signature) {
       return res
@@ -83,6 +88,7 @@ export class StripeController {
       const event = await this.webhookService.verifyWebhookSignature(
         rawBody,
         signature,
+        pathRestaurantId,
       );
 
       await this.webhookService.processWebhookEvent(event);

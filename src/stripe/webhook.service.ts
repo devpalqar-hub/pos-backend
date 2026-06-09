@@ -136,7 +136,7 @@ export class WebhookService {
      * This means each restaurant can register its own Stripe webhook endpoint
      * with a unique secret, and the system will verify accordingly.
      */
-    async verifyWebhookSignature(body: Buffer, signature: string): Promise<StripeWebhookEvent> {
+    async verifyWebhookSignature(body: Buffer, signature: string, pathRestaurantId?: string): Promise<StripeWebhookEvent> {
         const parsed = this.parseStripeSignature(signature);
         if (!parsed.timestamp || !parsed.signatures.length) {
             throw new BadRequestException('Invalid Stripe webhook signature header');
@@ -150,7 +150,8 @@ export class WebhookService {
             throw new BadRequestException('Invalid JSON in webhook body');
         }
 
-        const restaurantId: string | undefined = event.data?.object?.metadata?.restaurantId;
+        // Use the ID from the URL path first, fallback to the one in metadata
+        const restaurantId: string | undefined = pathRestaurantId || event.data?.object?.metadata?.restaurantId;
 
         // Collect candidate secrets to try
         const candidateSecrets: string[] = [];
