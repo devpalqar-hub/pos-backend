@@ -74,7 +74,9 @@ export class StripeController {
     @Res() res: Response,
   ) {
     const signature = req.headers['stripe-signature'] as string;
-    const pathRestaurantId = req.params.restaurantId;
+    // req.params values can be string | string[] — normalize to plain string | undefined
+    const rawParam = req.params.restaurantId;
+    const pathRestaurantId: string | undefined = Array.isArray(rawParam) ? rawParam[0] : rawParam;
 
     if (!signature) {
       return res
